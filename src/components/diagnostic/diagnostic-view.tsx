@@ -10,12 +10,16 @@ import { SOLUTION_LABELS } from "@/modules/leads/types";
 import type { PublicDiagnostic } from "@/modules/pipeline/public-view";
 import { FindingCard } from "./finding-card";
 import { HistoryChart } from "./history-chart";
+import { InvoiceUploadStep } from "@/components/forms/invoice-upload-step";
+import { BorderBeam } from "@/components/magicui/border-beam";
 
 const PIPELINE = ["Recebendo a fatura", "Lendo o documento", "Extraindo e validando dados", "Executando o motor de regras", "Calculando oportunidades", "Gerando seu Raio-X"];
 
 export function DiagnosticView({ token, initial, whatsappEnabled }: { token: string; initial: PublicDiagnostic; whatsappEnabled: boolean }) {
   const [data, setData] = useState(initial);
-  const processing = data.processingStatus === "pending" || data.processingStatus === "processing" || (!data.diagnostic && data.processingStatus !== "failed");
+  const awaitingInvoice = !data.diagnostic && data.processingStatus === "no_invoice" && !data.hasInvoice;
+  const processing =
+    data.processingStatus === "pending" || data.processingStatus === "processing" || (!data.diagnostic && !awaitingInvoice && data.processingStatus !== "failed");
 
   useEffect(() => {
     if (!processing) return;
@@ -40,6 +44,8 @@ export function DiagnosticView({ token, initial, whatsappEnabled }: { token: str
     };
   }, [processing, token]);
 
+  if (awaitingInvoice)
+    return <AwaitingInvoice token={token} name={data.name} protocol={data.protocol} onUploaded={() => setData({ ...data, processingStatus: "pending", hasInvoice: true })} />;
   if (processing || !data.diagnostic) return <Processing name={data.name} protocol={data.protocol} />;
 
   const d = data.diagnostic;
@@ -327,6 +333,34 @@ function Processing({ name, protocol }: { name: string; protocol: string }) {
           <p className="mt-5 flex items-center gap-1.5 text-xs text-white/45">
             <ArrowRight className="size-3" /> Você também receberá o link do diagnóstico por e-mail/WhatsApp.
           </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AwaitingInvoice({ token, name, protocol, onUploaded }: { token: string; name: string; protocol: string; onUploaded: () => void }) {
+  return (
+    <section className="relative overflow-hidden bg-ink py-12 text-white sm:py-16">
+      <div className="glow absolute inset-0" />
+      <div className="grid-bg absolute inset-0" />
+      <div className="relative mx-auto grid max-w-5xl gap-10 px-4 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-cyan">Protocolo {protocol}</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{name}, sua análise gratuita está reservada.</h1>
+          <p className="mt-4 text-white/65">Falta só a fatura. Em cerca de um minuto você recebe o Raio-X com:</p>
+          <ul className="mt-5 space-y-2.5 text-sm text-white/80">
+            {["Pontos de atenção na cobrança (demanda, reativos, tarifas)", "Oportunidades de economia com faixa estimada", "Se GD por assinatura ou Mercado Livre fazem sentido", "Próximos passos com um especialista, se você quiser"].map((t) => (
+              <li key={t} className="flex gap-2">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-cyan" /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="relative overflow-hidden rounded-3xl bg-white p-5 text-foreground shadow-2xl sm:p-7">
+          <BorderBeam size={120} duration={9} />
+          <p className="mb-4 text-lg font-semibold">Envie a conta de energia</p>
+          <InvoiceUploadStep token={token} onUploaded={onUploaded} />
         </div>
       </div>
     </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { KanbanSquare, LogOut, PlugZap, Rows3, Users } from "lucide-react";
+import { KanbanSquare, LogOut, PlugZap, Rows3, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/site/logo";
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin", label: "Pipeline", icon: KanbanSquare, exact: true },
   { href: "/admin/leads", label: "Leads", icon: Rows3 },
   { href: "/admin/parceiros", label: "Parceiros", icon: Users },
+  { href: "/admin/lgpd", label: "LGPD", icon: ShieldCheck },
   { href: "/admin/integracoes", label: "Integrações", icon: PlugZap },
 ];
 

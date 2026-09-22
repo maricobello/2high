@@ -49,6 +49,30 @@ export const FOLLOW_UP_STEPS = [
   { step: 4, delayHours: 168, goal: "Última mensagem cordial, deixando o canal aberto e informando como parar de receber mensagens." },
 ] as const;
 
+/** Lembretes para quem deixou o contato mas ainda não enviou a fatura. */
+export const INVOICE_REMINDER_STEPS = [
+  { step: 1, delayHours: 1 },
+  { step: 2, delayHours: 24 },
+  { step: 3, delayHours: 96 },
+] as const;
+
+export function templateInvoiceReminder(step: number, ctx: { name: string; uploadUrl: string; protocol: string }): string {
+  const first = ctx.name.split(" ")[0];
+  switch (step) {
+    case 1:
+      return `Olá, ${first}! Sua análise gratuita de energia (protocolo ${ctx.protocol}) está reservada. Falta só enviar a fatura — PDF ou foto — por aqui: ${ctx.uploadUrl}`;
+    case 2:
+      return `${first}, leva menos de 1 minuto: envie a conta de energia e receba o Raio-X com pontos de atenção e oportunidades para a sua empresa. ${ctx.uploadUrl}`;
+    default:
+      return `Oi, ${first}. Último lembrete sobre sua análise gratuita (${ctx.protocol}). Se preferir, responda esta mensagem com a foto da fatura. Para não receber mais mensagens, responda SAIR. ${ctx.uploadUrl}`;
+  }
+}
+
+export function welcomeMessage(ctx: { name: string; uploadUrl: string; protocol: string; guideUrl: string }): string {
+  const first = ctx.name.split(" ")[0];
+  return `Olá, ${first}! Recebemos seu pedido de análise gratuita (protocolo ${ctx.protocol}). Envie a fatura de energia aqui: ${ctx.uploadUrl}. Enquanto isso, veja o guia com os 7 pontos que mais pesam na conta: ${ctx.guideUrl}`;
+}
+
 export function templateFollowUp(step: number, ctx: FollowUpContext): string {
   const first = ctx.name.split(" ")[0];
   const sol = ctx.solutions[0] ? SOLUTION_LABELS[ctx.solutions[0]] : null;

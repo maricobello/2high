@@ -11,6 +11,21 @@ O nome da marca é configurável em `NEXT_PUBLIC_BRAND_NAME` (padrão: “Aferi�
 
 ---
 
+## Conversão (landing)
+
+- **Isca em 2 etapas**: (1) nome, e-mail e WhatsApp + consentimento LGPD → lead criado na hora (`/api/leads/start`); (2) envio da fatura + dados opcionais → Raio-X automático. Quem para na etapa 1 recebe e-mail/WhatsApp de boas-vindas com o link de envio e o **guia bônus** (`/guia-conta-de-energia`), além de 3 lembretes automáticos (1h, 24h, 96h) que param quando a fatura chega.
+- **Atendimento com IA** (`/api/chat` + widget em todas as páginas): responde dúvidas com base no FAQ/fatos do serviço e, na página do diagnóstico, no Raio-X do próprio lead; passa pelas guardas; encaminha para humano no WhatsApp quando necessário e registra a conversa no CRM. Sem IA configurada, responde por FAQ. Opcionalmente responde também no WhatsApp (`AI_WHATSAPP_AUTOREPLY=true`).
+- **Componentes no padrão Magic UI / 21st.dev** em `src/components/magicui/` (ShimmerButton, BorderBeam, NumberTicker, Marquee, AnimatedShinyText, DotPattern, BlurFade, BentoGrid), implementados localmente com `motion` — sem dependência de registro externo.
+- CTA repetido em toda a página, barra fixa de CTA no mobile, prova social só com casos reais (`src/content/social-proof.ts`).
+
+## LGPD
+
+- Consentimento obrigatório e separado do opt-in de marketing; evidência registrada (versão da política, data, hash do IP, navegador).
+- Canal do titular em `/privacidade/solicitacao` (acesso, correção, exclusão, revogação, portabilidade) com protocolo, e-mail de confirmação e alerta ao encarregado; revogação/exclusão param mensagens na hora.
+- Painel `/admin/lgpd` com as solicitações e botão de **exclusão definitiva** no lead (registros + arquivos de fatura).
+- Aviso de cookies (apenas essenciais), política com IA, operadores, transferência internacional e retenção.
+- Rode também `supabase/migrations/0002_quick_lead_ai_lgpd.sql`.
+
 ## Princípio central
 
 | Camada | Responsável | Pode decidir valores? |
@@ -81,7 +96,7 @@ Qualidade: `npm test` (Vitest), `npm run lint`, `npm run typecheck`, `npm run bu
 
 ## Deploy (Vercel + Supabase)
 
-1. Crie um projeto Supabase e rode `supabase/migrations/0001_init.sql` (cria tabelas, RLS e o bucket privado `invoices`).
+1. Crie um projeto Supabase e rode, em ordem, `supabase/migrations/0001_init.sql` e `0002_quick_lead_ai_lgpd.sql` (tabelas, RLS e bucket privado `invoices`).
 2. Na Vercel, importe o repositório e configure as variáveis do `.env.example` (no mínimo `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_*`, `AUTH_SECRET`, `GROQ_API_KEY`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_COMMERCIAL_WHATSAPP`).
 3. `vercel.json` agenda `/api/cron/follow-ups` diariamente (limite do plano Hobby). No plano Pro, aumente a frequência (ex.: `0 * * * *`) ou use um agendador externo com `Authorization: Bearer $CRON_SECRET`.
 4. WhatsApp: `WHATSAPP_PROVIDER=meta` (Cloud API; fora da janela de 24h exige template aprovado em `META_WHATSAPP_TEMPLATE`) ou `webhook` (Z-API, Evolution API, n8n). Webhook de entrada: `/api/webhooks/whatsapp`.
@@ -100,7 +115,10 @@ Limite de upload: ~4 MB (limite de corpo das funções da Vercel). Fotos são co
 
 | Método | Rota | Uso |
 |---|---|---|
-| POST | `/api/leads` | formulário do hero (multipart com a fatura) |
+| POST | `/api/leads/start` | isca etapa 1 (nome, e-mail, WhatsApp, consentimento) |
+| POST | `/api/leads` | cadastro completo + fatura em uma chamada (integrações) |
+| POST | `/api/chat` | atendimento com IA |
+| POST | `/api/privacy-requests` | solicitações do titular (LGPD) |
 | GET | `/api/diagnostics/:token` | status + Raio-X público |
 | POST | `/api/leads/:token/invoice` | envio tardio da fatura |
 | POST | `/api/leads/:token/intent` | CTAs “quero proposta / análise comercial” |

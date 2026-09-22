@@ -118,6 +118,8 @@ export interface FollowUpRecord {
   id: string;
   leadId: string;
   step: number;
+  /** diagnostic = sequência pós-diagnóstico; invoice_reminder = lembrete para enviar a fatura */
+  kind: "diagnostic" | "invoice_reminder";
   channel: "whatsapp" | "email";
   dueAt: string;
   status: "pending" | "sent" | "skipped" | "failed" | "cancelled";
@@ -146,6 +148,23 @@ export interface PartnerRecord {
   createdAt: string;
 }
 
+export type PrivacyRequestType = "acesso" | "correcao" | "exclusao" | "revogacao" | "portabilidade" | "informacao";
+
+export interface PrivacyRequestRecord {
+  id: string;
+  protocol: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  type: PrivacyRequestType;
+  message: string | null;
+  status: "aberta" | "em_andamento" | "concluida" | "recusada";
+  leadId: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 export interface LeadListFilter {
   stage?: Stage;
   temperature?: Temperature;
@@ -161,11 +180,15 @@ export interface Repository {
   getLead(id: string): Promise<LeadRecord | null>;
   getLeadByToken(token: string): Promise<LeadRecord | null>;
   findLeadByPhone(phoneDigits: string): Promise<LeadRecord | null>;
+  findLeadByEmail(email: string): Promise<LeadRecord | null>;
+  /** Exclusão definitiva (LGPD). Remove dados relacionados em cascata. */
+  deleteLead(id: string): Promise<void>;
   listLeads(filter?: LeadListFilter): Promise<LeadRecord[]>;
 
   createInvoice(inv: Omit<InvoiceRecord, "id" | "createdAt" | "updatedAt">): Promise<InvoiceRecord>;
   updateInvoice(id: string, patch: Partial<InvoiceRecord>): Promise<InvoiceRecord>;
   getLatestInvoice(leadId: string): Promise<InvoiceRecord | null>;
+  listInvoices(leadId: string): Promise<InvoiceRecord[]>;
 
   saveDiagnostic(d: Omit<DiagnosticRecord, "id" | "createdAt">): Promise<DiagnosticRecord>;
   getLatestDiagnostic(leadId: string): Promise<DiagnosticRecord | null>;
@@ -183,6 +206,10 @@ export interface Repository {
 
   createSimulation(s: Omit<SimulationRecord, "id" | "createdAt">): Promise<SimulationRecord>;
   getLatestSimulation(leadId: string): Promise<SimulationRecord | null>;
+
+  createPrivacyRequest(r: Omit<PrivacyRequestRecord, "id" | "createdAt" | "resolvedAt">): Promise<PrivacyRequestRecord>;
+  listPrivacyRequests(): Promise<PrivacyRequestRecord[]>;
+  updatePrivacyRequest(id: string, patch: Partial<PrivacyRequestRecord>): Promise<PrivacyRequestRecord>;
 
   listPartners(): Promise<PartnerRecord[]>;
   createPartner(p: Omit<PartnerRecord, "id" | "createdAt">): Promise<PartnerRecord>;

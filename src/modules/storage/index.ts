@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
@@ -13,6 +13,7 @@ export interface FileStorage {
   save(key: string, data: Buffer, contentType: string): Promise<void>;
   read(key: string): Promise<Buffer>;
   signedUrl(key: string, expiresInSeconds?: number): Promise<string | null>;
+  remove(key: string): Promise<void>;
 }
 
 class SupabaseStorage implements FileStorage {
@@ -25,6 +26,10 @@ class SupabaseStorage implements FileStorage {
     const { data, error } = await this.client.storage.from(env.storageBucket).download(key);
     if (error || !data) throw new Error(`[storage] download: ${error?.message}`);
     return Buffer.from(await data.arrayBuffer());
+  }
+  async remove(key: string) {
+    const { error } = await this.client.storage.from(env.storageBucket).remove([key]);
+    if (error) throw new Error(`[storage] remove: ${error.message}`);
   }
   async signedUrl(key: string, expiresInSeconds = 300) {
     const { data } = await this.client.storage.from(env.storageBucket).createSignedUrl(key, expiresInSeconds);
@@ -46,6 +51,9 @@ class LocalStorage implements FileStorage {
   }
   async read(key: string) {
     return readFile(this.resolve(key));
+  }
+  async remove(key: string) {
+    await rm(this.resolve(key), { force: true });
   }
   async signedUrl(key: string) {
     return `/api/admin/files?key=${encodeURIComponent(key)}`;

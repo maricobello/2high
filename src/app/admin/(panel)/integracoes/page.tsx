@@ -14,6 +14,8 @@ export default function IntegrationsPage() {
     { name: "OCR externo (PDF digitalizado)", ok: Boolean(env.ocrSpaceApiKey), detail: env.ocrSpaceApiKey ? "OCR.space" : "PDFs com texto são lidos nativamente; imagens via IA de visão" },
     { name: "E-mail", ok: Boolean(env.resendApiKey), detail: env.resendApiKey ? `Resend · ${env.emailFrom}` : "RESEND_API_KEY não configurada" },
     { name: "WhatsApp (envio)", ok: whatsappConfigured(), detail: whatsappConfigured() ? env.whatsappProvider : "WHATSAPP_PROVIDER não configurado" },
+    { name: "Atendimento com IA (chat do site)", ok: true, detail: getLLM().available ? "IA ativa com guardas" : "Modo FAQ (sem IA) — configure GROQ_API_KEY" },
+    { name: "IA respondendo no WhatsApp", ok: process.env.AI_WHATSAPP_AUTOREPLY === "true" && whatsappConfigured(), detail: "AI_WHATSAPP_AUTOREPLY=true + provedor de WhatsApp" },
     { name: "WhatsApp (recebimento)", ok: Boolean(env.metaWhatsappVerifyToken || env.whatsappWebhookToken), detail: `${env.appUrl}/api/webhooks/whatsapp` },
     { name: "Webhook CRM externo", ok: Boolean(env.crmWebhookUrl), detail: env.crmWebhookUrl ? new URL(env.crmWebhookUrl).host : "CRM_WEBHOOK_URL não configurada" },
     { name: "Alerta do time (webhook)", ok: Boolean(env.adminWebhookUrl), detail: env.adminWebhookUrl ? new URL(env.adminWebhookUrl).host : "ADMIN_WEBHOOK_URL (Slack, n8n…)" },

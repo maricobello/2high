@@ -11,6 +11,7 @@ import type {
   LeadRecord,
   NotificationRecord,
   PartnerRecord,
+  PrivacyRequestRecord,
   Repository,
   SimulationRecord,
 } from "./types";
@@ -28,6 +29,7 @@ interface Store {
   followUps: FollowUpRecord[];
   simulations: SimulationRecord[];
   partners: PartnerRecord[];
+  privacyRequests: PrivacyRequestRecord[];
 }
 
 const empty = (): Store => ({
@@ -39,6 +41,7 @@ const empty = (): Store => ({
   followUps: [],
   simulations: [],
   partners: [],
+  privacyRequests: [],
 });
 
 export class LocalRepository implements Repository {
@@ -113,6 +116,23 @@ export class LocalRepository implements Repository {
     const found = [...s.leads].reverse().find((l) => l.phone.replace(/\D/g, "").endsWith(tail));
     return structuredClone(found ?? null);
   }
+  async findLeadByEmail(email: string) {
+    const s = await this.load();
+    const e = email.trim().toLowerCase();
+    return structuredClone([...s.leads].reverse().find((l) => l.email.toLowerCase() === e) ?? null);
+  }
+  async deleteLead(id: string) {
+    await this.mutate((s) => {
+      s.leads = s.leads.filter((l) => l.id !== id);
+      s.invoices = s.invoices.filter((x) => x.leadId !== id);
+      s.diagnostics = s.diagnostics.filter((x) => x.leadId !== id);
+      s.activities = s.activities.filter((x) => x.leadId !== id);
+      s.notifications = s.notifications.filter((x) => x.leadId !== id);
+      s.followUps = s.followUps.filter((x) => x.leadId !== id);
+      s.simulations = s.simulations.map((x) => (x.leadId === id ? { ...x, leadId: null } : x));
+      s.privacyRequests = s.privacyRequests.map((x) => (x.leadId === id ? { ...x, leadId: null } : x));
+    });
+  }
   async listLeads(filter: LeadListFilter = {}) {
     const s = await this.load();
     const q = filter.q?.toLowerCase().trim();
@@ -144,6 +164,11 @@ export class LocalRepository implements Repository {
     const s = await this.load();
     const list = s.invoices.filter((x) => x.leadId === leadId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return structuredClone(list[0] ?? null);
+  }
+
+  async listInvoices(leadId: string) {
+    const s = await this.load();
+    return structuredClone(s.invoices.filter((x) => x.leadId === leadId));
   }
 
   async saveDiagnostic(d: Omit<DiagnosticRecord, "id" | "createdAt">) {
@@ -221,6 +246,26 @@ export class LocalRepository implements Repository {
     const s = await this.load();
     const list = s.simulations.filter((x) => x.leadId === leadId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return structuredClone(list[0] ?? null);
+  }
+
+  async createPrivacyRequest(r: Omit<PrivacyRequestRecord, "id" | "createdAt" | "resolvedAt">) {
+    return this.mutate((s) => {
+      const rec: PrivacyRequestRecord = { ...r, id: randomUUID(), createdAt: this.now(), resolvedAt: null };
+      s.privacyRequests.push(rec);
+      return structuredClone(rec);
+    });
+  }
+  async listPrivacyRequests() {
+    const s = await this.load();
+    return structuredClone([...s.privacyRequests].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  async updatePrivacyRequest(id: string, patch: Partial<PrivacyRequestRecord>) {
+    return this.mutate((s) => {
+      const i = s.privacyRequests.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error("Solicitação não encontrada");
+      s.privacyRequests[i] = { ...s.privacyRequests[i], ...patch, id };
+      return structuredClone(s.privacyRequests[i]);
+    });
   }
 
   async listPartners() {

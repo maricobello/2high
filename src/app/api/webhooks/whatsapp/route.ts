@@ -6,6 +6,8 @@ import { addIntentSignal, changeStage } from "@/modules/crm/service";
 import { classifyIntent } from "@/modules/llm/tasks/messaging";
 import { notifyAdmins } from "@/modules/notifications/automation";
 import { isHumanHandled } from "@/modules/leads/types";
+import { answer, type AssistantTurn } from "@/modules/assistant/engine";
+import { sendWhatsApp } from "@/modules/notifications/channels";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -78,6 +80,28 @@ export async function POST(req: Request) {
       if (updated && !isHumanHandled(updated.stage)) await changeStage(lead.id, "qualificado", "automação", `resposta: ${intent}`);
       const fresh = await db().getLead(lead.id);
       if (fresh) await notifyAdmins(fresh, `Lead respondeu no WhatsApp (${intent}): "${msg.text.slice(0, 280)}"`);
+    }
+
+    // Atendimento com IA no WhatsApp (dentro da janela de 24h aberta pela mensagem do cliente)
+    const current = await db().getLead(lead.id);
+    if (process.env.AI_WHATSAPP_AUTOREPLY === "true" && intent !== "opt_out" && current && !isHumanHandled(current.stage)) {
+      const acts = (await db().listActivities(lead.id))
+        .filter((a) => a.channel === "whatsapp" && (a.type === "inbound_message" || (a.type === "notification" && a.author === "IA")))
+        .slice(0, 8)
+        .reverse();
+      const history: AssistantTurn[] = acts.map((a) => ({ role: a.type === "inbound_message" ? "user" : "assistant", content: a.content.replace(/^IA: /, "") }));
+      const [diag, inv] = await Promise.all([db().getLatestDiagnostic(lead.id), db().getLatestInvoice(lead.id)]);
+      const r = await answer(history.length ? history : [{ role: "user", content: msg.text }], {
+        channel: "whatsapp",
+        firstName: lead.name.split(" ")[0],
+        company: lead.company,
+        hasInvoice: Boolean(inv),
+        diagnostic: diag ? { summary: diag.summary, audit: diag.audit } : null,
+      });
+      const text = r.handoff ? `${r.reply}\n\nJá avisei nosso especialista, que vai continuar por aqui.` : r.reply;
+      await sendWhatsApp({ leadId: lead.id, phone: lead.phone, message: text, template: "ai_reply" });
+      await db().addActivity({ leadId: lead.id, type: "notification", channel: "whatsapp", content: `IA: ${text}`, meta: { source: r.source }, author: "IA" });
+      if (r.handoff) await notifyAdmins(current, `Lead pediu atendimento humano no WhatsApp: "${msg.text.slice(0, 200)}"`);
     }
   }
   return Response.json({ ok: true, received: messages.length });

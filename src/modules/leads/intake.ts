@@ -4,7 +4,7 @@ import { db, type LeadRecord } from "@/modules/db";
 import { changeStage, createLead } from "@/modules/crm/service";
 import { ACCEPTED_MIME, sniffMime } from "@/modules/ocr";
 import { storage } from "@/modules/storage";
-import type { HeroLeadInput } from "./schema";
+import { CONSENT_VERSION, type HeroLeadInput, type QuickLeadInput } from "./schema";
 import type { BillRange, IntentSignal, LeadSource } from "./types";
 
 export const MAX_UPLOAD_BYTES = 4_400_000; // limite de corpo das funções da Vercel (~4,5 MB)
@@ -155,4 +155,58 @@ export function billRangeFromAmount(amount: number | null | undefined): BillRang
   if (amount <= 10000) return "4k_10k";
   if (amount <= 50000) return "10k_50k";
   return "50k_mais";
+}
+
+/** Etapa 1: cria o lead apenas com contato + registro do consentimento (LGPD). */
+export async function intakeQuickLead(input: QuickLeadInput, ctx: { ipHash: string | null; userAgent: string | null }): Promise<LeadRecord> {
+  const lead = await createLead({
+    name: input.name,
+    company: input.company || null,
+    cnpj: null,
+    phone: input.phone,
+    email: input.email,
+    state: null,
+    city: null,
+    billRange: null,
+    solarStatus: null,
+    freeMarketStatus: null,
+    source: "hero_form",
+    stage: "novo_lead",
+    score: null,
+    temperature: null,
+    scoreBreakdown: null,
+    processingStatus: "no_invoice",
+    processingError: null,
+    recommendedSolutions: [],
+    opportunities: [],
+    potentialValue: null,
+    potentialCommission: null,
+    partnerId: null,
+    owner: null,
+    notes: null,
+    intentSignals: [],
+    followUpOptOut: false,
+    consentAt: new Date().toISOString(),
+    marketingConsent: input.marketingConsent ?? false,
+    utm: input.utm ?? null,
+  });
+  await recordConsent(lead.id, { marketing: input.marketingConsent ?? false, ...ctx });
+  return lead;
+}
+
+/** Evidência do consentimento: versão do texto, data, IP (hash) e navegador. */
+export async function recordConsent(leadId: string, ctx: { marketing: boolean; ipHash: string | null; userAgent: string | null }) {
+  await db().addActivity({
+    leadId,
+    type: "system",
+    channel: "lgpd",
+    content: `Consentimento registrado (política v${CONSENT_VERSION}; marketing: ${ctx.marketing ? "sim" : "não"}).`,
+    meta: { consentVersion: CONSENT_VERSION, marketing: ctx.marketing, ipHash: ctx.ipHash, userAgent: ctx.userAgent?.slice(0, 200) ?? null },
+    author: "lead",
+  });
+}
+
+export function hashIp(ip: string): string | null {
+  if (!ip || ip === "unknown") return null;
+  return createHash("sha256").update(`${ip}:${process.env.AUTH_SECRET ?? ""}`).digest("hex").slice(0, 24);
 }

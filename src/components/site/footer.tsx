@@ -28,6 +28,8 @@ export function SiteFooter() {
           <p className="font-semibold text-white">Transparência</p>
           <Link className="block hover:text-white" href="/privacidade">Política de privacidade (LGPD)</Link>
           <Link className="block hover:text-white" href="/termos">Termos de uso</Link>
+          <Link className="block hover:text-white" href="/privacidade/solicitacao">Seus direitos (LGPD)</Link>
+          <Link className="block hover:text-white" href="/guia-conta-de-energia">Guia: 7 pontos da conta de energia</Link>
           <a className="block hover:text-white" href={`mailto:${brand.dpoEmail}`}>Encarregado de dados: {brand.dpoEmail}</a>
         </div>
       </div>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TemperatureBadge } from "@/components/admin/kanban";
 import { ActivityForm, LeadActions, ReprocessButton } from "@/components/admin/lead-actions";
+import { EraseLeadButton } from "@/components/admin/privacy-actions";
 import { FindingCard } from "@/components/diagnostic/finding-card";
 import { formatBRL, formatDateTime } from "@/lib/utils";
 import { db } from "@/modules/db";
@@ -71,6 +72,7 @@ export default async function LeadDetail(props: PageProps<"/admin/leads/[id]">) 
             <ExternalLink className="size-4" /> Ver Raio-X
           </a>
           <ReprocessButton id={lead.id} />
+          <EraseLeadButton id={lead.id} protocol={lead.protocol} />
         </div>
       </div>
 

@@ -97,3 +97,29 @@ export const simulatorLeadSchema = contactSchema.extend({
   kind: z.enum(["gd", "free_market"]),
   simulation: z.record(z.string(), z.unknown()),
 });
+
+/** Etapa 1 da isca: apenas contato + consentimento (máxima conversão). */
+export const CONSENT_VERSION = "2026-09";
+
+export const quickLeadSchema = z.object({
+  name: z.string().trim().min(2, "Informe seu nome").max(120),
+  email: z.string().trim().toLowerCase().pipe(z.email("E-mail inválido")),
+  phone,
+  company: z.string().trim().max(160).optional().default(""),
+  consent: z.literal(true, { message: "É necessário aceitar a política de privacidade" }),
+  marketingConsent: z.boolean().optional().default(false),
+  website: z.string().max(0).optional().default(""),
+  utm: z.record(z.string(), z.string().max(200)).optional(),
+});
+export type QuickLeadInput = z.infer<typeof quickLeadSchema>;
+
+/** Etapa 2 (junto com a fatura): dados opcionais que melhoram o diagnóstico. */
+export const invoiceDetailsSchema = z.object({
+  billRange: enumOf(BILL_RANGES).optional(),
+  company: z.string().trim().max(160).optional(),
+  cnpj,
+  state: z.enum(UFS).optional(),
+  city: z.string().trim().max(120).optional(),
+  solarStatus: enumOf(SOLAR_STATUS).optional(),
+  freeMarketStatus: enumOf(FREE_MARKET_STATUS).optional(),
+});

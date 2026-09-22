@@ -9,6 +9,7 @@ import type {
   LeadRecord,
   NotificationRecord,
   PartnerRecord,
+  PrivacyRequestRecord,
   Repository,
   SimulationRecord,
 } from "./types";
@@ -83,6 +84,15 @@ export class SupabaseRepository implements Repository {
     );
     return list.find((l) => l.phone.replace(/\D/g, "").endsWith(digits.slice(-10))) ?? list[0] ?? null;
   }
+  findLeadByEmail(email: string) {
+    return this.maybeOne<LeadRecord>(
+      this.db.from("leads").select("*").eq("email", email.trim().toLowerCase()).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    );
+  }
+  async deleteLead(id: string) {
+    const { error } = await this.db.from("leads").delete().eq("id", id);
+    if (error) throw new Error(`[db] leads.delete: ${error.message}`);
+  }
   listLeads(filter: LeadListFilter = {}) {
     let q = this.db.from("leads").select("*").order("created_at", { ascending: false }).limit(filter.limit ?? 500);
     if (filter.stage) q = q.eq("stage", filter.stage);
@@ -104,6 +114,10 @@ export class SupabaseRepository implements Repository {
     return this.maybeOne<InvoiceRecord>(
       this.db.from("invoices").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     );
+  }
+
+  listInvoices(leadId: string) {
+    return this.many<InvoiceRecord>(this.db.from("invoices").select("*").eq("lead_id", leadId));
   }
 
   saveDiagnostic(d: Omit<DiagnosticRecord, "id" | "createdAt">) {
@@ -155,6 +169,16 @@ export class SupabaseRepository implements Repository {
     return this.maybeOne<SimulationRecord>(
       this.db.from("simulations").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     );
+  }
+
+  createPrivacyRequest(r: Omit<PrivacyRequestRecord, "id" | "createdAt" | "resolvedAt">) {
+    return this.insert<PrivacyRequestRecord>("privacy_requests", r as unknown as Record<string, unknown>);
+  }
+  listPrivacyRequests() {
+    return this.many<PrivacyRequestRecord>(this.db.from("privacy_requests").select("*").order("created_at", { ascending: false }).limit(500));
+  }
+  updatePrivacyRequest(id: string, patch: Partial<PrivacyRequestRecord>) {
+    return this.update<PrivacyRequestRecord>("privacy_requests", id, patch as Record<string, unknown>);
   }
 
   listPartners() {

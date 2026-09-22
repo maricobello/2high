@@ -5,6 +5,8 @@ import { db } from "@/modules/db";
 import { addIntentSignal } from "@/modules/crm/service";
 import { attachInvoice, IntakeError, validateUpload } from "@/modules/leads/intake";
 import { processLead } from "@/modules/pipeline/process-lead";
+import { invoiceDetailsSchema } from "@/modules/leads/schema";
+import { cancelInvoiceReminders } from "@/modules/notifications/automation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,6 +27,24 @@ export async function POST(req: Request, ctx: RouteContext<"/api/leads/[token]/i
     if (!f || typeof f === "string" || f.size === 0) throw new IntakeError("Envie a fatura em PDF ou imagem.");
     const file = { name: f.name, type: f.type, bytes: Buffer.from(await f.arrayBuffer()) };
     const mime = validateUpload(file);
+    const str = (k: string) => {
+      const v = form.get(k);
+      return typeof v === "string" && v.trim() ? v.trim() : undefined;
+    };
+    const details = invoiceDetailsSchema.parse({
+      billRange: str("billRange"),
+      company: str("company"),
+      cnpj: str("cnpj"),
+      state: str("state"),
+      city: str("city"),
+      solarStatus: str("solarStatus"),
+      freeMarketStatus: str("freeMarketStatus"),
+    });
+    const patch = Object.fromEntries(
+      Object.entries({ ...details, cnpj: details.cnpj || undefined }).filter(([, v]) => v !== undefined && v !== ""),
+    );
+    if (Object.keys(patch).length) await db().updateLead(lead.id, patch);
+    await cancelInvoiceReminders(lead.id);
     await attachInvoice(lead, file, mime);
     await db().updateLead(lead.id, { processingStatus: "pending" });
     await addIntentSignal(lead.id, "uploaded_invoice");
