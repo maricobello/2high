@@ -34,9 +34,9 @@ export const env = {
   groqApiKey: e.GROQ_API_KEY || "",
   llmBaseUrl: e.LLM_BASE_URL || "https://api.groq.com/openai/v1",
   llmApiKey: e.LLM_API_KEY || e.GROQ_API_KEY || "",
-  llmModelText: e.LLM_MODEL_TEXT || "llama-3.3-70b-versatile",
-  llmModelFast: e.LLM_MODEL_FAST || "llama-3.1-8b-instant",
-  llmModelVision: e.LLM_MODEL_VISION || "meta-llama/llama-4-scout-17b-16e-instruct",
+  llmModelText: e.LLM_MODEL_TEXT || "openai/gpt-oss-120b",
+  llmModelFast: e.LLM_MODEL_FAST || "openai/gpt-oss-20b",
+  llmModelVision: e.LLM_MODEL_VISION || "qwen/qwen3.8-27b",
   llmTimeoutMs: Number(e.LLM_TIMEOUT_MS || 25000),
 
   // OCR externo opcional (PDF digitalizado / imagens)
