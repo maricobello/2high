@@ -49,6 +49,7 @@ class OpenAICompatibleProvider implements LLMProvider {
       max_tokens: opts.maxTokens ?? 1500,
     };
     if (opts.json) body.response_format = { type: "json_object" };
+    Object.assign(body, reasoningParams(body.model as string));
 
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -122,6 +123,16 @@ export function parseJsonResponse<T = unknown>(raw: string): T | null {
       return null;
     }
   }
+}
+
+/**
+ * Modelos com raciocínio (gpt-oss, qwen3) gastam tokens pensando antes de
+ * responder; sem limitar isso, o JSON pode vir vazio ou truncado.
+ */
+function reasoningParams(model: string): Record<string, string> {
+  if (/gpt-oss/i.test(model)) return { reasoning_effort: "low" };
+  if (/qwen3|deepseek-r1/i.test(model)) return { reasoning_format: "hidden" };
+  return {};
 }
 
 function sleep(ms: number) {
