@@ -1,7 +1,7 @@
 export const FAQ = [
   {
     q: "É realmente gratuito?",
-    a: "Sim. A análise preliminar da fatura é gratuita e sem compromisso. Se houver uma oportunidade e você quiser avançar, a validação técnica e as propostas comerciais são apresentadas antes de qualquer decisão.",
+    a: "Sim. A auditoria da fatura é gratuita e sem compromisso — é o primeiro passo para conhecermos sua conta. Se encontrarmos algo e você quiser avançar, apresentamos as condições antes de qualquer decisão.",
   },
   {
     q: "Posso recuperar valores cobrados a mais?",

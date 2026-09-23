@@ -152,7 +152,7 @@ export function LeadMagnetForm() {
 
   const titles: Record<Step, string> = {
     0: "Quanto sua empresa paga de energia por mês?",
-    1: "Para onde enviamos o seu Raio-X?",
+    1: "Para onde enviamos sua auditoria?",
     2: `Perfeito${firstName ? `, ${firstName}` : ""}! Agora envie a fatura`,
   };
 
@@ -176,7 +176,7 @@ export function LeadMagnetForm() {
         <span className="ml-1 text-xs font-bold tabular text-muted">{step + 1}/3</span>
       </div>
 
-      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">Análise gratuita da fatura</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">Auditoria gratuita da fatura</p>
       <h2 className="mt-1 text-xl font-semibold leading-snug tracking-tight">{titles[step]}</h2>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -207,31 +207,21 @@ export function LeadMagnetForm() {
 
             <div className="mt-5 rounded-2xl bg-ink p-4 text-white">
               <p className="flex items-center gap-1.5 text-xs font-medium text-white/75">
-                <Zap className="size-3.5 text-volt" /> Potencial estimado com energia por assinatura
+                <Zap className="size-3.5 text-volt" /> Pago em energia nos últimos 5 anos (60 faturas)
               </p>
-              {gd.savingsMin !== null && gd.savingsMax !== null ? (
-                <p className="mt-1 text-[28px] font-bold leading-tight tracking-tight text-volt">
-                  <NumberTicker value={gd.savingsMin} prefix="R$ " /> – <NumberTicker value={gd.savingsMax} prefix="R$ " />
-                  <span className="text-base font-semibold text-white/75">/mês</span>
+              <p className="mt-1 text-[28px] font-bold leading-tight tracking-tight text-volt">
+                <NumberTicker value={amount * 60} prefix="R$ " />
+              </p>
+              <p className="mt-1 text-[12.5px] leading-snug text-white/80">Auditamos esse valor de graça em busca de cobranças indevidas.</p>
+              {gd.savingsMin !== null && gd.savingsMax !== null && (
+                <p className="mt-3 text-[12px] text-white/70">
+                  E daqui para frente: economia estimada de{" "}
+                  <strong className="text-white">
+                    {formatBRL(gd.savingsMin, { cents: false })} – {formatBRL(gd.savingsMax, { cents: false })}/mês
+                  </strong>{" "}
+                  com energia por assinatura.
                 </p>
-              ) : (
-                <p className="mt-1 text-sm">Informe o valor para estimar.</p>
               )}
-              {/* Barras comparativas: conta atual x faixa estimada */}
-              <div className="mt-3 space-y-1.5" aria-hidden>
-                <div className="h-2 w-full rounded-full bg-white/20" />
-                <div className="relative h-2 w-full overflow-hidden rounded-full bg-white/10">
-                  <motion.div
-                    className="absolute inset-y-0 left-0 rounded-full bg-cyan"
-                    animate={{ width: `${gd.savingsMax ? 100 - (gd.savingsMax / amount) * 100 : 100}%` }}
-                    transition={{ type: "spring", stiffness: 120, damping: 20 }}
-                  />
-                </div>
-              </div>
-              <div className="mt-1.5 flex justify-between text-[10px] text-white/60">
-                <span>conta atual</span>
-                <span>após economia estimada</span>
-              </div>
               {amount >= 8_000 && (
                 <p className="mt-3 rounded-lg bg-white/10 px-2.5 py-1.5 text-[11px] leading-snug text-white/85">
                   Se a unidade for de média tensão (Grupo A), o Mercado Livre também pode ser avaliado no seu Raio-X.
@@ -243,7 +233,7 @@ export function LeadMagnetForm() {
             </p>
 
             <ShimmerButton type="button" onClick={() => setStep(1)} className="mt-5 w-full text-[15px]">
-              VER MINHA ANÁLISE COMPLETA GRÁTIS <ArrowRight className="size-4" />
+              QUERO MINHA AUDITORIA GRÁTIS <ArrowRight className="size-4" />
             </ShimmerButton>
             <TrustRow />
           </motion.div>
@@ -310,7 +300,7 @@ export function LeadMagnetForm() {
         {step === 2 && token && (
           <motion.div key="upload" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="mt-4">
             <p className="mb-4 flex items-start gap-2 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium text-opportunity">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Análise reservada! Também enviamos o link e um guia bônus para o seu e-mail.
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Auditoria reservada! Também enviamos o link e um guia bônus para o seu e-mail.
             </p>
             <InvoiceUploadStep token={token} compact initialBillRange={billRange} />
             <p className="mt-3 text-center text-xs text-muted">
@@ -330,7 +320,7 @@ function TrustRow() {
   return (
     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-medium text-muted">
       <span className="flex items-center gap-1">
-        <Clock className="size-3" /> Raio-X em até 1 min
+        <Clock className="size-3" /> Resultado em 1 min
       </span>
       <span className="flex items-center gap-1">
         <ShieldCheck className="size-3" /> LGPD

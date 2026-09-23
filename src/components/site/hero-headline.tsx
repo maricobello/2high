@@ -2,8 +2,8 @@
  * Headline do hero com text reveal palavra a palavra (CSS, sem JS: não atrasa o LCP)
  * e sublinhado desenhado (SVG stroke-dashoffset) na palavra-chave.
  */
-const WORDS = ["Sua", "empresa", "sabe", "exatamente", "quanto", "deveria", "estar", "pagando", "pela", "energia?"];
-const KEY = "deveria";
+const WORDS = ["Sua", "empresa", "pode", "estar", "pagando", "energia", "a mais."];
+const KEY = "a mais.";
 
 export function HeroHeadline() {
   return (
