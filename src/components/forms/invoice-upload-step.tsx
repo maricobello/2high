@@ -16,12 +16,12 @@ const ACCEPT = "application/pdf,image/jpeg,image/png,image/webp";
  * Etapa 2: envio da fatura (+ dados opcionais). Usada no hero e na página do
  * diagnóstico para quem deixou o contato e voltou depois pelo link.
  */
-export function InvoiceUploadStep({ token, onUploaded, compact }: { token: string; onUploaded?: () => void; compact?: boolean }) {
+export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange }: { token: string; onUploaded?: () => void; compact?: boolean; initialBillRange?: string | null }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [billRange, setBillRange] = useState("");
+  const [billRange, setBillRange] = useState(initialBillRange ?? "");
   const [more, setMore] = useState(false);
   const [d, setD] = useState({ company: "", state: "", city: "", solarStatus: "", freeMarketStatus: "" });
   const [busy, setBusy] = useState(false);

@@ -106,6 +106,8 @@ export const quickLeadSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email("E-mail inválido")),
   phone,
   company: z.string().trim().max(160).optional().default(""),
+  /** Faixa escolhida na calculadora do hero (opcional) */
+  billRange: enumOf(BILL_RANGES).optional(),
   consent: z.literal(true, { message: "É necessário aceitar a política de privacidade" }),
   marketingConsent: z.boolean().optional().default(false),
   website: z.string().max(0).optional().default(""),

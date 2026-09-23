@@ -6,13 +6,14 @@
  * reservados para semântica (oportunidade / análise / atenção).
  */
 :root {
-  --background: #f6f7fb;
-  --foreground: #0b1020;
+  --background: #f7f8fb;
+  --foreground: #070b16;
   --card: #ffffff;
-  --muted: #5b6478;
+  /* #4a5367 sobre branco ≈ 7.6:1 (WCAG AAA para texto normal) */
+  --muted: #4a5367;
   --subtle: #eef0f6;
-  --border: #e4e7ef;
-  --ink: #060a13;
+  --border: #dde1ea;
+  --ink: #04060c;
   --ink-2: #0c1220;
   --ink-3: #141c2f;
   --ink-border: #1f2940;
@@ -21,6 +22,8 @@
   --primary-soft: #eef1ff;
   --cyan: #34d3f0;
   --amber: #f5b53d;
+  /* Destaque "volt": só para ênfase sobre fundo escuro (≈ 12:1 sobre --ink) */
+  --volt: #ffc83d;
   --attention: #e5484d;
   --attention-soft: #fdecec;
   --analysis: #ef8a2c;
@@ -44,6 +47,7 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
   --color-cyan: var(--cyan);
+  --color-volt: var(--volt);
   --color-amber: var(--amber);
   --color-attention: var(--attention);
   --color-attention-soft: var(--attention-soft);
@@ -126,4 +130,49 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee, .animate-meteor, .animate-shimmer-slide, .animate-spin-around, .animate-shiny-text { animation: none; }
+}
+
+/* ---------- Motion v3 (CSS-first: roda antes da hidratação, não atrasa o LCP) ---------- */
+@keyframes word-in {
+  from { opacity: 0; filter: blur(8px); transform: translateY(0.35em); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+.word-in { display: inline-block; animation: word-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* Mesma entrada, sem alterar o display (para blocos) */
+.rise-in { animation: word-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.draw-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw-line 1.1s 0.9s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.float-y { animation: float-y 6s ease-in-out infinite; }
+
+@keyframes scan-y {
+  0% { top: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(61, 90, 254, 0.55); }
+  100% { box-shadow: 0 0 0 14px rgba(61, 90, 254, 0); }
+}
+.pulse-ring { animation: pulse-ring 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+
+/* Slider de valor da conta (hero) */
+.range-energy { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--primary) var(--fill, 30%), #dde1ea var(--fill, 30%)); outline: none; }
+.range-energy::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(61, 90, 254, 0.45); cursor: grab; transition: transform 0.15s; }
+.range-energy::-webkit-slider-thumb:active { transform: scale(1.12); cursor: grabbing; }
+.range-energy::-moz-range-thumb { width: 16px; height: 16px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(61, 90, 254, 0.45); cursor: grab; }
+.range-energy:focus-visible { box-shadow: 0 0 0 4px rgba(61, 90, 254, 0.25); }
+
+@media (prefers-reduced-motion: reduce) {
+  .word-in, .rise-in, .draw-line, .float-y, .pulse-ring { animation: none !important; opacity: 1; filter: none; transform: none; stroke-dashoffset: 0; }
 }

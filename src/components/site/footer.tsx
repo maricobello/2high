@@ -4,7 +4,7 @@ import { Logo } from "./logo";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-white/5 bg-ink text-white/60">
+    <footer className="border-t border-white/5 bg-ink text-white/75">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
         <div className="space-y-4">
           <Logo />
@@ -12,7 +12,7 @@ export function SiteFooter() {
             Plataforma de inteligência de energia para empresas. Diagnósticos preliminares, baseados em regras técnicas e sujeitos à validação por especialistas.
           </p>
           {brand.legalName && (
-            <p className="text-xs text-white/40">
+            <p className="text-xs text-white/60">
               {brand.legalName}
               {brand.legalCnpj ? ` · CNPJ ${brand.legalCnpj}` : ""}
             </p>
@@ -34,7 +34,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-white/5">
-        <p className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-white/40 sm:px-6">
+        <p className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-white/60 sm:px-6">
           As análises apresentadas são preliminares e têm caráter informativo. Estimativas de economia dependem de validação técnica, regulatória e comercial e não
           constituem promessa de resultado. © {new Date().getFullYear()} {brand.name}.
         </p>

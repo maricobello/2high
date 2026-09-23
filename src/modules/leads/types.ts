@@ -90,3 +90,12 @@ export const SOLUTION_LABELS: Record<SolutionCode, string> = {
 export function billRangeInfo(value: BillRange | null | undefined) {
   return BILL_RANGES.find((r) => r.value === value) ?? null;
 }
+
+export function billRangeFromAmount(amount: number | null | undefined): BillRange | null {
+  if (!amount) return null;
+  if (amount <= 1000) return "ate_1k";
+  if (amount <= 4000) return "1k_4k";
+  if (amount <= 10000) return "4k_10k";
+  if (amount <= 50000) return "10k_50k";
+  return "50k_mais";
+}

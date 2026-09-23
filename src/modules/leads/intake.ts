@@ -150,14 +150,7 @@ export async function intakeSimulatorLead(input: {
   });
 }
 
-export function billRangeFromAmount(amount: number | null | undefined): BillRange | null {
-  if (!amount) return null;
-  if (amount <= 1000) return "ate_1k";
-  if (amount <= 4000) return "1k_4k";
-  if (amount <= 10000) return "4k_10k";
-  if (amount <= 50000) return "10k_50k";
-  return "50k_mais";
-}
+export { billRangeFromAmount } from "./types";
 
 /** Etapa 1: cria o lead apenas com contato + registro do consentimento (LGPD). */
 export async function intakeQuickLead(input: QuickLeadInput, ctx: { ipHash: string | null; userAgent: string | null }): Promise<LeadRecord> {
@@ -169,7 +162,7 @@ export async function intakeQuickLead(input: QuickLeadInput, ctx: { ipHash: stri
     email: input.email,
     state: null,
     city: null,
-    billRange: null,
+    billRange: input.billRange ?? null,
     solarStatus: null,
     freeMarketStatus: null,
     source: "hero_form",

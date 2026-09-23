@@ -98,7 +98,7 @@ Qualidade: `npm test` (Vitest), `npm run lint`, `npm run typecheck`, `npm run bu
 
 ## Deploy (Vercel + Supabase)
 
-1. Crie um projeto Supabase e rode, em ordem, `supabase/migrations/0001_init.sql` e `0002_quick_lead_ai_lgpd.sql` (tabelas, RLS e bucket privado `invoices`).
+1. Crie um projeto Supabase e rode, em ordem, os arquivos de `supabase/migrations/` (0001, 0002, 0003) (tabelas, RLS e bucket privado `invoices`).
 2. Na Vercel, importe o repositório e configure as variáveis do `.env.example` (no mínimo `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_*`, `AUTH_SECRET`, `GROQ_API_KEY`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_COMMERCIAL_WHATSAPP`).
 3. `vercel.json` agenda `/api/cron/follow-ups` diariamente (limite do plano Hobby). No plano Pro, aumente a frequência (ex.: `0 * * * *`) ou use um agendador externo com `Authorization: Bearer $CRON_SECRET`.
 4. WhatsApp: `WHATSAPP_PROVIDER=meta` (Cloud API; fora da janela de 24h exige template aprovado em `META_WHATSAPP_TEMPLATE`) ou `webhook` (Z-API, Evolution API, n8n). Webhook de entrada: `/api/webhooks/whatsapp`.
