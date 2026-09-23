@@ -5,7 +5,10 @@
 export const brand = {
   name: process.env.NEXT_PUBLIC_BRAND_NAME || "Aferi",
   tagline: "Inteligência de energia para empresas",
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  appUrl:
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
+    (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : "http://localhost:3000"),
   /** Número comercial em formato internacional, só dígitos (ex.: 5511999999999). */
   whatsapp: (process.env.NEXT_PUBLIC_COMMERCIAL_WHATSAPP || "").replace(/\D/g, ""),
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "contato@example.com",

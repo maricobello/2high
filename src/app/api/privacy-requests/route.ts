@@ -33,6 +33,8 @@ export async function POST(req: Request) {
     if (!rateLimit(`privacy:${clientIp(req)}`, 5, 60 * 60 * 1000).ok) return json({ error: "Muitas solicitações. Tente mais tarde." }, 429);
     const b = schema.parse(await req.json());
     const lead = await db().findLeadByEmail(b.email);
+    // O mesmo titular pode ter se cadastrado mais de uma vez: o pedido vale para todos os cadastros
+    const allLeads = (await db().listLeads({ q: b.email, limit: 200 })).filter((l) => l.email.toLowerCase() === b.email);
     const protocol = `LGPD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomBytes(3).toString("hex").toUpperCase()}`;
     const rec = await db().createPrivacyRequest({
       protocol,
@@ -45,14 +47,14 @@ export async function POST(req: Request) {
       leadId: lead?.id ?? null,
       resolutionNote: null,
     });
-    if (lead) {
-      // Revogação: interrompe imediatamente qualquer comunicação automática
+    for (const l of allLeads) {
+      // Revogação/exclusão: interrompe imediatamente qualquer comunicação automática
       if (b.type === "revogacao" || b.type === "exclusao") {
-        await db().updateLead(lead.id, { followUpOptOut: true, marketingConsent: false });
-        await db().cancelFollowUps(lead.id);
+        await db().updateLead(l.id, { followUpOptOut: true, marketingConsent: false });
+        await db().cancelFollowUps(l.id);
       }
       await db().addActivity({
-        leadId: lead.id,
+        leadId: l.id,
         type: "system",
         channel: "lgpd",
         content: `Solicitação LGPD ${protocol}: ${LABELS[b.type]}.`,

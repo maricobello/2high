@@ -46,6 +46,8 @@ export function DiagnosticView({ token, initial, whatsappEnabled }: { token: str
 
   if (awaitingInvoice)
     return <AwaitingInvoice token={token} name={data.name} protocol={data.protocol} onUploaded={() => setData({ ...data, processingStatus: "pending", hasInvoice: true })} />;
+  if (!processing && !data.diagnostic && data.processingStatus === "failed")
+    return <Failed token={token} name={data.name} protocol={data.protocol} whatsappEnabled={whatsappEnabled} onUploaded={() => setData({ ...data, processingStatus: "pending", hasInvoice: true })} />;
   if (processing || !data.diagnostic) return <Processing name={data.name} protocol={data.protocol} />;
 
   const d = data.diagnostic;
@@ -360,6 +362,33 @@ function AwaitingInvoice({ token, name, protocol, onUploaded }: { token: string;
         <div className="relative overflow-hidden rounded-3xl bg-white p-5 text-foreground shadow-2xl sm:p-7">
           <BorderBeam size={120} duration={9} />
           <p className="mb-4 text-lg font-semibold">Envie a conta de energia</p>
+          <InvoiceUploadStep token={token} onUploaded={onUploaded} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Failed({ token, name, protocol, whatsappEnabled, onUploaded }: { token: string; name: string; protocol: string; whatsappEnabled: boolean; onUploaded: () => void }) {
+  return (
+    <section className="relative overflow-hidden bg-ink py-12 text-white sm:py-16">
+      <div className="glow absolute inset-0" />
+      <div className="relative mx-auto grid max-w-5xl gap-10 px-4 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-cyan">Protocolo {protocol}</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">{name}, não conseguimos ler esta fatura automaticamente.</h1>
+          <p className="mt-4 text-white/75">
+            Isso acontece com fotos escuras, cortadas ou PDFs protegidos. Nosso time já foi avisado e pode analisar manualmente — ou você pode tentar enviar outro arquivo
+            (de preferência o PDF baixado no site ou app da distribuidora).
+          </p>
+          {whatsappEnabled && (
+            <a href={`/api/leads/${token}/whatsapp`} className={cn(buttonVariants({ variant: "whatsapp", size: "lg" }), "mt-6")}>
+              <MessageCircle className="size-4" /> Falar com um especialista
+            </a>
+          )}
+        </div>
+        <div className="relative overflow-hidden rounded-3xl bg-white p-5 text-foreground shadow-2xl sm:p-7">
+          <p className="mb-4 text-lg font-semibold">Enviar outro arquivo</p>
           <InvoiceUploadStep token={token} onUploaded={onUploaded} />
         </div>
       </div>

@@ -1,6 +1,7 @@
 import "server-only";
 import { db, type InvoiceRecord, type LeadRecord } from "@/modules/db";
 import { changeStage } from "@/modules/crm/service";
+import { stageIndex } from "@/modules/leads/types";
 import { mergeExtractions, normalize } from "@/modules/invoice/merge";
 import { looksLikeEnergyBill, parseInvoiceText } from "@/modules/invoice/regex-parser";
 import type { ExtractionResult, FieldMetaMap, InvoiceData, ValidationResult } from "@/modules/invoice/types";
@@ -22,7 +23,32 @@ import { runPostDiagnosisAutomation } from "@/modules/notifications/automation";
  * Cada etapa registra atividade no lead. Falhas em etapas de IA/OCR degradam
  * para o caminho determinístico — o lead SEMPRE recebe um diagnóstico.
  */
-export async function processLead(leadId: string): Promise<void> {
+export interface ProcessOptions {
+  /**
+   * Reprocessamento manual (painel): recalcula o diagnóstico sem reenviar
+   * confirmação ao cliente nem reagendar follow-ups.
+   */
+  silent?: boolean;
+}
+
+export async function processLead(leadId: string, opts: ProcessOptions = {}): Promise<void> {
+  try {
+    await runPipeline(leadId, opts);
+  } catch (err) {
+    // Nunca deixa o lead preso em "processing": a página do diagnóstico e novos envios dependem disso.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[pipeline] falha geral", err);
+    try {
+      await db().updateLead(leadId, { processingStatus: "failed", processingError: message.slice(0, 500) });
+      await db().addActivity({ leadId, type: "system", channel: "pipeline", content: `Falha no processamento: ${message.slice(0, 300)}`, meta: null, author: "pipeline" });
+    } catch (inner) {
+      console.error("[pipeline] não foi possível registrar a falha", inner);
+    }
+    throw err;
+  }
+}
+
+async function runPipeline(leadId: string, opts: ProcessOptions): Promise<void> {
   const repo = db();
   const lead = await repo.getLead(leadId);
   if (!lead) throw new Error(`Lead ${leadId} não encontrado`);
@@ -32,7 +58,8 @@ export async function processLead(leadId: string): Promise<void> {
     repo.addActivity({ leadId, type: "system", channel: "pipeline", content, meta: meta ?? null, author: "pipeline" });
 
   await repo.updateLead(leadId, { processingStatus: "processing", processingError: null });
-  if (invoice) await changeStage(leadId, "auditoria_processando");
+  // Só avança o funil de leads em estágio inicial; nunca rebaixa um lead já em negociação
+  if (invoice && stageIndex(lead.stage) < stageIndex("auditoria_processando")) await changeStage(leadId, "auditoria_processando");
 
   let extracted: InvoiceData | null = null;
   let validation: ValidationResult | null = null;
@@ -141,6 +168,7 @@ export async function processLead(leadId: string): Promise<void> {
   }
 
   // AUTOMAÇÃO (confirmação, admin, CRM externo, follow-up)
+  if (opts.silent) return;
   try {
     await runPostDiagnosisAutomation(updated, explanation.summary);
   } catch (err) {

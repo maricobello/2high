@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { samePhone } from "@/modules/leads/phone";
 import type {
   ActivityRecord,
   DiagnosticRecord,
@@ -112,8 +113,7 @@ export class LocalRepository implements Repository {
   }
   async findLeadByPhone(digits: string) {
     const s = await this.load();
-    const tail = digits.slice(-10);
-    const found = [...s.leads].reverse().find((l) => l.phone.replace(/\D/g, "").endsWith(tail));
+    const found = [...s.leads].reverse().find((l) => samePhone(l.phone, digits));
     return structuredClone(found ?? null);
   }
   async findLeadByEmail(email: string) {

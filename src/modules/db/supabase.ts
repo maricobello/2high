@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { nationalNumber, samePhone } from "@/modules/leads/phone";
 import type {
   ActivityRecord,
   DiagnosticRecord,
@@ -79,10 +80,13 @@ export class SupabaseRepository implements Repository {
     return this.maybeOne<LeadRecord>(this.db.from("leads").select("*").eq("access_token", token).maybeSingle());
   }
   async findLeadByPhone(digits: string) {
+    const tail = nationalNumber(digits).slice(-8);
+    if (tail.length < 8) return null;
     const list = await this.many<LeadRecord>(
-      this.db.from("leads").select("*").like("phone", `%${digits.slice(-8)}`).order("created_at", { ascending: false }).limit(5),
+      this.db.from("leads").select("*").like("phone", `%${tail}`).order("created_at", { ascending: false }).limit(20),
     );
-    return list.find((l) => l.phone.replace(/\D/g, "").endsWith(digits.slice(-10))) ?? list[0] ?? null;
+    // Exige mesmo DDD: nunca devolve lead de outro número que só compartilha o final
+    return list.find((l) => samePhone(l.phone, digits)) ?? null;
   }
   findLeadByEmail(email: string) {
     return this.maybeOne<LeadRecord>(

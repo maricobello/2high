@@ -11,14 +11,19 @@ const bool = (v: string | undefined, fallback = false) => (v === undefined || v 
 export const env = {
   nodeEnv: e.NODE_ENV ?? "development",
   isVercel: Boolean(e.VERCEL),
-  appUrl: (e.NEXT_PUBLIC_APP_URL || (e.VERCEL_URL ? `https://${e.VERCEL_URL}` : "http://localhost:3000")).replace(/\/$/, ""),
+  /** URL pública: variável explícita > domínio de produção da Vercel > URL do deploy atual. */
+  appUrl: (
+    e.NEXT_PUBLIC_APP_URL ||
+    (e.VERCEL_ENV === "production" && e.VERCEL_PROJECT_PRODUCTION_URL ? `https://${e.VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
+    (e.VERCEL_URL ? `https://${e.VERCEL_URL}` : "http://localhost:3000")
+  ).replace(/\/$/, ""),
 
   // Banco / storage
   supabaseUrl: e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL || "",
   supabaseServiceRoleKey: e.SUPABASE_SERVICE_ROLE_KEY || "",
   storageBucket: e.SUPABASE_STORAGE_BUCKET || "invoices",
   /** "supabase" em produção; "local" grava em .data/ (apenas desenvolvimento). */
-  dataDriver: (e.DATA_DRIVER || (e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL ? "supabase" : "local")) as "supabase" | "local",
+  dataDriver: (e.DATA_DRIVER || ((e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL) && e.SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "local")) as "supabase" | "local",
   localDataDir: e.LOCAL_DATA_DIR || (e.VERCEL ? "/tmp/.data" : ".data"),
 
   // IA (Groq por padrão; camada desacoplada em src/modules/llm)

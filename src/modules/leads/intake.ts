@@ -5,7 +5,7 @@ import { changeStage, createLead } from "@/modules/crm/service";
 import { ACCEPTED_MIME, sniffMime } from "@/modules/ocr";
 import { storage } from "@/modules/storage";
 import { CONSENT_VERSION, type HeroLeadInput, type QuickLeadInput } from "./schema";
-import type { BillRange, IntentSignal, LeadSource } from "./types";
+import { stageIndex, type BillRange, type IntentSignal, type LeadSource } from "./types";
 
 export const MAX_UPLOAD_BYTES = 4_400_000; // limite de corpo das funções da Vercel (~4,5 MB)
 
@@ -104,7 +104,9 @@ export async function attachInvoice(lead: LeadRecord, file: UploadedFile, mime: 
     meta: { invoiceId: inv.id, sha256 },
     author: "sistema",
   });
-  await changeStage(lead.id, "fatura_recebida");
+  // Não rebaixa leads que já avançaram no funil (ex.: "proposta")
+  const current = await db().getLead(lead.id);
+  if (current && stageIndex(current.stage) < stageIndex("fatura_recebida")) await changeStage(lead.id, "fatura_recebida");
   return inv;
 }
 

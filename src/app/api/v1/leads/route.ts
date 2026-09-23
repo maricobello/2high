@@ -43,11 +43,17 @@ export async function POST(req: Request) {
 /** Lista leads (para BI/CRM externo). */
 export async function GET(req: Request) {
   if (!authorized(req)) return json({ error: "Não autorizado" }, 401);
-  const url = new URL(req.url);
-  const stage = url.searchParams.get("stage");
-  const leads = await db().listLeads({
-    stage: stage && (STAGE_VALUES as string[]).includes(stage) ? (stage as never) : undefined,
-    limit: Math.min(Number(url.searchParams.get("limit") || 100), 500),
-  });
-  return json({ leads: leads.map(publicLeadPayload) });
+  try {
+    const url = new URL(req.url);
+    const stage = url.searchParams.get("stage");
+    const rawLimit = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 100;
+    const leads = await db().listLeads({
+      stage: stage && (STAGE_VALUES as string[]).includes(stage) ? (stage as never) : undefined,
+      limit,
+    });
+    return json({ leads: leads.map(publicLeadPayload) });
+  } catch (err) {
+    return errorResponse(err);
+  }
 }

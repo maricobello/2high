@@ -20,7 +20,12 @@ export async function GET(req: Request) {
     });
     if (url.searchParams.get("format") === "csv") {
       const header = ["protocolo", "criado_em", "nome", "empresa", "cnpj", "telefone", "email", "uf", "cidade", "origem", "estagio", "score", "temperatura", "solucoes", "valor_potencial", "comissao_potencial", "responsavel"];
-      const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      // Neutraliza fórmulas (CSV/Formula injection) antes de escapar aspas
+      const esc = (v: unknown) => {
+        let t = String(v ?? "");
+        if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
+        return `"${t.replace(/"/g, '""')}"`;
+      };
       const rows = leads.map((l) =>
         [
           l.protocol,

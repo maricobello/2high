@@ -36,3 +36,13 @@ describe("CNPJ", () => {
     expect(isValidCnpj("00000000000000")).toBe(false);
   });
 });
+
+import { samePhone } from "@/modules/leads/phone";
+describe("telefone", () => {
+  it("casa com DDI e sem o 9º dígito, mas não entre DDDs diferentes", () => {
+    expect(samePhone("11977776666", "5511977776666")).toBe(true);
+    expect(samePhone("11977776666", "551177776666")).toBe(true);
+    expect(samePhone("21977776666", "5511977776666")).toBe(false);
+    expect(samePhone("11977776666", "11977775555")).toBe(false);
+  });
+});
