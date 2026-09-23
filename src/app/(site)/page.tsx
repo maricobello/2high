@@ -3,15 +3,18 @@ import {
   ArrowRight,
   Bot,
   Building2,
+  CalendarClock,
   Check,
   CheckCircle2,
   Factory,
   FileSearch,
   Gauge,
   HeartPulse,
+  Landmark,
   Lock,
   Minus,
   Receipt,
+  Scale,
   ShieldCheck,
   ShoppingBag,
   Store,
@@ -89,7 +92,7 @@ export default function HomePage() {
               Envie sua fatura e descubra onde sua empresa pode economizar.
             </p>
             <ul className="rise-in mt-7 grid grid-cols-2 gap-x-3 gap-y-3 text-[13.5px] sm:text-[15px] font-medium text-white sm:grid-cols-2" style={{ animationDelay: "0.7s" }}>
-              {["Gratuito", "Sem trocar de fornecedor", "Sem instalar placas", "IA 24h"].map((t) => (
+              {["Gratuito", "Sem trocar de fornecedor", "Recupere até 5 anos", "IA 24h"].map((t) => (
                 <li key={t} className="flex items-center gap-2">
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-volt text-ink">
                     <Check className="size-3.5" strokeWidth={3} />
@@ -100,7 +103,7 @@ export default function HomePage() {
             </ul>
             <div className="rise-in mt-8 hidden flex-wrap items-center gap-2 sm:flex" style={{ animationDelay: "0.85s" }}>
               <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">Metodologia baseada em</span>
-              {["REN ANEEL 1.000/2021", "Lei 14.300/2022", "LGPD"].map((b) => (
+              {["CDC art. 42", "REN ANEEL 1.000/2021", "Lei 14.300/2022", "LGPD"].map((b) => (
                 <span key={b} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-1 font-mono text-[11px] text-white/85">
                   {b}
                 </span>
@@ -147,6 +150,66 @@ export default function HomePage() {
               <p className="mt-1.5 text-sm font-medium text-muted">{k.label}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ================= RECUPERAÇÃO DE VALORES (base legal) ================= */}
+      <section id="recuperacao" className="relative scroll-mt-16 overflow-hidden bg-ink py-20 text-white sm:py-24">
+        <div className="glow absolute inset-0 opacity-70" />
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <BlurFade className="max-w-3xl">
+            <Eyebrow className="text-volt">Recuperação de valores</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">
+              Cobrado a mais? A lei garante a devolução de <span className="text-volt">até 60 faturas</span>.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base text-white/80 sm:text-lg">Direto com a distribuidora, sem ação judicial. Nós cuidamos de tudo pela sua empresa.</p>
+          </BlurFade>
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {[
+              { icon: Scale, tag: "CDC · art. 42, parágrafo único", t: "Devolução em dobro", d: "Valor cobrado indevidamente volta em dobro, com correção e juros, salvo engano justificável." },
+              { icon: Landmark, tag: "REN ANEEL 1.000/2021", t: "Regra da distribuidora", d: "A norma da ANEEL regula o faturamento e a devolução de valores cobrados a maior." },
+              { icon: CalendarClock, tag: "Até 5 anos", t: "60 faturas para trás", d: "Prazo usado como referência pela Justiça para pedir de volta cobranças indevidas." },
+            ].map(({ icon: Icon, tag, t, d }, i) => (
+              <BlurFade key={t} delay={0.06 * i}>
+                <div className="h-full rounded-2xl border border-white/10 bg-white/[0.04] p-6 transition-colors hover:border-volt/50">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-volt text-ink">
+                    <Icon className="size-5" />
+                  </span>
+                  <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-volt">{tag}</p>
+                  <h3 className="mt-1.5 text-xl font-bold tracking-tight">{t}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-white/75">{d}</p>
+                </div>
+              </BlurFade>
+            ))}
+          </div>
+
+          <BlurFade>
+            <ol className="mt-10 grid gap-3 sm:grid-cols-3">
+              {["Auditamos até 60 faturas", "Protocolamos o pedido na distribuidora", "Acompanhamos até a devolução"].map((t, i) => (
+                <li key={t} className="flex items-center gap-3 rounded-xl bg-white/[0.06] px-4 py-3 text-[15px] font-semibold">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-ink">{i + 1}</span>
+                  {t}
+                </li>
+              ))}
+            </ol>
+          </BlurFade>
+
+          <BlurFade>
+            <div className="mt-10 flex flex-col gap-6 rounded-3xl bg-white p-6 text-ink sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">Gestão completa de energia, simples e digital.</h3>
+                <p className="mt-2 text-[15px] text-muted">Profissionais que entendem do setor elétrico cuidando da sua conta: auditoria, recuperação de valores, GD e Mercado Livre.</p>
+              </div>
+              <Link href="#analisar" className="inline-flex h-13 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-bold text-white hover:bg-primary-hover">
+                VERIFICAR MINHAS FATURAS <ArrowRight className="size-4" />
+              </Link>
+            </div>
+          </BlurFade>
+
+          <p className="mt-5 text-xs leading-relaxed text-white/55">
+            A devolução depende da comprovação da cobrança indevida e da análise de cada caso pela distribuidora. Não garantimos valores ou resultados.
+          </p>
         </div>
       </section>
 

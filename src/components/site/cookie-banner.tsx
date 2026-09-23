@@ -29,7 +29,7 @@ export function CookieBanner() {
   };
   return (
     <div
-      className="fixed inset-x-2 bottom-2 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-white/95 px-3 py-2 shadow-xl backdrop-blur sm:bottom-4 print:hidden"
+      className="fixed inset-x-2 bottom-[84px] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-white/95 px-3 py-2 shadow-xl backdrop-blur sm:bottom-4 print:hidden"
       role="region"
       aria-label="Aviso de cookies"
     >

@@ -4,6 +4,10 @@ export const FAQ = [
     a: "Sim. A análise preliminar da fatura é gratuita e sem compromisso. Se houver uma oportunidade e você quiser avançar, a validação técnica e as propostas comerciais são apresentadas antes de qualquer decisão.",
   },
   {
+    q: "Posso recuperar valores cobrados a mais?",
+    a: "Sim, quando houver cobrança indevida. O Código de Defesa do Consumidor (art. 42, parágrafo único) prevê a devolução em dobro, com correção e juros, salvo engano justificável, e a REN ANEEL 1.000/2021 regula a devolução de valores faturados a maior. O pedido pode alcançar as últimas 60 faturas (5 anos) e é feito direto com a distribuidora, sem ação judicial — nós cuidamos de todo o processo. O resultado depende da comprovação de cada caso.",
+  },
+  {
     q: "Preciso trocar de fornecedor?",
     a: "Não necessariamente. Muitas oportunidades estão na própria estrutura da conta (demanda contratada, energia reativa, modalidade tarifária). Soluções como GD por assinatura ou Mercado Livre só são indicadas quando o perfil e as condições comerciais fazem sentido.",
   },

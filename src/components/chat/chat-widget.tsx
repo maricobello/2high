@@ -4,6 +4,7 @@ import { Bot, Loader2, MessageCircle, Send, UploadCloud, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { openAnalysis } from "@/lib/client/open-analysis";
 import { OPEN_CHAT_EVENT } from "./open-chat-button";
 
 interface Msg {
@@ -73,7 +74,7 @@ export function ChatWidget() {
 
   const goUpload = () => {
     setOpen(false);
-    if (path === "/") document.getElementById("analisar")?.scrollIntoView({ behavior: "smooth" });
+    if (path === "/") openAnalysis();
     else router.push("/#analisar");
   };
 
