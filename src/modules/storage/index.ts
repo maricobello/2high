@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
+import { getSql } from "@/modules/db/postgres";
 
 /**
  * Armazenamento de faturas. Supabase Storage (bucket PRIVADO) em produção;
@@ -60,8 +61,29 @@ class LocalStorage implements FileStorage {
   }
 }
 
+/** Faturas guardadas no próprio Postgres (tabela invoice_files). */
+class PostgresStorage implements FileStorage {
+  private get sql() {
+    return getSql(env.databaseUrl);
+  }
+  async save(key: string, data: Buffer, contentType: string) {
+    await this.sql`insert into invoice_files (key, mime_type, content) values (${key}, ${contentType}, ${data}) on conflict (key) do nothing`;
+  }
+  async read(key: string) {
+    const [r] = await this.sql`select content from invoice_files where key = ${key}`;
+    if (!r) throw new Error("[storage] arquivo não encontrado");
+    return Buffer.from(r.content as Uint8Array);
+  }
+  async remove(key: string) {
+    await this.sql`delete from invoice_files where key = ${key}`;
+  }
+  async signedUrl(key: string) {
+    return `/api/admin/files?key=${encodeURIComponent(key)}`;
+  }
+}
+
 let instance: FileStorage | null = null;
 export function storage(): FileStorage {
-  if (!instance) instance = env.dataDriver === "supabase" ? new SupabaseStorage() : new LocalStorage();
+  if (!instance) instance = env.dataDriver === "postgres" ? new PostgresStorage() : env.dataDriver === "supabase" ? new SupabaseStorage() : new LocalStorage();
   return instance;
 }

@@ -23,7 +23,10 @@ export const env = {
   supabaseServiceRoleKey: e.SUPABASE_SERVICE_ROLE_KEY || "",
   storageBucket: e.SUPABASE_STORAGE_BUCKET || "invoices",
   /** "supabase" em produção; "local" grava em .data/ (apenas desenvolvimento). */
-  dataDriver: (e.DATA_DRIVER || ((e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL) && e.SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "local")) as "supabase" | "local",
+  /** Conexão Postgres direta (papel dedicado). Tem prioridade sobre a service role. */
+  databaseUrl: e.DATABASE_URL || "",
+  dataDriver: (e.DATA_DRIVER ||
+    (e.DATABASE_URL ? "postgres" : (e.SUPABASE_URL || e.NEXT_PUBLIC_SUPABASE_URL) && e.SUPABASE_SERVICE_ROLE_KEY ? "supabase" : "local")) as "postgres" | "supabase" | "local",
   localDataDir: e.LOCAL_DATA_DIR || (e.VERCEL ? "/tmp/.data" : ".data"),
 
   // IA (Groq por padrão; camada desacoplada em src/modules/llm)

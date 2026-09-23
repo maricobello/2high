@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default function IntegrationsPage() {
   const items = [
-    { name: "Banco de dados", ok: env.dataDriver === "supabase", detail: env.dataDriver === "supabase" ? "Supabase/PostgreSQL" : "Local (somente desenvolvimento)" },
+    { name: "Banco de dados", ok: env.dataDriver !== "local", detail: env.dataDriver === "postgres" ? "PostgreSQL (conexão direta)" : env.dataDriver === "supabase" ? "Supabase (API)" : "Local (somente desenvolvimento)" },
     { name: "IA (extração, explicação, intenção, follow-up)", ok: getLLM().available, detail: getLLM().available ? `${env.llmProvider} · ${env.llmModelText} / ${env.llmModelFast} / ${env.llmModelVision}` : "Desativada — usando apenas regras e templates" },
     { name: "OCR externo (PDF digitalizado)", ok: Boolean(env.ocrSpaceApiKey), detail: env.ocrSpaceApiKey ? "OCR.space" : "PDFs com texto são lidos nativamente; imagens via IA de visão" },
     { name: "E-mail", ok: Boolean(env.resendApiKey), detail: env.resendApiKey ? `Resend · ${env.emailFrom}` : "RESEND_API_KEY não configurada" },
