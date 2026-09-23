@@ -7,14 +7,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(brand.appUrl),
   title: {
-    default: `${brand.name} — Diagnóstico de energia para empresas`,
+    default: `${brand.name} — Auditoria gratuita da conta de energia`,
     template: `%s · ${brand.name}`,
   },
   description:
-    "Envie sua fatura e descubra oportunidades de redução de custos, possíveis inconsistências de faturamento e quais soluções de energia podem fazer sentido para sua empresa.",
+    "Sua empresa pode estar pagando energia a mais. Auditoria gratuita da fatura em 1 minuto e pedido de devolução de até 60 faturas, direto com a distribuidora.",
   openGraph: {
-    title: "Sua empresa sabe exatamente quanto deveria estar pagando pela energia?",
-    description: "Análise preliminar gratuita da sua conta de energia: auditoria de fatura, GD por assinatura e Mercado Livre.",
+    title: "Sua empresa pode estar pagando energia a mais.",
+    description: "Auditoria gratuita da conta de energia. Se houver cobrança indevida, buscamos a devolução de até 60 faturas.",
     locale: "pt_BR",
     type: "website",
   },

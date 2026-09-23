@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 
 const NAV = [
+  { href: "/#exemplos", label: "Exemplos" },
   { href: "/#como-funciona", label: "Como funciona" },
   { href: "/gd-por-assinatura", label: "GD por assinatura" },
   { href: "/mercado-livre", label: "Mercado Livre" },
@@ -31,7 +32,7 @@ export function SiteHeader() {
         <div className={cn("overflow-hidden bg-primary text-white transition-[max-height] duration-300", scrolled ? "max-h-0" : "max-h-10")}>
           <Link href="/#analisar" className="mx-auto flex h-9 max-w-6xl items-center justify-center gap-2 px-4 text-[12.5px] font-semibold">
             <Zap className="size-3.5 text-volt" />
-            <span className="truncate">Análise gratuita da conta de energia da sua empresa — resultado em até 1 minuto</span>
+            <span className="truncate">Sua conta pode ter cobranças indevidas. Auditoria gratuita em 1 minuto</span>
             <ArrowRight className="hidden size-3.5 sm:block" />
           </Link>
         </div>
@@ -52,7 +53,7 @@ export function SiteHeader() {
             href="/#analisar"
             className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-bold text-ink shadow-[0_6px_20px_-6px_rgba(255,255,255,0.4)] transition-transform hover:-translate-y-0.5"
           >
-            Analisar fatura <span className="hidden sm:inline">grátis</span>
+            Auditoria grátis
           </Link>
         </div>
       </div>

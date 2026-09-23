@@ -1,29 +1,4 @@
-import {
-  Activity,
-  ArrowRight,
-  Bot,
-  Building2,
-  CalendarClock,
-  Check,
-  CheckCircle2,
-  Factory,
-  FileSearch,
-  Gauge,
-  HeartPulse,
-  Landmark,
-  Lock,
-  Minus,
-  Receipt,
-  Scale,
-  ShieldCheck,
-  ShoppingBag,
-  Store,
-  Sun,
-  Tractor,
-  TrendingUp,
-  X,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, CalendarClock, Check, CheckCircle2, Factory, Landmark, Pill, Scale, Store } from "lucide-react";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { LeadMagnetForm } from "@/components/forms/lead-magnet-form";
@@ -33,66 +8,76 @@ import { DotPattern } from "@/components/magicui/dot-pattern";
 import { Marquee } from "@/components/magicui/marquee";
 import { Meteors } from "@/components/magicui/meteors";
 import { NumberTicker } from "@/components/magicui/number-ticker";
-import { SpotlightCard } from "@/components/magicui/spotlight-card";
-import { ChatDemo } from "@/components/site/chat-demo";
-import { DemandBars } from "@/components/site/demand-bars";
 import { HeroHeadline } from "@/components/site/hero-headline";
-import { PipelineBeam } from "@/components/site/pipeline-beam";
-import { ScanDemo } from "@/components/site/scan-demo";
 import { ScrollTimeline } from "@/components/site/scroll-timeline";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
-import { TESTIMONIALS } from "@/content/social-proof";
-import { cn } from "@/lib/utils";
 import { DISTRIBUTORS } from "@/modules/invoice/distributors";
 
 const DISTRIBUTOR_NAMES = [...new Set(DISTRIBUTORS.filter((d) => d.states.length).map((d) => d.name))];
 
+/** Casos ILUSTRATIVOS (valores fictícios) — sinalizados como tal na página. */
+const CASES = [
+  {
+    icon: Store,
+    who: "Padaria · Grupo B · SP",
+    issue: "Leitura estimada por 14 meses seguidos",
+    months: 14,
+    paid: 6_240,
+  },
+  {
+    icon: Factory,
+    who: "Metalúrgica · Grupo A · MG",
+    issue: "Multa de energia reativa com fator de potência acima de 0,92",
+    months: 22,
+    paid: 21_300,
+  },
+  {
+    icon: Pill,
+    who: "Rede de farmácias · 4 unidades · PR",
+    issue: "Classe tarifária errada em 2 unidades",
+    months: 37,
+    paid: 17_900,
+  },
+];
+
+const CHECKS = ["Leitura e consumo fora do padrão", "Classe e modalidade tarifária", "Energia reativa", "Demanda contratada e ultrapassagem", "Créditos de energia solar"];
+
 const STEPS = [
-  { time: "15 segundos", title: "Simule e deixe seu contato", text: "Simule e deixe nome, e-mail e WhatsApp." },
+  { time: "15 segundos", title: "Deixe seu contato", text: "Nome, e-mail e WhatsApp." },
   { time: "30 segundos", title: "Envie a fatura", text: "PDF ou foto pelo celular." },
-  { time: "até 1 minuto", title: "Receba o Raio-X", text: "Pontos de atenção, oportunidades e economia estimada." },
+  { time: "até 1 minuto", title: "Receba a auditoria", text: "Se houver cobrança indevida, cuidamos do pedido de devolução." },
 ];
 
-const SEGMENTS = [
-  { icon: Factory, title: "Indústria", text: "Demanda contratada, ultrapassagens, reativos e modalidade horária pesam mais." },
-  { icon: Store, title: "Comércio e varejo", text: "Contas em baixa tensão com bom perfil para energia por assinatura." },
-  { icon: Tractor, title: "Agronegócio", text: "Irrigação, armazenagem e sazonalidade exigem olhar para o histórico." },
-  { icon: HeartPulse, title: "Saúde e educação", text: "Operação contínua e climatização: consumo alto e previsível." },
-  { icon: Building2, title: "Escritórios e serviços", text: "Várias unidades consumidoras e contratos que ninguém revisa há anos." },
-  { icon: ShoppingBag, title: "Shoppings e condomínios", text: "Média tensão, áreas comuns e perfil para avaliar o Mercado Livre." },
-];
+/** Na landing, só as dúvidas que antecedem o envio da fatura (a IA conhece todas). */
+const FAQ_HOME = FAQ.filter((f) => !/Mercado Livre|solar por assinatura/i.test(f.q));
 
-const COMPARE: { item: string; us: boolean | string; self: boolean | string; seller: boolean | string }[] = [
-  { item: "Custo para o cliente", us: "Gratuito", self: "Horas do seu time", seller: "Gratuito" },
-  { item: "Tempo até o resultado", us: "Até 1 minuto", self: "Dias", seller: "Dias a semanas" },
-  { item: "Compara GD por assinatura e Mercado Livre", us: true, self: false, seller: "Só o que vende" },
-  { item: "Sem obrigação de trocar de fornecedor", us: true, self: true, seller: false },
-];
+const brl = (n: number) => n.toLocaleString("pt-BR");
 
 export default function HomePage() {
   return (
     <>
-      {/* ================= HERO (above the fold) ================= */}
+      {/* ================= HERO ================= */}
       <section id="analisar" className="relative scroll-mt-16 overflow-hidden bg-ink text-white">
         <div className="glow absolute inset-0" />
         <DotPattern className="[mask-image:radial-gradient(700px_circle_at_25%_30%,white,transparent)]" />
         <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-10 px-4 pb-14 pt-8 sm:px-6 md:pt-14 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)] lg:gap-12 lg:pb-20">
           <div className="flex min-w-0 flex-col justify-center">
-            <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-xs font-semibold">
+            <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-volt/30 bg-volt/10 px-3.5 py-1.5 text-xs font-semibold">
               <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-opportunity opacity-60" />
-                <span className="relative inline-flex size-2 rounded-full bg-opportunity" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-volt opacity-60" />
+                <span className="relative inline-flex size-2 rounded-full bg-volt" />
               </span>
-              <AnimatedShinyText className="text-white/85">Para empresas · Grupo A e Grupo B</AnimatedShinyText>
+              <AnimatedShinyText className="text-white/90">Auditoria gratuita · resultado em 1 minuto</AnimatedShinyText>
             </div>
             <HeroHeadline />
             <p className="rise-in mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg" style={{ animationDelay: "0.55s" }}>
-              Envie sua fatura e descubra onde sua empresa pode economizar.
+              Erro de leitura, tarifa errada, multa indevida. A auditoria gratuita encontra — e buscamos a devolução de{" "}
+              <strong className="font-semibold text-white">até 60 faturas</strong>.
             </p>
-            <ul className="rise-in mt-7 grid grid-cols-2 gap-x-3 gap-y-3 text-[13.5px] sm:text-[15px] font-medium text-white sm:grid-cols-2" style={{ animationDelay: "0.7s" }}>
-              {["Gratuito", "Sem trocar de fornecedor", "Recupere até 5 anos", "IA 24h"].map((t) => (
+            <ul className="rise-in mt-7 grid grid-cols-2 gap-x-3 gap-y-3 text-[13.5px] font-medium text-white sm:text-[15px]" style={{ animationDelay: "0.7s" }}>
+              {["100% gratuita", "Sem ação judicial", "Sem trocar de fornecedor", "Especialistas do setor elétrico"].map((t) => (
                 <li key={t} className="flex items-center gap-2">
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-volt text-ink">
                     <Check className="size-3.5" strokeWidth={3} />
@@ -101,23 +86,14 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <div className="rise-in mt-8 hidden flex-wrap items-center gap-2 sm:flex" style={{ animationDelay: "0.85s" }}>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">Metodologia baseada em</span>
-              {["CDC art. 42", "REN ANEEL 1.000/2021", "Lei 14.300/2022", "LGPD"].map((b) => (
-                <span key={b} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-1 font-mono text-[11px] text-white/85">
-                  {b}
-                </span>
-              ))}
-            </div>
           </div>
           <BlurFade delay={0.15}>
             <LeadMagnetForm />
           </BlurFade>
         </div>
 
-        {/* Faixa de distribuidoras (marquee) */}
         <div className="relative border-t border-white/10 bg-white/[0.02] py-5">
-          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">Lemos faturas das principais distribuidoras do país</p>
+          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">Auditamos faturas das principais distribuidoras do país</p>
           <div className="relative">
             <Marquee className="[--duration:70s] [--gap:3rem]">
               {DISTRIBUTOR_NAMES.map((n) => (
@@ -132,44 +108,79 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= NÚMEROS ================= */}
-      <section className="border-b border-border bg-white">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 divide-border px-4 py-10 sm:px-6 md:grid-cols-4 md:divide-x">
-          {[
-            { n: 8, s: "", label: "verificações técnicas em cada fatura" },
-            { n: 60, s: "s", label: "para gerar o Raio-X (típico)", prefix: "até " },
-            { n: 0, s: "", label: "custo da análise preliminar", prefix: "R$ " },
-            { n: 24, s: "h", label: "de atendimento com IA" },
-          ].map((k) => (
-            <div key={k.label} className="px-2 py-3 text-center md:px-6 md:text-left">
-              <p className="text-4xl font-bold tracking-[-0.03em] text-foreground sm:text-5xl">
-                {k.prefix && <span className="text-2xl sm:text-3xl">{k.prefix}</span>}
-                <NumberTicker value={k.n} />
-                {k.s}
-              </p>
-              <p className="mt-1.5 text-sm font-medium text-muted">{k.label}</p>
+      {/* ================= EXEMPLOS DE RESSARCIMENTO ================= */}
+      <section id="exemplos" className="scroll-mt-16 bg-white py-20 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <BlurFade className="max-w-3xl">
+            <Eyebrow>O que uma auditoria encontra</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Ninguém confere a conta de luz. É aí que o dinheiro some.</h2>
+          </BlurFade>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {CASES.map(({ icon: Icon, who, issue, months, paid }, i) => (
+              <BlurFade key={who} delay={0.06 * i}>
+                <article className="flex h-full flex-col rounded-3xl border border-border bg-background p-6 shadow-[0_20px_50px_-30px_rgba(7,11,22,0.35)]">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-ink text-volt">
+                      <Icon className="size-5" />
+                    </span>
+                    <p className="text-sm font-semibold text-muted">{who}</p>
+                  </div>
+                  <p className="mt-5 text-lg font-bold leading-snug tracking-tight">{issue}</p>
+                  <dl className="mt-6 space-y-2 border-t border-border pt-5 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted">Faturas afetadas</dt>
+                      <dd className="font-semibold tabular">{months}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-muted">Cobrado a mais</dt>
+                      <dd className="font-semibold tabular">R$ {brl(paid)}</dd>
+                    </div>
+                  </dl>
+                  <div className="mt-auto pt-5">
+                    <div className="rounded-2xl bg-ink px-4 py-3.5 text-white">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">Devolução possível (em dobro)</p>
+                      <p className="mt-0.5 text-[28px] font-bold tracking-tight text-volt tabular">
+                        R$ <NumberTicker value={paid * 2} />
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              </BlurFade>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-muted">Exemplos ilustrativos com valores fictícios. O resultado real depende da comprovação de cada caso.</p>
+
+          <BlurFade>
+            <div className="mt-10 flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-sm font-semibold">A auditoria verifica:</span>
+              {CHECKS.map((c) => (
+                <span key={c} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-[13px] font-medium">
+                  <CheckCircle2 className="size-3.5 text-primary" /> {c}
+                </span>
+              ))}
             </div>
-          ))}
+          </BlurFade>
         </div>
       </section>
 
-      {/* ================= RECUPERAÇÃO DE VALORES (base legal) ================= */}
+      {/* ================= BASE LEGAL ================= */}
       <section id="recuperacao" className="relative scroll-mt-16 overflow-hidden bg-ink py-20 text-white sm:py-24">
         <div className="glow absolute inset-0 opacity-70" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-3xl">
-            <Eyebrow className="text-volt">Recuperação de valores</Eyebrow>
+            <Eyebrow className="text-volt">A lei está do seu lado</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">
-              Cobrado a mais? A lei garante a devolução de <span className="text-volt">até 60 faturas</span>.
+              Pagou a mais? Você tem direito de receber <span className="text-volt">em dobro</span>.
             </h2>
-            <p className="mt-4 max-w-2xl text-base text-white/80 sm:text-lg">Direto com a distribuidora, sem ação judicial. Nós cuidamos de tudo pela sua empresa.</p>
+            <p className="mt-4 max-w-2xl text-base text-white/80 sm:text-lg">Direto com a distribuidora, sem ação judicial. Nós cuidamos de tudo.</p>
           </BlurFade>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
-              { icon: Scale, tag: "CDC · art. 42, parágrafo único", t: "Devolução em dobro", d: "Valor cobrado indevidamente volta em dobro, com correção e juros, salvo engano justificável." },
-              { icon: Landmark, tag: "REN ANEEL 1.000/2021", t: "Regra da distribuidora", d: "A norma da ANEEL regula o faturamento e a devolução de valores cobrados a maior." },
-              { icon: CalendarClock, tag: "Até 5 anos", t: "60 faturas para trás", d: "Prazo usado como referência pela Justiça para pedir de volta cobranças indevidas." },
+              { icon: Scale, tag: "CDC · art. 42, parágrafo único", t: "Devolução em dobro", d: "Com correção e juros, salvo engano justificável." },
+              { icon: Landmark, tag: "REN ANEEL 1.000/2021", t: "Regra da distribuidora", d: "Regula o faturamento e a devolução de valores cobrados a maior." },
+              { icon: CalendarClock, tag: "Até 5 anos", t: "60 faturas para trás", d: "Prazo usado como referência pela Justiça." },
             ].map(({ icon: Icon, tag, t, d }, i) => (
               <BlurFade key={t} delay={0.06 * i}>
                 <div className="h-full rounded-2xl border border-white/10 bg-white/[0.04] p-6 transition-colors hover:border-volt/50">
@@ -185,251 +196,30 @@ export default function HomePage() {
           </div>
 
           <BlurFade>
-            <ol className="mt-10 grid gap-3 sm:grid-cols-3">
-              {["Auditamos até 60 faturas", "Protocolamos o pedido na distribuidora", "Acompanhamos até a devolução"].map((t, i) => (
-                <li key={t} className="flex items-center gap-3 rounded-xl bg-white/[0.06] px-4 py-3 text-[15px] font-semibold">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-ink">{i + 1}</span>
-                  {t}
-                </li>
-              ))}
-            </ol>
-          </BlurFade>
-
-          <BlurFade>
             <div className="mt-10 flex flex-col gap-6 rounded-3xl bg-white p-6 text-ink sm:p-8 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-xl">
-                <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">Gestão completa de energia, simples e digital.</h3>
-                <p className="mt-2 text-[15px] text-muted">Profissionais que entendem do setor elétrico cuidando da sua conta: auditoria, recuperação de valores, GD e Mercado Livre.</p>
+                <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">Começa com uma auditoria grátis. Continua com gestão completa.</h3>
+                <p className="mt-2 text-[15px] text-muted">Profissionais do setor elétrico cuidando da sua energia, de forma simples e digital.</p>
               </div>
               <Link href="#analisar" className="inline-flex h-13 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-bold text-white hover:bg-primary-hover">
-                VERIFICAR MINHAS FATURAS <ArrowRight className="size-4" />
+                AUDITAR MINHA FATURA <ArrowRight className="size-4" />
               </Link>
             </div>
           </BlurFade>
-
-          <p className="mt-5 text-xs leading-relaxed text-white/55">
-            A devolução depende da comprovação da cobrança indevida e da análise de cada caso pela distribuidora. Não garantimos valores ou resultados.
-          </p>
         </div>
       </section>
 
-      {/* ================= ONDE A CONTA PESA (bento + spotlight) ================= */}
-      <section className="bg-background py-20 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <BlurFade className="max-w-2xl">
-            <Eyebrow>Auditoria de fatura</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Onde sua conta esconde dinheiro.</h2>
-            
-          </BlurFade>
-          <div className="mt-12 grid gap-4 md:grid-cols-3">
-            <BlurFade className="md:col-span-2 md:row-span-2">
-              <SpotlightCard className="h-full p-7">
-                <span className="flex size-11 items-center justify-center rounded-xl bg-attention-soft text-attention">
-                  <Gauge className="size-5" />
-                </span>
-                <h3 className="mt-5 text-2xl font-bold tracking-tight">Demanda contratada e ultrapassagens</h3>
-                <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-muted">
-                  Pico acima do contrato custa caro. Contratar demais também.
-                </p>
-                <div className="mt-8">
-                  <DemandBars />
-                </div>
-              </SpotlightCard>
-            </BlurFade>
-            {[
-              { icon: Activity, t: "Energia reativa", d: "Fator de potência abaixo de 0,92." },
-              { icon: Receipt, t: "Estrutura tarifária", d: "Verde, Azul ou convencional." },
-              { icon: TrendingUp, t: "Variações anormais", d: "Consumo fora do padrão." },
-              { icon: Sun, t: "Créditos e compensação", d: "Créditos de energia solar." },
-            ].map(({ icon: Icon, t, d }, i) => (
-              <BlurFade key={t} delay={0.05 * i} className={i >= 2 ? "" : ""}>
-                <SpotlightCard className="h-full p-6">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-                    <Icon className="size-5" />
-                  </span>
-                  <h3 className="mt-4 text-lg font-bold tracking-tight">{t}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">{d}</p>
-                </SpotlightCard>
-              </BlurFade>
-            ))}
-            <BlurFade className="md:col-span-1">
-              <SpotlightCard className="h-full bg-ink p-6 text-white" dark>
-                <span className="flex size-10 items-center justify-center rounded-xl bg-volt text-ink">
-                  <Zap className="size-5" />
-                </span>
-                <h3 className="mt-4 text-lg font-bold tracking-tight">GD por assinatura e Mercado Livre</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/75">Perfil compatível e faixa de economia.</p>
-              </SpotlightCard>
-            </BlurFade>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= DEMO DA ANÁLISE ================= */}
-      <section className="relative overflow-hidden bg-ink py-20 text-white sm:py-24">
-        <div className="glow absolute inset-0 opacity-80" />
-        <DotPattern className="[mask-image:radial-gradient(600px_circle_at_20%_50%,white,transparent)]" />
-        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <BlurFade className="mb-12 max-w-2xl">
-            <Eyebrow className="text-cyan">Veja acontecendo</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">A fatura entra. O Raio-X sai. Em até 1 minuto.</h2>
-            
-          </BlurFade>
-          <ScanDemo />
-          <div className="mt-12 flex flex-wrap items-center gap-4">
-            <Link href="#analisar" className="inline-flex h-13 items-center gap-2 rounded-xl bg-white px-6 text-[15px] font-bold text-ink shadow-[0_10px_30px_-10px_rgba(255,255,255,0.5)] transition-transform hover:-translate-y-0.5">
-              QUERO O RAIO-X DA MINHA FATURA <ArrowRight className="size-4" />
-            </Link>
-            <span className="text-sm text-white/70">Gratuito · sem compromisso</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= COMO FUNCIONA (scroll-linked) ================= */}
+      {/* ================= COMO FUNCIONA ================= */}
       <section id="como-funciona" className="scroll-mt-16 bg-white py-20 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr]">
           <BlurFade className="lg:sticky lg:top-28 lg:self-start">
             <Eyebrow>Como funciona</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">3 passos. Menos de 2 minutos.</h2>
-            
             <Link href="#analisar" className="pulse-ring mt-8 inline-flex h-13 items-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-bold text-white hover:bg-primary-hover">
-              COMEÇAR MINHA ANÁLISE GRÁTIS <ArrowRight className="size-4" />
+              QUERO MINHA AUDITORIA GRÁTIS <ArrowRight className="size-4" />
             </Link>
           </BlurFade>
           <ScrollTimeline steps={STEPS} />
-        </div>
-      </section>
-
-      {/* ================= TECNOLOGIA (animated beam) ================= */}
-      <section className="relative overflow-hidden bg-ink py-20 text-white sm:py-24">
-        <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_40%,white,transparent)]" />
-        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <BlurFade className="mx-auto mb-12 max-w-2xl text-center">
-            <Eyebrow className="text-cyan">Tecnologia com responsabilidade</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">A IA lê. As regras calculam. Você decide.</h2>
-            
-          </BlurFade>
-          <BlurFade delay={0.1}>
-            <PipelineBeam />
-          </BlurFade>
-        </div>
-      </section>
-
-      {/* ================= PARA QUEM ================= */}
-      <section className="bg-white py-20 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <BlurFade className="max-w-2xl">
-            <Eyebrow>Para quem é</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Feito para empresas que sentem a conta no caixa.</h2>
-          </BlurFade>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SEGMENTS.map(({ icon: Icon, title }, i) => (
-              <BlurFade key={title} delay={0.04 * i}>
-                <SpotlightCard className="h-full p-6">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-ink text-volt">
-                      <Icon className="size-5" />
-                    </span>
-                    <h3 className="text-lg font-bold tracking-tight">{title}</h3>
-                  </div>
-                </SpotlightCard>
-              </BlurFade>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ================= COMPARAÇÃO ================= */}
-      <section className="bg-background py-20 sm:py-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <BlurFade className="mx-auto max-w-2xl text-center">
-            <Eyebrow>Por que o Raio-X</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Uma visão independente antes de qualquer proposta.</h2>
-          </BlurFade>
-          <BlurFade delay={0.1} className="mt-12 overflow-x-auto rounded-3xl border border-border bg-white shadow-[0_20px_60px_-30px_rgba(7,11,22,0.25)]">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="p-5 font-semibold text-muted" />
-                  <th className="bg-ink p-5 text-center font-bold text-white">
-                    <span className="text-volt">●</span> Raio-X
-                  </th>
-                  <th className="p-5 text-center font-semibold text-muted">Analisar sozinho</th>
-                  <th className="p-5 text-center font-semibold text-muted">Proposta de vendedor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {COMPARE.map((r) => (
-                  <tr key={r.item}>
-                    <td className="p-5 font-medium">{r.item}</td>
-                    <Cell v={r.us} highlight />
-                    <Cell v={r.self} />
-                    <Cell v={r.seller} />
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </BlurFade>
-        </div>
-      </section>
-
-      {TESTIMONIALS.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-          <div className="grid gap-5 md:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <figure key={t.author} className="rounded-2xl border border-border bg-white p-6">
-                <blockquote className="text-sm leading-relaxed">“{t.quote}”</blockquote>
-                <figcaption className="mt-4 text-xs text-muted">
-                  <strong className="text-foreground">{t.author}</strong> · {t.role}, {t.company}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ================= ATENDIMENTO COM IA ================= */}
-      <section className="relative overflow-hidden bg-ink py-20 text-white sm:py-24">
-        <div className="glow absolute inset-0 opacity-70" />
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:items-center">
-          <BlurFade>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-xs font-semibold">
-              <Bot className="size-3.5 text-cyan" /> Atendimento com IA
-            </span>
-            <h2 className="mt-4 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Dúvida às 23h? A resposta vem na hora.</h2>
-            <p className="mt-4 text-lg text-white/75">Tira dúvidas na hora e chama um especialista quando precisar.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <OpenChatButton className="inline-flex h-13 items-center gap-2 rounded-xl bg-white px-6 text-[15px] font-bold text-ink hover:-translate-y-0.5" label="Conversar com a IA" />
-              <Link href="#analisar" className="inline-flex h-13 items-center rounded-xl border border-white/20 px-6 text-[15px] font-semibold hover:bg-white/10">
-                Enviar fatura
-              </Link>
-            </div>
-          </BlurFade>
-          <BlurFade delay={0.1}>
-            <ChatDemo />
-          </BlurFade>
-        </div>
-      </section>
-
-      {/* ================= SEGURANÇA / LGPD ================= */}
-      <section className="border-b border-border bg-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-3">
-          {[
-            { icon: Lock, t: "Segurança do documento", d: "Criptografado e privado." },
-            { icon: ShieldCheck, t: "LGPD de verdade", d: "Seus dados, suas regras." },
-            { icon: FileSearch, t: "Diagnóstico preliminar", d: "Sujeito à validação técnica." },
-          ].map(({ icon: Icon, t, d }) => (
-            <div key={t}>
-              <Icon className="size-7 text-primary" />
-              <p className="mt-4 text-lg font-bold">{t}</p>
-              <p className="mt-2 text-[15px] leading-relaxed text-muted">{d}</p>
-            </div>
-          ))}
-          <p className="text-sm md:col-span-3">
-            <Link href="/privacidade/solicitacao" className="font-semibold text-primary hover:underline">
-              Exercer meus direitos (LGPD) →
-            </Link>
-          </p>
         </div>
       </section>
 
@@ -437,9 +227,9 @@ export default function HomePage() {
       <section id="faq" className="scroll-mt-16 bg-background py-20 sm:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <Eyebrow className="text-center">Perguntas frequentes</Eyebrow>
-          <h2 className="mt-3 text-center text-[32px] font-bold tracking-[-0.03em] sm:text-4xl">Tudo o que você precisa saber</h2>
+          <h2 className="mt-3 text-center text-[32px] font-bold tracking-[-0.03em] sm:text-4xl">Antes de enviar sua fatura</h2>
           <div className="mt-10 space-y-3">
-            {FAQ.map((f) => (
+            {FAQ_HOME.map((f) => (
               <details key={f.q} className="group rounded-2xl border border-border bg-white px-5 py-4 transition-shadow open:shadow-[0_10px_30px_-15px_rgba(7,11,22,0.25)] [&_summary::-webkit-details-marker]:hidden">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-semibold">
                   {f.q}
@@ -452,7 +242,7 @@ export default function HomePage() {
             ))}
           </div>
           <p className="mt-8 text-center text-[15px] text-muted">
-            Não achou sua dúvida? <OpenChatButton className="font-bold text-primary hover:underline" label="Pergunte à nossa IA" />
+            Outra dúvida? <OpenChatButton className="font-bold text-primary hover:underline" label="Pergunte à nossa IA" />
           </p>
         </div>
       </section>
@@ -465,14 +255,14 @@ export default function HomePage() {
           <Meteors number={16} />
           <div className="relative">
             <h2 className="mx-auto max-w-3xl text-[34px] font-bold leading-[1.08] tracking-[-0.035em] sm:text-6xl">
-              Descubra o que a sua conta de energia <span className="text-volt">está dizendo.</span>
+              Todo mês, uma fatura <span className="text-volt">sai do prazo</span> de devolução.
             </h2>
-            
+            <p className="mx-auto mt-5 max-w-xl text-lg text-white/75">Audite agora, enquanto os 5 anos ainda contam a seu favor.</p>
             <Link href="#analisar" className="mt-9 inline-flex h-14 items-center gap-2 rounded-2xl bg-white px-8 text-base font-bold text-ink shadow-[0_15px_40px_-10px_rgba(255,255,255,0.45)] transition-transform hover:-translate-y-0.5">
-              ANALISAR MINHA FATURA GRÁTIS <ArrowRight className="size-5" />
+              AUDITAR MINHA FATURA GRÁTIS <ArrowRight className="size-5" />
             </Link>
             <div className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-medium text-white/80">
-              {["Gratuito", "Sem compromisso", "Sem trocar de fornecedor", "Dados protegidos"].map((t) => (
+              {["Gratuito", "Sem compromisso", "Sem ação judicial", "Dados protegidos (LGPD)"].map((t) => (
                 <span key={t} className="flex items-center gap-1.5">
                   <CheckCircle2 className="size-4 text-volt" /> {t}
                 </span>
@@ -484,27 +274,5 @@ export default function HomePage() {
 
       <StickyCta />
     </>
-  );
-}
-
-function Cell({ v, highlight }: { v: boolean | string; highlight?: boolean }) {
-  return (
-    <td className={cn("p-5 text-center", highlight && "bg-primary-soft/60 font-semibold")}>
-      {v === true ? (
-        <span className={cn("inline-flex size-7 items-center justify-center rounded-full", highlight ? "bg-primary text-white" : "bg-subtle text-foreground")}>
-          <Check className="size-4" strokeWidth={3} />
-        </span>
-      ) : v === false ? (
-        <span className="inline-flex size-7 items-center justify-center rounded-full bg-attention-soft text-attention">
-          <X className="size-4" strokeWidth={3} />
-        </span>
-      ) : v === "Parcial" ? (
-        <span className="inline-flex items-center gap-1 text-muted">
-          <Minus className="size-4" /> Parcial
-        </span>
-      ) : (
-        <span className={highlight ? "text-foreground" : "text-muted"}>{v}</span>
-      )}
-    </td>
   );
 }
