@@ -1,0 +1,25 @@
+CEMIG DISTRIBUIÇÃO S.A. CNPJ 06.981.180/0001-16
+NOTA FISCAL / CONTA DE ENERGIA ELÉTRICA
+Cliente: METALURGICA EXEMPLO LTDA
+Nº da Instalação: 3001234567
+Classe: Industrial   Subgrupo: A4   Modalidade Tarifária: Horo-sazonal Verde
+Tensão de fornecimento: 13,8 kV
+Referência: SET/2026   Vencimento: 15/10/2026
+Leituras: 01/08/2026 a 31/08/2026
+Bandeira Tarifária: Amarela
+Consumo Ponta 4.820 kWh
+Consumo Fora Ponta 52.300 kWh
+Consumo total faturado 57.120 kWh
+Demanda Contratada 300 kW
+Demanda Medida 342 kW
+Demanda Faturada 342 kW
+Ultrapassagem de demanda 42 kW R$ 3.150,40
+Energia Reativa Excedente 1.230 kvarh R$ 412,55
+Fator de Potência 0,87
+TE 0,32145 TUSD 0,18234
+ICMS 18% R$ 7.855,30
+PIS/COFINS R$ 2.100,10
+CIP R$ 250,00
+Histórico de consumo
+AGO/26 49.800 JUL/26 51.200 JUN/26 48.900 MAI/26 50.100 ABR/26 47.300 MAR/26 49.700
+TOTAL A PAGAR R$ 48.732,18

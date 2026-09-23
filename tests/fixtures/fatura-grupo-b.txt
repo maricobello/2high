@@ -1,0 +1,13 @@
+ENEL DISTRIBUIÇÃO SÃO PAULO
+Conta de energia elétrica
+Código do Cliente: 123456789
+Classe: Comercial  Subclasse Outros  Grupo B  B3 Trifásico
+Tarifa Convencional
+Mês de referência: 08/2026   Vencimento: 10/09/2026
+Consumo faturado 2.450 kWh
+Bandeira tarifária Verde
+Contribuição de Iluminação Pública R$ 45,90
+ICMS R$ 512,30
+Histórico
+JUL/26 2.380 JUN/26 2.310 MAI/26 2.500 ABR/26 2.410
+Valor total a pagar R$ 2.618,44
