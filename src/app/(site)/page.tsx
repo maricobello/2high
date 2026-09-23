@@ -26,6 +26,8 @@ import { DotPattern } from "@/components/magicui/dot-pattern";
 import { Marquee } from "@/components/magicui/marquee";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { StickyCta } from "@/components/site/sticky-cta";
+import { PipelineBeam } from "@/components/site/pipeline-beam";
+import { Meteors } from "@/components/magicui/meteors";
 import { Badge, Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
 import { TESTIMONIALS } from "@/content/social-proof";
@@ -187,6 +189,21 @@ export default function HomePage() {
               description="Além dos pontos de atenção, indicamos se o perfil da sua empresa é compatível com energia por assinatura (sem instalar placas) ou com o Mercado Livre — com faixa de economia estimada, sujeita à validação."
             />
           </BentoGrid>
+        </div>
+      </section>
+
+      {/* ================= FLUXO (ANIMATED BEAM) ================= */}
+      <section className="relative overflow-hidden bg-ink py-20 text-white">
+        <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_40%,white,transparent)]" />
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <BlurFade className="mx-auto mb-12 max-w-2xl text-center">
+            <Eyebrow className="text-cyan">Tecnologia</Eyebrow>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Da fatura ao Raio-X, sem planilha e sem espera.</h2>
+            <p className="mt-4 text-white/60">A IA lê o documento. Um motor de regras técnico faz as contas. Você recebe o resultado — e fala com um especialista só se quiser.</p>
+          </BlurFade>
+          <BlurFade delay={0.1}>
+            <PipelineBeam />
+          </BlurFade>
         </div>
       </section>
 
@@ -384,6 +401,7 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-ink px-6 py-14 text-center text-white sm:px-12">
           <div className="glow absolute inset-0 opacity-80" />
           <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_0%,white,transparent)]" />
+          <Meteors number={16} />
           <div className="relative">
             <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">Descubra o que a sua conta de energia está dizendo.</h2>
             <p className="mx-auto mt-4 max-w-xl text-white/65">Deixe seu contato, envie a fatura e receba o Raio-X preliminar em cerca de um minuto. Gratuito e sem compromisso.</p>

@@ -9,13 +9,15 @@ Plataforma SaaS B2B de **análise e aquisição de clientes para soluções de e
 
 O nome da marca é configurável em `NEXT_PUBLIC_BRAND_NAME` (padrão: “Aferi”).
 
+[![Deploy com Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmaricobello%2F2high&env=ADMIN_EMAIL,ADMIN_PASSWORD,AUTH_SECRET,CRON_SECRET,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_COMMERCIAL_WHATSAPP,GROQ_API_KEY,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY&envDescription=Veja%20o%20.env.example&project-name=aferi)
+
 ---
 
 ## Conversão (landing)
 
 - **Isca em 2 etapas**: (1) nome, e-mail e WhatsApp + consentimento LGPD → lead criado na hora (`/api/leads/start`); (2) envio da fatura + dados opcionais → Raio-X automático. Quem para na etapa 1 recebe e-mail/WhatsApp de boas-vindas com o link de envio e o **guia bônus** (`/guia-conta-de-energia`), além de 3 lembretes automáticos (1h, 24h, 96h) que param quando a fatura chega.
 - **Atendimento com IA** (`/api/chat` + widget em todas as páginas): responde dúvidas com base no FAQ/fatos do serviço e, na página do diagnóstico, no Raio-X do próprio lead; passa pelas guardas; encaminha para humano no WhatsApp quando necessário e registra a conversa no CRM. Sem IA configurada, responde por FAQ. Opcionalmente responde também no WhatsApp (`AI_WHATSAPP_AUTOREPLY=true`).
-- **Componentes no padrão Magic UI / 21st.dev** em `src/components/magicui/` (ShimmerButton, BorderBeam, NumberTicker, Marquee, AnimatedShinyText, DotPattern, BlurFade, BentoGrid), implementados localmente com `motion` — sem dependência de registro externo.
+- **Componentes no padrão Magic UI / 21st.dev** em `src/components/magicui/` (ShimmerButton, BorderBeam, NumberTicker, Marquee, AnimatedShinyText, DotPattern, BlurFade, BentoGrid, AnimatedBeam, Meteors, Confetti), implementados localmente com `motion` — sem dependência de registro externo.
 - CTA repetido em toda a página, barra fixa de CTA no mobile, prova social só com casos reais (`src/content/social-proof.ts`).
 
 ## LGPD

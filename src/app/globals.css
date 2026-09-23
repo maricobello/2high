@@ -100,6 +100,12 @@ body {
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
   --animate-marquee: marquee var(--duration) infinite linear;
   --animate-shiny-text: shiny-text 8s infinite;
+  --animate-meteor: meteor 5s linear infinite;
+}
+@keyframes meteor {
+  0% { transform: rotate(215deg) translateX(0); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: rotate(215deg) translateX(-500px); opacity: 0; }
 }
 @keyframes shimmer-slide {
   to { transform: translate(calc(100cqw - 100%), 0); }
@@ -119,5 +125,5 @@ body {
   30%, 60% { background-position: calc(100% + var(--shiny-width)) 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .animate-marquee, .animate-shimmer-slide, .animate-spin-around, .animate-shiny-text { animation: none; }
+  .animate-marquee, .animate-meteor, .animate-shimmer-slide, .animate-spin-around, .animate-shiny-text { animation: none; }
 }

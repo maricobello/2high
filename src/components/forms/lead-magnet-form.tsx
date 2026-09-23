@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, Clock, Loader2, ShieldCheck } from "lucide-re
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BorderBeam } from "@/components/magicui/border-beam";
+import { celebrate } from "@/components/magicui/confetti";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { Field, Input } from "@/components/ui/field";
 import { readUtm } from "@/lib/client/compress-image";
@@ -73,6 +74,7 @@ export function LeadMagnetForm() {
       } catch {}
       setFirstName(first);
       setToken(data.token);
+      celebrate();
     } catch {
       setFormError("Falha de conexão. Verifique sua internet e tente novamente.");
     }
