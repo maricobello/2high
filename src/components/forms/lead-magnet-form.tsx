@@ -3,13 +3,14 @@
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Info, Loader2, Lock, ShieldCheck, Zap } from "lucide-react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { celebrate } from "@/components/magicui/confetti";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { Field, Input } from "@/components/ui/field";
 import { readUtm } from "@/lib/client/compress-image";
+import { OPEN_ANALYSIS_EVENT } from "@/lib/client/open-analysis";
 import { cn, formatBRL } from "@/lib/utils";
 import { formatPhone } from "@/modules/leads/schema";
 import { billRangeFromAmount } from "@/modules/leads/types";
@@ -44,6 +45,9 @@ export function LeadMagnetForm() {
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const amount = toAmount(t);
   const billRange = billRangeFromAmount(amount);
@@ -63,6 +67,44 @@ export function LeadMagnetForm() {
       if (name) setFirstName(name);
     } catch {}
   }, []);
+
+  // Qualquer CTA "Analisar fatura" (links para #analisar) abre o formulário:
+  // rola até o card, pula direto para o contato e destaca o card.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const open = () => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setStep((s) => (s === 0 ? 1 : s));
+      setHighlight(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setHighlight(false), 1600);
+    };
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]");
+      if (!(a instanceof HTMLAnchorElement)) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.hash !== "#analisar" || url.pathname !== window.location.pathname) return;
+      e.preventDefault();
+      open();
+    };
+    document.addEventListener("click", onClick, true);
+    window.addEventListener(OPEN_ANALYSIS_EVENT, open);
+    // Chegou de outra página por /#analisar
+    const initial = window.location.hash === "#analisar" ? setTimeout(open, 350) : undefined;
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener(OPEN_ANALYSIS_EVENT, open);
+      clearTimeout(timer);
+      clearTimeout(initial);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (step !== 1) return;
+    const t = setTimeout(() => nameRef.current?.focus({ preventScroll: true }), 300);
+    return () => clearTimeout(t);
+  }, [step]);
 
   const set = (k: keyof typeof v, val: string | boolean) => {
     setV((p) => ({ ...p, [k]: val }));
@@ -115,7 +157,13 @@ export function LeadMagnetForm() {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.8)] ring-1 ring-black/5 sm:p-7">
+    <div
+      ref={cardRef}
+      className={cn(
+        "relative scroll-mt-20 overflow-hidden rounded-[28px] border border-white/10 bg-white p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.8)] ring-1 ring-black/5 transition-shadow duration-500 sm:p-7",
+        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(255,200,61,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
+      )}
+    >
       <BorderBeam size={140} duration={9} />
 
       {/* Stepper */}
@@ -214,7 +262,7 @@ export function LeadMagnetForm() {
           >
             <input tabIndex={-1} autoComplete="off" className="hidden" aria-hidden value={v.website} onChange={(e) => set("website", e.target.value)} name="website" />
             <Field label="Seu nome" error={errors.name}>
-              <Input autoComplete="name" value={v.name} onChange={(e) => set("name", e.target.value)} invalid={!!errors.name} placeholder="Como podemos te chamar?" autoFocus />
+              <Input autoComplete="name" value={v.name} onChange={(e) => set("name", e.target.value)} invalid={!!errors.name} placeholder="Como podemos te chamar?" ref={nameRef} />
             </Field>
             <Field label="E-mail" error={errors.email}>
               <Input type="email" autoComplete="email" inputMode="email" value={v.email} onChange={(e) => set("email", e.target.value)} invalid={!!errors.email} placeholder="voce@empresa.com.br" />

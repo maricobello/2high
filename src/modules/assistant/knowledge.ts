@@ -14,6 +14,9 @@ export const SERVICE_FACTS = [
   "GD por assinatura: energia gerada em usinas remotas, com créditos compensados na conta; não exige obra nem equipamento; depende de disponibilidade na distribuidora e do perfil.",
   "Mercado Livre: desde 2024 unidades do Grupo A (média/alta tensão) podem migrar; abaixo de 500 kW, via comercializador varejista. Baixa tensão (Grupo B) ainda depende de regulamentação.",
   "Dados pessoais são tratados conforme a LGPD: uso para a análise e o contato autorizado, armazenamento privado, e o titular pode pedir acesso, correção ou exclusão na página /privacidade/solicitacao.",
+  "Recuperação de valores: o Código de Defesa do Consumidor (art. 42, parágrafo único) prevê a devolução em dobro, com correção e juros, do que foi cobrado indevidamente, salvo engano justificável; a REN ANEEL 1.000/2021 regula o faturamento e a devolução de valores cobrados a maior pela distribuidora.",
+  "O pedido de devolução pode alcançar as últimas 60 faturas (5 anos), prazo usado como referência pela Justiça. Ele é feito administrativamente, direto com a distribuidora (e, se preciso, ouvidoria e ANEEL), sem ação judicial. A empresa cuida de todo o processo pelo cliente. O resultado depende da comprovação da cobrança indevida; não há garantia de valores.",
+  "Oferecemos gestão completa de energia, simples e digital, com profissionais do setor elétrico: auditoria das faturas, recuperação de valores, GD por assinatura e Mercado Livre.",
   "Um especialista humano pode continuar o atendimento pelo WhatsApp quando o cliente quiser.",
   "Para parar de receber mensagens automáticas, basta responder SAIR no WhatsApp.",
 ];
