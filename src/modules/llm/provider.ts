@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "@/lib/env";
+import { getSecret } from "@/lib/secrets";
 
 /**
  * Camada de inferência desacoplada. Qualquer provedor compatível com a API
@@ -33,11 +34,13 @@ class OpenAICompatibleProvider implements LLMProvider {
   constructor(
     readonly name: string,
     private baseUrl: string,
-    private apiKey: string,
+    private apiKey: () => Promise<string | null>,
     private models: Record<ModelTier, string>,
   ) {}
 
   async chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
+    const key = await this.apiKey();
+    if (!key) throw new Error("Chave de IA não configurada (GROQ_API_KEY).");
     const tier = opts.tier ?? "text";
     const body: Record<string, unknown> = {
       model: this.models[tier],
@@ -52,7 +55,7 @@ class OpenAICompatibleProvider implements LLMProvider {
       try {
         const res = await fetch(`${this.baseUrl}/chat/completions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
           body: JSON.stringify(body),
           signal: AbortSignal.timeout(env.llmTimeoutMs),
         });
@@ -89,10 +92,14 @@ let cached: LLMProvider | null = null;
 
 export function getLLM(): LLMProvider {
   if (cached) return cached;
-  if (env.llmProvider === "none" || !env.llmApiKey) {
+  // Chave: variável de ambiente ou, na falta, tabela app_secrets do Supabase
+  const canUseStoredKey = env.dataDriver === "supabase";
+  if (process.env.LLM_PROVIDER === "none" || (!env.llmApiKey && !canUseStoredKey)) {
     cached = new NullProvider();
   } else {
-    cached = new OpenAICompatibleProvider(env.llmProvider, env.llmBaseUrl, env.llmApiKey, {
+    const provider = env.llmProvider === "none" ? "groq" : env.llmProvider;
+    const keyFn = async () => env.llmApiKey || (await getSecret("GROQ_API_KEY"));
+    cached = new OpenAICompatibleProvider(provider, env.llmBaseUrl, keyFn, {
       text: env.llmModelText,
       fast: env.llmModelFast,
       vision: env.llmModelVision,

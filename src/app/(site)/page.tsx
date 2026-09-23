@@ -43,14 +43,13 @@ import { FAQ } from "@/content/faq";
 import { TESTIMONIALS } from "@/content/social-proof";
 import { cn } from "@/lib/utils";
 import { DISTRIBUTORS } from "@/modules/invoice/distributors";
-import { visibleSolutions } from "@/modules/leads/solutions";
 
 const DISTRIBUTOR_NAMES = [...new Set(DISTRIBUTORS.filter((d) => d.states.length).map((d) => d.name))];
 
 const STEPS = [
-  { time: "15 segundos", title: "Simule e deixe seu contato", text: "Arraste o valor da conta, veja a faixa estimada e informe nome, e-mail e WhatsApp." },
-  { time: "30 segundos", title: "Envie a fatura", text: "PDF baixado da distribuidora ou foto pelo celular. O arquivo fica em ambiente privado." },
-  { time: "até 1 minuto", title: "Receba o Raio-X", text: "Pontos de atenção, oportunidades com faixa de economia e as soluções que fazem sentido — com os dados usados e o nível de confiança." },
+  { time: "15 segundos", title: "Simule e deixe seu contato", text: "Simule e deixe nome, e-mail e WhatsApp." },
+  { time: "30 segundos", title: "Envie a fatura", text: "PDF ou foto pelo celular." },
+  { time: "até 1 minuto", title: "Receba o Raio-X", text: "Pontos de atenção, oportunidades e economia estimada." },
 ];
 
 const SEGMENTS = [
@@ -65,14 +64,11 @@ const SEGMENTS = [
 const COMPARE: { item: string; us: boolean | string; self: boolean | string; seller: boolean | string }[] = [
   { item: "Custo para o cliente", us: "Gratuito", self: "Horas do seu time", seller: "Gratuito" },
   { item: "Tempo até o resultado", us: "Até 1 minuto", self: "Dias", seller: "Dias a semanas" },
-  { item: "Lê a fatura inteira (demanda, reativos, tarifas)", us: true, self: "Parcial", seller: "Parcial" },
   { item: "Compara GD por assinatura e Mercado Livre", us: true, self: false, seller: "Só o que vende" },
-  { item: "Mostra os dados usados e o nível de confiança", us: true, self: false, seller: false },
   { item: "Sem obrigação de trocar de fornecedor", us: true, self: true, seller: false },
 ];
 
 export default function HomePage() {
-  const solutions = visibleSolutions();
   return (
     <>
       {/* ================= HERO (above the fold) ================= */}
@@ -90,11 +86,10 @@ export default function HomePage() {
             </div>
             <HeroHeadline />
             <p className="rise-in mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg" style={{ animationDelay: "0.55s" }}>
-              Envie sua fatura e descubra oportunidades de redução de custos, possíveis inconsistências de faturamento e quais soluções de energia podem fazer sentido
-              para sua empresa.
+              Envie sua fatura e descubra onde sua empresa pode economizar.
             </p>
             <ul className="rise-in mt-7 grid grid-cols-2 gap-x-3 gap-y-3 text-[13.5px] sm:text-[15px] font-medium text-white sm:grid-cols-2" style={{ animationDelay: "0.7s" }}>
-              {["100% gratuito, sem compromisso", "Sem trocar de fornecedor", "Sem instalar placas", "Atendimento com IA 24h"].map((t) => (
+              {["Gratuito", "Sem trocar de fornecedor", "Sem instalar placas", "IA 24h"].map((t) => (
                 <li key={t} className="flex items-center gap-2">
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-volt text-ink">
                     <Check className="size-3.5" strokeWidth={3} />
@@ -110,12 +105,6 @@ export default function HomePage() {
                   {b}
                 </span>
               ))}
-            </div>
-            <div className="rise-in mt-8 hidden items-center gap-5 lg:flex" style={{ animationDelay: "1s" }}>
-              <Link href="/gd-por-assinatura" className="inline-flex items-center gap-1.5 text-sm font-semibold text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">
-                Simular energia por assinatura <ArrowRight className="size-4" />
-              </Link>
-              <OpenChatButton className="text-sm font-semibold text-white/80 hover:text-white" />
             </div>
           </div>
           <BlurFade delay={0.15}>
@@ -166,8 +155,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
             <Eyebrow>Auditoria de fatura</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Sua conta de energia pode esconder oportunidades de economia.</h2>
-            <p className="mt-4 text-lg text-muted">Verificamos os pontos que mais pesam na conta de empresas — com regras técnicas auditáveis, não com achismo.</p>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Onde sua conta esconde dinheiro.</h2>
+            
           </BlurFade>
           <div className="mt-12 grid gap-4 md:grid-cols-3">
             <BlurFade className="md:col-span-2 md:row-span-2">
@@ -177,7 +166,7 @@ export default function HomePage() {
                 </span>
                 <h3 className="mt-5 text-2xl font-bold tracking-tight">Demanda contratada e ultrapassagens</h3>
                 <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-muted">
-                  Picos acima da demanda contratada (além da tolerância de 5%) são cobrados com tarifa de ultrapassagem. E contratar demais também custa todo mês.
+                  Pico acima do contrato custa caro. Contratar demais também.
                 </p>
                 <div className="mt-8">
                   <DemandBars />
@@ -185,10 +174,10 @@ export default function HomePage() {
               </SpotlightCard>
             </BlurFade>
             {[
-              { icon: Activity, t: "Energia reativa", d: "Fator de potência abaixo de 0,92 gera cobrança de excedente reativo." },
-              { icon: Receipt, t: "Estrutura tarifária", d: "Verde, Azul ou convencional: sinalizamos quando vale comparar." },
-              { icon: TrendingUp, t: "Variações anormais", d: "Consumo fora do padrão histórico que merece confirmação." },
-              { icon: Sun, t: "Créditos e compensação", d: "Leitura dos créditos de geração distribuída e do saldo acumulado." },
+              { icon: Activity, t: "Energia reativa", d: "Fator de potência abaixo de 0,92." },
+              { icon: Receipt, t: "Estrutura tarifária", d: "Verde, Azul ou convencional." },
+              { icon: TrendingUp, t: "Variações anormais", d: "Consumo fora do padrão." },
+              { icon: Sun, t: "Créditos e compensação", d: "Créditos de energia solar." },
             ].map(({ icon: Icon, t, d }, i) => (
               <BlurFade key={t} delay={0.05 * i} className={i >= 2 ? "" : ""}>
                 <SpotlightCard className="h-full p-6">
@@ -206,7 +195,7 @@ export default function HomePage() {
                   <Zap className="size-5" />
                 </span>
                 <h3 className="mt-4 text-lg font-bold tracking-tight">GD por assinatura e Mercado Livre</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/75">Indicamos se o perfil é compatível, com faixa de economia estimada.</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-white/75">Perfil compatível e faixa de economia.</p>
               </SpotlightCard>
             </BlurFade>
           </div>
@@ -221,7 +210,7 @@ export default function HomePage() {
           <BlurFade className="mb-12 max-w-2xl">
             <Eyebrow className="text-cyan">Veja acontecendo</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">A fatura entra. O Raio-X sai. Em até 1 minuto.</h2>
-            <p className="mt-4 text-lg text-white/75">Cada campo é lido, conferido e passa por um motor de regras técnico. Você vê o que encontramos — e por quê.</p>
+            
           </BlurFade>
           <ScanDemo />
           <div className="mt-12 flex flex-wrap items-center gap-4">
@@ -239,7 +228,7 @@ export default function HomePage() {
           <BlurFade className="lg:sticky lg:top-28 lg:self-start">
             <Eyebrow>Como funciona</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">3 passos. Menos de 2 minutos.</h2>
-            <p className="mt-4 text-lg text-muted">Sem reunião, sem planilha, sem visita técnica para começar. Um especialista entra só se você quiser avançar.</p>
+            
             <Link href="#analisar" className="pulse-ring mt-8 inline-flex h-13 items-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-bold text-white hover:bg-primary-hover">
               COMEÇAR MINHA ANÁLISE GRÁTIS <ArrowRight className="size-4" />
             </Link>
@@ -255,7 +244,7 @@ export default function HomePage() {
           <BlurFade className="mx-auto mb-12 max-w-2xl text-center">
             <Eyebrow className="text-cyan">Tecnologia com responsabilidade</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">A IA lê. As regras calculam. Você decide.</h2>
-            <p className="mt-4 text-lg text-white/75">A inteligência artificial interpreta o documento e explica o resultado. Todo valor é calculado por um motor de regras técnico, auditável e versionado.</p>
+            
           </BlurFade>
           <BlurFade delay={0.1}>
             <PipelineBeam />
@@ -271,7 +260,7 @@ export default function HomePage() {
             <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Feito para empresas que sentem a conta no caixa.</h2>
           </BlurFade>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SEGMENTS.map(({ icon: Icon, title, text }, i) => (
+            {SEGMENTS.map(({ icon: Icon, title }, i) => (
               <BlurFade key={title} delay={0.04 * i}>
                 <SpotlightCard className="h-full p-6">
                   <div className="flex items-center gap-3">
@@ -280,7 +269,6 @@ export default function HomePage() {
                     </span>
                     <h3 className="text-lg font-bold tracking-tight">{title}</h3>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">{text}</p>
                 </SpotlightCard>
               </BlurFade>
             ))}
@@ -322,33 +310,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= SOLUÇÕES ================= */}
-      <section className="bg-white py-20 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <BlurFade className="max-w-2xl">
-            <Eyebrow>Soluções</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Um diagnóstico. As soluções que fazem sentido para o seu perfil.</h2>
-          </BlurFade>
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {solutions.map((s, i) => (
-              <BlurFade key={s.code} delay={i * 0.06}>
-                <Link href={s.href} className="block h-full">
-                  <SpotlightCard className="flex h-full flex-col p-7">
-                    <span className="font-mono text-xs font-bold text-primary">0{i + 1}</span>
-                    <p className="mt-3 text-xl font-bold tracking-tight">{s.title}</p>
-                    <p className="mt-2 flex-1 text-[15px] leading-relaxed text-muted">{s.description}</p>
-                    <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-primary">
-                      {s.code === "auditoria" ? "Analisar minha fatura" : s.code === "gd_assinatura" ? "Simular economia" : "Analisar perfil"}
-                      <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-                    </span>
-                  </SpotlightCard>
-                </Link>
-              </BlurFade>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {TESTIMONIALS.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
           <div className="grid gap-5 md:grid-cols-3">
@@ -373,9 +334,7 @@ export default function HomePage() {
               <Bot className="size-3.5 text-cyan" /> Atendimento com IA
             </span>
             <h2 className="mt-4 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Dúvida às 23h? A resposta vem na hora.</h2>
-            <p className="mt-4 text-lg text-white/75">
-              A assistente explica a análise, GD por assinatura, Mercado Livre e o seu Raio-X. Quando fizer sentido, chama um especialista humano no WhatsApp.
-            </p>
+            <p className="mt-4 text-lg text-white/75">Tira dúvidas na hora e chama um especialista quando precisar.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <OpenChatButton className="inline-flex h-13 items-center gap-2 rounded-xl bg-white px-6 text-[15px] font-bold text-ink hover:-translate-y-0.5" label="Conversar com a IA" />
               <Link href="#analisar" className="inline-flex h-13 items-center rounded-xl border border-white/20 px-6 text-[15px] font-semibold hover:bg-white/10">
@@ -393,9 +352,9 @@ export default function HomePage() {
       <section className="border-b border-border bg-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-3">
           {[
-            { icon: Lock, t: "Segurança do documento", d: "Transmissão criptografada, armazenamento privado e acesso restrito à equipe responsável. O arquivo nunca fica público." },
-            { icon: ShieldCheck, t: "LGPD de verdade", d: "Consentimento registrado, uso restrito à análise e ao contato autorizado, e canal para acessar ou excluir seus dados." },
-            { icon: FileSearch, t: "Diagnóstico preliminar", d: "Cada resultado traz nível de confiança. Nenhuma conclusão é definitiva sem validação técnica." },
+            { icon: Lock, t: "Segurança do documento", d: "Criptografado e privado." },
+            { icon: ShieldCheck, t: "LGPD de verdade", d: "Seus dados, suas regras." },
+            { icon: FileSearch, t: "Diagnóstico preliminar", d: "Sujeito à validação técnica." },
           ].map(({ icon: Icon, t, d }) => (
             <div key={t}>
               <Icon className="size-7 text-primary" />
@@ -445,7 +404,7 @@ export default function HomePage() {
             <h2 className="mx-auto max-w-3xl text-[34px] font-bold leading-[1.08] tracking-[-0.035em] sm:text-6xl">
               Descubra o que a sua conta de energia <span className="text-volt">está dizendo.</span>
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg text-white/80">Simule, envie a fatura e receba o Raio-X preliminar em até 1 minuto.</p>
+            
             <Link href="#analisar" className="mt-9 inline-flex h-14 items-center gap-2 rounded-2xl bg-white px-8 text-base font-bold text-ink shadow-[0_15px_40px_-10px_rgba(255,255,255,0.45)] transition-transform hover:-translate-y-0.5">
               ANALISAR MINHA FATURA GRÁTIS <ArrowRight className="size-5" />
             </Link>

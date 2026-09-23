@@ -191,7 +191,7 @@ export function LeadMagnetForm() {
               )}
             </div>
             <p className="mt-2 flex gap-1 text-[10.5px] leading-snug text-muted">
-              <Info className="mt-px size-3 shrink-0" /> Estimativa preliminar em faixa, não é promessa. O valor real depende da fatura, da distribuidora e das condições comerciais.
+              <Info className="mt-px size-3 shrink-0" /> Estimativa preliminar, não é promessa.
             </p>
 
             <ShimmerButton type="button" onClick={() => setStep(1)} className="mt-5 w-full text-[15px]">
