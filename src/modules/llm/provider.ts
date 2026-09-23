@@ -93,7 +93,7 @@ let cached: LLMProvider | null = null;
 export function getLLM(): LLMProvider {
   if (cached) return cached;
   // Chave: variável de ambiente ou, na falta, tabela app_secrets do Supabase
-  const canUseStoredKey = env.dataDriver === "supabase";
+  const canUseStoredKey = env.dataDriver !== "local";
   if (process.env.LLM_PROVIDER === "none" || (!env.llmApiKey && !canUseStoredKey)) {
     cached = new NullProvider();
   } else {

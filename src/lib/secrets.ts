@@ -15,7 +15,15 @@ export async function getSecret(key: string): Promise<string | null> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.value;
   let value: string | null = null;
-  if (env.dataDriver === "supabase") {
+  if (env.dataDriver === "postgres") {
+    try {
+      const { getSql } = await import("@/modules/db/postgres");
+      const [r] = await getSql(env.databaseUrl)`select value from app_secrets where key = ${key}`;
+      value = (r?.value as string | undefined) ?? null;
+    } catch (err) {
+      console.warn(`[secrets] falha ao ler ${key}:`, err instanceof Error ? err.message : err);
+    }
+  } else if (env.dataDriver === "supabase") {
     try {
       const db = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, { auth: { persistSession: false } });
       const { data } = await db.from("app_secrets").select("value").eq("key", key).maybeSingle();
