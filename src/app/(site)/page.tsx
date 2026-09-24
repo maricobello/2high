@@ -58,10 +58,10 @@ export default function HomePage() {
           <div className="flex min-w-0 flex-col justify-center">
             <HeroHeadline />
             <p className="rise-in mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg" style={{ animationDelay: "0.5s" }}>
-              Responda 5 perguntas e veja, em 30 segundos, onde sua empresa pode estar pagando a mais — e quanto está em jogo.
+              Auditamos suas últimas 60 faturas, buscamos a devolução do que foi cobrado a mais e fazemos a gestão da sua energia daqui para frente.
             </p>
             <ul className="rise-in mt-6 hidden gap-3 text-[15px] font-medium text-white lg:grid" style={{ animationDelay: "0.65s" }}>
-              {["Auditoria gratuita de até 60 faturas", "Fazemos tudo: pedido, laudos e acompanhamento", "Sem mensalidade, sem custo inicial, sem ação judicial"].map((t) => (
+              {["Auditoria gratuita das últimas 60 faturas", "Gestão mensal de demanda, tarifa, contratos e ICMS", "Sem custo inicial e sem ação judicial"].map((t) => (
                 <li key={t} className="flex items-center gap-2.5">
                   <CheckCircle2 className="size-5 shrink-0 text-volt" /> {t}
                 </li>
