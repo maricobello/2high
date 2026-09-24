@@ -2,7 +2,6 @@ import { ArrowRight, BadgeCheck, CheckCircle2, Factory, FileSearch, Handshake, L
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
-import { AnimatedShinyText } from "@/components/magicui/animated-shiny-text";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { Marquee } from "@/components/magicui/marquee";
@@ -57,13 +56,6 @@ export default function HomePage() {
         <DotPattern className="[mask-image:radial-gradient(700px_circle_at_25%_30%,white,transparent)]" />
         <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-7 px-4 pb-14 pt-6 sm:px-6 md:pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-12 lg:pb-20">
           <div className="flex min-w-0 flex-col justify-center">
-            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-volt/30 bg-volt/10 px-3.5 py-1.5 text-xs font-semibold">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-volt opacity-60" />
-                <span className="relative inline-flex size-2 rounded-full bg-volt" />
-              </span>
-              <AnimatedShinyText className="text-white/90">Você só paga se o dinheiro voltar</AnimatedShinyText>
-            </div>
             <HeroHeadline />
             <p className="rise-in mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg" style={{ animationDelay: "0.5s" }}>
               Responda 5 perguntas e veja, em 30 segundos, onde sua empresa pode estar pagando a mais — e quanto está em jogo.
