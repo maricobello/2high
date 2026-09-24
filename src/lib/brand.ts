@@ -19,11 +19,9 @@ export const brand = {
   successFee: (process.env.NEXT_PUBLIC_SUCCESS_FEE || "").trim(),
 };
 
-/** Frase do modelo de êxito (honorários só sobre o valor recuperado). */
+/** Frase do modelo de êxito: só cobra sobre o que for recuperado. */
 export function successFeeText(): string {
-  return brand.successFee
-    ? `os honorários são de ${brand.successFee} sobre o valor efetivamente recuperado`
-    : "os honorários incidem apenas sobre o valor efetivamente recuperado";
+  return brand.successFee ? `ficamos com ${brand.successFee} do valor recuperado` : "ficamos só com uma parte do valor recuperado";
 }
 
 export function whatsappLink(message: string): string | null {

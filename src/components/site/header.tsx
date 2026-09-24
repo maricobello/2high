@@ -32,7 +32,7 @@ export function SiteHeader() {
         <div className={cn("overflow-hidden bg-primary text-white transition-[max-height] duration-300", scrolled ? "max-h-0" : "max-h-10")}>
           <Link href="/#analisar" className="mx-auto flex h-9 max-w-6xl items-center justify-center gap-2 px-4 text-[12.5px] font-semibold">
             <Zap className="size-3.5 text-volt" />
-            <span className="truncate">Auditoria técnica de faturas de energia para empresas · diagnóstico gratuito</span>
+            <span className="truncate">Diagnóstico gratuito em 30 segundos — você só paga se o dinheiro voltar</span>
             <ArrowRight className="hidden size-3.5 sm:block" />
           </Link>
         </div>

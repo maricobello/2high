@@ -11,10 +11,10 @@ export const metadata: Metadata = {
     template: `%s · ${brand.name}`,
   },
   description:
-    "Auditoria técnica de até 60 faturas de energia. Identificamos cobranças indevidas e conduzimos a restituição e o crédito de ICMS. Honorários apenas sobre o valor recuperado.",
+    "Diagnóstico gratuito em 30 segundos. Auditamos até 60 faturas, cuidamos da devolução e do crédito de ICMS — e você só paga se o dinheiro voltar.",
   openGraph: {
-    title: "Recupere o que sua empresa pagou a mais em energia.",
-    description: "Auditoria técnica de faturas de energia. Honorários apenas sobre o valor recuperado.",
+    title: "Quanto sua empresa está deixando na mesa na conta de luz?",
+    description: "Diagnóstico gratuito em 30 segundos. Você só paga se o dinheiro voltar.",
     locale: "pt_BR",
     type: "website",
   },
