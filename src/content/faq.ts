@@ -1,23 +1,29 @@
-export const FAQ = [
-  {
-    q: "É realmente gratuito?",
-    a: "Sim. A auditoria da fatura é gratuita e sem compromisso — é o primeiro passo para conhecermos sua conta. Se encontrarmos algo e você quiser avançar, apresentamos as condições antes de qualquer decisão.",
-  },
+/** `home: true` aparece na landing; as demais servem só de base para o assistente de IA. */
+export const FAQ: { q: string; a: string; home?: boolean }[] = [
   {
     q: "Quanto custa?",
-    a: "O diagnóstico e a auditoria são gratuitos. Se encontrarmos valor a recuperar e você quiser seguir, cuidamos de tudo e cobramos apenas uma porcentagem do que for efetivamente recuperado, combinada em contrato antes de começar. Sem mensalidade e sem custo inicial. Se nada for recuperado, você não paga nada.",
+    a: "O diagnóstico e a auditoria não têm custo. Se houver valor a recuperar, a remuneração é um percentual do valor efetivamente recuperado, definido em contrato antes de começar. Sem recuperação, não há cobrança.",
+    home: true,
   },
   {
-    q: "O que é o laudo de crédito de ICMS?",
-    a: "Indústrias podem se creditar do ICMS pago na energia consumida no processo produtivo (Lei Complementar 87/96, art. 33). O laudo técnico mede quanto da energia vai para a produção e sustenta o crédito, que pode alcançar os últimos 5 anos. As regras variam por estado, e o trabalho é feito com apoio tributário especializado.",
+    q: "O que a auditoria verifica?",
+    a: "Classe e modalidade tarifária, leituras, consumo na ponta e fora ponta, demanda contratada e ultrapassagens, energia reativa, bandeiras, tributos e créditos de energia solar, em cada fatura do período.",
+    home: true,
   },
   {
-    q: "Posso recuperar valores cobrados a mais?",
-    a: "Sim, quando houver cobrança indevida. O Código de Defesa do Consumidor (art. 42, parágrafo único) prevê a devolução em dobro, com correção e juros, salvo engano justificável, e a REN ANEEL 1.000/2021 regula a devolução de valores faturados a maior. O pedido pode alcançar as últimas 60 faturas (5 anos) e é feito direto com a distribuidora, sem ação judicial — nós cuidamos de todo o processo. O resultado depende da comprovação de cada caso.",
+    q: "Como funciona a devolução?",
+    a: "Pedimos à distribuidora, pela via administrativa, a devolução do que foi cobrado indevidamente. Quando o erro é da distribuidora, a regra da ANEEL prevê devolução em dobro, com correção (REN 1.000/2021). O resultado depende de comprovação.",
+    home: true,
+  },
+  {
+    q: "O que é o laudo de ICMS?",
+    a: "Indústrias fora do Simples Nacional podem se creditar do ICMS da energia usada na produção (LC 87/96, art. 33). Um laudo de engenharia mede essa parcela; o crédito pode alcançar 5 anos, conforme as regras de cada estado.",
+    home: true,
   },
   {
     q: "Preciso trocar de fornecedor?",
-    a: "Não necessariamente. Muitas oportunidades estão na própria estrutura da conta (demanda contratada, energia reativa, modalidade tarifária). Soluções como GD por assinatura ou Mercado Livre só são indicadas quando o perfil e as condições comerciais fazem sentido.",
+    a: "Não necessariamente. Muitos ajustes estão na própria conta: demanda, reativo e modalidade tarifária. Energia por assinatura ou Mercado Livre só são indicados quando fazem sentido para o seu perfil.",
+    home: true,
   },
   {
     q: "Preciso instalar placas?",
@@ -30,10 +36,6 @@ export const FAQ = [
   {
     q: "Como funciona o Mercado Livre?",
     a: "No Ambiente de Contratação Livre, a empresa compra energia diretamente de comercializadoras, negociando preço e prazo. Desde 2024, unidades do Grupo A (média/alta tensão) podem migrar — abaixo de 500 kW, por meio de um comercializador varejista. A elegibilidade e a economia dependem de validação técnica e comercial.",
-  },
-  {
-    q: "O que vocês analisam na conta?",
-    a: "Distribuidora, classe e grupo tarifário, modalidade, consumo na ponta e fora ponta, demanda contratada, medida e faturada, ultrapassagens, energia reativa e fator de potência, tarifas, impostos, bandeira, créditos de compensação e o histórico disponível na fatura.",
   },
   {
     q: "Meus dados ficam seguros?",

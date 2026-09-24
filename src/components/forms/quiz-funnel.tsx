@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Info, Loader2, Lock, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Info, Loader2, Lock, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,11 +22,13 @@ const TOTAL = QUESTIONS.length;
 const RESULT = TOTAL;
 const UPLOAD = TOTAL + 1;
 
+/** Nível do diagnóstico lido como potencial (positivo), não como alarme. */
 const LEVEL_STYLE = {
-  ALTO: "bg-attention text-white",
-  MÉDIO: "bg-volt text-ink",
-  MODERADO: "bg-primary text-white",
+  ALTO: "bg-volt text-ink",
+  MÉDIO: "bg-primary text-white",
+  MODERADO: "bg-subtle text-foreground",
 } as const;
+const LEVEL_LABEL = { ALTO: "Potencial alto", MÉDIO: "Potencial médio", MODERADO: "Potencial moderado" } as const;
 
 /**
  * Funil em quiz (hero): 5 perguntas de um toque → diagnóstico preliminar
@@ -201,7 +203,7 @@ export function QuizFunnel() {
             </div>
             {step === 0 && (
               <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-medium text-muted">
-                <Lock className="size-3" /> Sem cadastro para ver o resultado
+                <Lock className="size-3" /> Resultado na tela, sem cadastro.
               </p>
             )}
           </motion.div>
@@ -213,28 +215,31 @@ export function QuizFunnel() {
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">Seu diagnóstico preliminar</p>
               <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold", LEVEL_STYLE[result.level])}>
-                <TriangleAlert className="size-3" /> Atenção {result.level}
+                {LEVEL_LABEL[result.level]}
               </span>
             </div>
 
+            <h3 className="mt-2 text-lg font-bold leading-snug tracking-tight">Pontos que merecem auditoria na sua conta</h3>
+
             <div className="mt-3 rounded-2xl bg-ink p-4 text-white">
-              <p className="text-xs font-medium text-white/75">Pago em energia no período que a lei permite revisar ({result.months} faturas)</p>
+              <p className="text-xs font-medium text-white/75">Pago em energia nas últimas {result.months} faturas (estimativa)</p>
               <p className="mt-1 text-[30px] font-bold leading-tight tracking-tight text-volt">
                 <NumberTicker value={result.auditableVolume} prefix="R$ " />
               </p>
               {result.icmsEmbedded !== null && (
                 <p className="mt-1.5 text-[12.5px] leading-snug text-white/85">
-                  Só de ICMS: <strong className="text-white">~{formatBRL(result.icmsEmbedded, { cents: false })}</strong>. Na indústria, parte disso pode virar crédito.
+                  Desse total, cerca de <strong className="text-white">{formatBRL(result.icmsEmbedded, { cents: false })}</strong> são ICMS. Parte pode virar crédito.
                 </p>
               )}
+              <p className="mt-2 text-[11px] leading-snug text-white/55">É o volume auditado, não o valor a recuperar.</p>
               {result.gdSavings && (
                 <p className="mt-1.5 text-[12.5px] leading-snug text-white/85">
-                  Daqui para frente: <strong className="text-white">{formatBRL(result.gdSavings.min, { cents: false })}–{formatBRL(result.gdSavings.max, { cents: false })}/mês</strong> a menos com energia por assinatura.
+                  Economia possível com energia por assinatura: <strong className="text-white">{formatBRL(result.gdSavings.min, { cents: false })}–{formatBRL(result.gdSavings.max, { cents: false })} por mês</strong>.
                 </p>
               )}
             </div>
 
-            <p className="mt-4 text-sm font-bold">{result.fronts.length} frentes para verificar no seu caso:</p>
+            <p className="mt-4 text-sm font-bold">O que verificar no seu caso</p>
             <ul className="mt-2 space-y-1.5">
               {result.fronts.map((f) => (
                 <li key={f.code} className="flex gap-2 text-[13.5px] leading-snug">
@@ -247,7 +252,7 @@ export function QuizFunnel() {
             </ul>
 
             <p className="mt-4 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium leading-snug text-opportunity">
-              Auditoria gratuita. Se houver valor a recuperar, fazemos tudo e {successFeeText()}. Não encontrou? Não paga nada.
+              Auditoria sem custo. {successFeeText()}.
             </p>
 
             <form onSubmit={submitContact} noValidate className="mt-5 space-y-3 border-t border-border pt-5">
@@ -285,12 +290,12 @@ export function QuizFunnel() {
                   </>
                 ) : (
                   <>
-                    RECEBER MEU DIAGNÓSTICO GRÁTIS <ArrowRight className="size-4" />
+                    Receber diagnóstico completo <ArrowRight className="size-4" />
                   </>
                 )}
               </ShimmerButton>
               <p className="flex gap-1 text-[10.5px] leading-snug text-muted">
-                <Info className="mt-px size-3 shrink-0" /> Diagnóstico preliminar baseado nas suas respostas. Não é promessa de valor a recuperar.
+                <Info className="mt-px size-3 shrink-0" /> Estimativa baseada nas suas respostas. Não é promessa de valor.
               </p>
             </form>
           </motion.div>
@@ -300,34 +305,24 @@ export function QuizFunnel() {
         {step === UPLOAD && token && (
           <motion.div key="upload" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="mt-5">
             <h2 className="text-xl font-bold leading-snug tracking-tight">{firstName ? `${firstName}, falta` : "Falta"} só a fatura.</h2>
-            <p className="mt-1 text-sm text-muted">Com ela, confirmamos o diagnóstico e começamos a auditoria. Resultado em até 1 minuto.</p>
+            <p className="mt-1 text-sm text-muted">Envie a fatura mais recente para confirmar o diagnóstico. Resultado em cerca de 1 minuto.</p>
             <p className="mb-4 mt-3 flex items-start gap-2 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium text-opportunity">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Diagnóstico reservado! Também enviamos o link para o seu e-mail.
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Diagnóstico reservado. Também enviamos o link por e-mail.
             </p>
             <InvoiceUploadStep token={token} compact initialBillRange={answers.bill ?? null} />
             <p className="mt-3 text-center text-xs text-muted">
-              Não está com a fatura agora?{" "}
+              Sem a fatura agora?{" "}
               <Link href={`/diagnostico/${token}`} className="font-semibold text-primary hover:underline">
-                Enviar depois pelo link
+                Envie depois pelo link
               </Link>
+            </p>
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted">
+              <ShieldCheck className="size-3" /> Envio criptografado. Uso restrito ao diagnóstico, conforme a LGPD.
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {step !== UPLOAD && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-medium text-muted">
-          <span className="flex items-center gap-1">
-            <Clock className="size-3" /> 30 segundos
-          </span>
-          <span className="flex items-center gap-1">
-            <ShieldCheck className="size-3" /> LGPD
-          </span>
-          <span className="flex items-center gap-1">
-            <Lock className="size-3" /> Só paga se recuperar
-          </span>
-        </div>
-      )}
     </div>
   );
 }
