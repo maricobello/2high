@@ -15,7 +15,14 @@ export const brand = {
   dpoEmail: process.env.NEXT_PUBLIC_DPO_EMAIL || process.env.NEXT_PUBLIC_CONTACT_EMAIL || "privacidade@example.com",
   legalName: process.env.NEXT_PUBLIC_LEGAL_NAME || "",
   legalCnpj: process.env.NEXT_PUBLIC_LEGAL_CNPJ || "",
+  /** Honorário de êxito exibido na página (ex.: "30%"). Vazio = "uma parte". */
+  successFee: (process.env.NEXT_PUBLIC_SUCCESS_FEE || "").trim(),
 };
+
+/** Frase do modelo de êxito: só cobra sobre o que for recuperado. */
+export function successFeeText(): string {
+  return brand.successFee ? `ficamos com ${brand.successFee} do valor recuperado` : "ficamos só com uma parte do valor recuperado";
+}
 
 export function whatsappLink(message: string): string | null {
   if (!brand.whatsapp) return null;

@@ -17,6 +17,8 @@ export const SERVICE_FACTS = [
   "Recuperação de valores: o Código de Defesa do Consumidor (art. 42, parágrafo único) prevê a devolução em dobro, com correção e juros, do que foi cobrado indevidamente, salvo engano justificável; a REN ANEEL 1.000/2021 regula o faturamento e a devolução de valores cobrados a maior pela distribuidora.",
   "O pedido de devolução pode alcançar as últimas 60 faturas (5 anos), prazo usado como referência pela Justiça. Ele é feito administrativamente, direto com a distribuidora (e, se preciso, ouvidoria e ANEEL), sem ação judicial. A empresa cuida de todo o processo pelo cliente. O resultado depende da comprovação da cobrança indevida; não há garantia de valores.",
   "Oferecemos gestão completa de energia, simples e digital, com profissionais do setor elétrico: auditoria das faturas, recuperação de valores, GD por assinatura e Mercado Livre.",
+  "Modelo de cobrança por êxito: diagnóstico e auditoria são gratuitos; se houver valor a recuperar, a empresa cuida de todo o processo e cobra apenas uma porcentagem do que for efetivamente recuperado, combinada em contrato. Sem mensalidade, sem custo inicial; se nada for recuperado, o cliente não paga.",
+  "Laudo de crédito de ICMS: indústrias podem se creditar do ICMS da energia consumida no processo produtivo (LC 87/96, art. 33), com laudo técnico que mede a parcela da produção; pode alcançar os últimos 5 anos; regras variam por estado. No Grupo A, o ICMS só incide sobre a demanda efetivamente utilizada (Súmula 391 do STJ).",
   "Um especialista humano pode continuar o atendimento pelo WhatsApp quando o cliente quiser.",
   "Para parar de receber mensagens automáticas, basta responder SAIR no WhatsApp.",
 ];

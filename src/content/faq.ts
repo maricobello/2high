@@ -4,6 +4,14 @@ export const FAQ = [
     a: "Sim. A auditoria da fatura é gratuita e sem compromisso — é o primeiro passo para conhecermos sua conta. Se encontrarmos algo e você quiser avançar, apresentamos as condições antes de qualquer decisão.",
   },
   {
+    q: "Quanto custa?",
+    a: "O diagnóstico e a auditoria são gratuitos. Se encontrarmos valor a recuperar e você quiser seguir, cuidamos de tudo e cobramos apenas uma porcentagem do que for efetivamente recuperado, combinada em contrato antes de começar. Sem mensalidade e sem custo inicial. Se nada for recuperado, você não paga nada.",
+  },
+  {
+    q: "O que é o laudo de crédito de ICMS?",
+    a: "Indústrias podem se creditar do ICMS pago na energia consumida no processo produtivo (Lei Complementar 87/96, art. 33). O laudo técnico mede quanto da energia vai para a produção e sustenta o crédito, que pode alcançar os últimos 5 anos. As regras variam por estado, e o trabalho é feito com apoio tributário especializado.",
+  },
+  {
     q: "Posso recuperar valores cobrados a mais?",
     a: "Sim, quando houver cobrança indevida. O Código de Defesa do Consumidor (art. 42, parágrafo único) prevê a devolução em dobro, com correção e juros, salvo engano justificável, e a REN ANEEL 1.000/2021 regula a devolução de valores faturados a maior. O pedido pode alcançar as últimas 60 faturas (5 anos) e é feito direto com a distribuidora, sem ação judicial — nós cuidamos de todo o processo. O resultado depende da comprovação de cada caso.",
   },
