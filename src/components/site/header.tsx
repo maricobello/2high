@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,14 +8,13 @@ import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 
 const NAV = [
-  { href: "/#exemplos", label: "Exemplos" },
-  { href: "/#como-funciona", label: "Como funciona" },
-  { href: "/gd-por-assinatura", label: "GD por assinatura" },
-  { href: "/mercado-livre", label: "Mercado Livre" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/#metodo", label: "Método" },
+  { href: "/#como-funciona", label: "Como trabalhamos" },
+  { href: "/#casos", label: "Casos" },
+  { href: "/#faq", label: "Dúvidas" },
 ];
 
-/** Header sticky com estado de scroll (compacta + ganha borda/sombra) e barra de anúncio na home. */
+/** Header sticky com estado de scroll (compacta + ganha borda/desfoque). */
 export function SiteHeader() {
   const path = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -26,34 +25,42 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", on);
   }, []);
 
+  // Home: header claro sobre o papel; demais páginas mantêm o header escuro.
+  const light = path === "/";
+
   return (
     <header className="sticky top-0 z-40">
-      {path === "/" && (
-        <div className={cn("overflow-hidden bg-primary text-white transition-[max-height] duration-300", scrolled ? "max-h-0" : "max-h-10")}>
-          <Link href="/#analisar" className="mx-auto flex h-9 max-w-6xl items-center justify-center gap-2 px-4 text-[12.5px] font-semibold">
-            <Zap className="size-3.5 text-volt" />
-            <span className="truncate">Auditoria técnica de faturas de energia para empresas · diagnóstico gratuito</span>
-            <ArrowRight className="hidden size-3.5 sm:block" />
-          </Link>
-        </div>
-      )}
-      <div className={cn("border-b transition-all duration-300", scrolled ? "border-white/10 bg-ink/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl" : "border-transparent bg-ink")}>
+      <div
+        className={cn(
+          "border-b transition-all duration-300",
+          light
+            ? scrolled
+              ? "border-line bg-paper/85 backdrop-blur-xl"
+              : "border-transparent bg-paper"
+            : scrolled
+              ? "border-white/10 bg-ink/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+              : "border-transparent bg-ink",
+        )}
+      >
         <div className={cn("mx-auto flex max-w-6xl items-center justify-between px-4 transition-[height] duration-300 sm:px-6", scrolled ? "h-14" : "h-16")}>
           <Link href="/" aria-label="Início">
-            <Logo />
+            <Logo dark={!light} />
           </Link>
-          <nav className="hidden items-center gap-7 text-sm font-medium text-white/80 md:flex">
+          <nav className={cn("hidden items-center gap-7 text-sm md:flex", light ? "text-stone" : "text-white/80")}>
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="transition-colors hover:text-white">
+              <Link key={n.href} href={n.href} className={cn("transition-colors", light ? "hover:text-foreground" : "hover:text-white")}>
                 {n.label}
               </Link>
             ))}
           </nav>
           <Link
             href="/#analisar"
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-bold text-ink shadow-[0_6px_20px_-6px_rgba(255,255,255,0.4)] transition-transform hover:-translate-y-0.5"
+            className={cn(
+              "group inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors",
+              light ? "bg-ink text-white hover:bg-ink/85" : "bg-white text-ink hover:bg-white/90",
+            )}
           >
-            Diagnóstico grátis
+            Iniciar diagnóstico <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
       </div>

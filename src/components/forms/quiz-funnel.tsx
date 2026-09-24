@@ -4,10 +4,9 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Info, Loader2, Lock, Shield
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ShineBorder } from "@/components/magicui/shine-border";
 import { celebrate } from "@/components/magicui/confetti";
 import { NumberTicker } from "@/components/magicui/number-ticker";
-import { ShimmerButton } from "@/components/magicui/shimmer-button";
+import { scrollToElement } from "@/components/motion/smooth-scroll";
 import { Field, Input } from "@/components/ui/field";
 import { successFeeText } from "@/lib/brand";
 import { readUtm } from "@/lib/client/compress-image";
@@ -25,7 +24,7 @@ const UPLOAD = TOTAL + 1;
 const LEVEL_STYLE = {
   ALTO: "bg-attention text-white",
   MÉDIO: "bg-volt text-ink",
-  MODERADO: "bg-primary text-white",
+  MODERADO: "bg-ink text-white",
 } as const;
 
 /**
@@ -65,7 +64,7 @@ export function QuizFunnel() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const open = () => {
-      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToElement(cardRef.current);
       setHighlight(true);
       clearTimeout(timer);
       timer = setTimeout(() => setHighlight(false), 1600);
@@ -137,7 +136,7 @@ export function QuizFunnel() {
       setFirstName(first);
       setToken(data.token);
       setStep(UPLOAD);
-      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToElement(cardRef.current);
       celebrate();
     } catch {
       setFormError("Falha de conexão. Verifique sua internet e tente novamente.");
@@ -152,32 +151,30 @@ export function QuizFunnel() {
     <div
       ref={cardRef}
       className={cn(
-        "relative scroll-mt-20 overflow-hidden rounded-[28px] border border-white/10 bg-white p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.8)] ring-1 ring-black/5 transition-shadow duration-500 sm:p-7",
-        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(255,200,61,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
+        "relative scroll-mt-24 overflow-hidden rounded-2xl border border-line bg-white p-5 text-foreground shadow-[0_40px_90px_-45px_rgba(20,18,10,0.45)] transition-shadow duration-500 sm:p-7",
+        highlight && "shadow-[0_0_0_4px_var(--volt),0_40px_90px_-45px_rgba(20,18,10,0.45)]",
       )}
     >
-      <ShineBorder borderWidth={1.5} duration={12} shineColor={["#3d5afe", "#22d3ee", "#ffc83d"]} />
-
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
       <div className="flex items-center gap-3">
         {step > 0 && step <= RESULT && (
-          <button type="button" onClick={() => setStep((s) => s - 1)} aria-label="Voltar" className="flex size-8 items-center justify-center rounded-full bg-subtle text-foreground hover:bg-border">
+          <button type="button" onClick={() => setStep((s) => s - 1)} aria-label="Voltar" className="flex size-8 items-center justify-center rounded-full border border-line text-foreground transition-colors hover:border-ink">
             <ArrowLeft className="size-4" />
           </button>
         )}
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-subtle">
-          <motion.div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan" initial={false} animate={{ width: `${Math.max(6, progress)}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
+        <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-paper-2">
+          <motion.div className="h-full rounded-full bg-ink" initial={false} animate={{ width: `${Math.max(6, progress)}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
         </div>
-        <span className="text-xs font-bold tabular text-muted">{step < TOTAL ? `${step + 1}/${TOTAL}` : step === RESULT ? "Pronto" : "Último passo"}</span>
+        <span className="font-mono text-[11px] tabular text-stone">{step < TOTAL ? `${step + 1}/${TOTAL}` : step === RESULT ? "Pronto" : "Último passo"}</span>
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
         {/* ---------------- PERGUNTAS ---------------- */}
         {q && (
           <motion.div key={q.key} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }} className="mt-5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">Diagnóstico gratuito · 30 segundos</p>
-            <h2 className="mt-1.5 text-xl font-bold leading-snug tracking-tight sm:text-[22px]">{q.title}</h2>
-            {"hint" in q && q.hint && <p className="mt-1 text-[13px] text-muted">{q.hint}</p>}
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-stone">Diagnóstico gratuito</p>
+            <h2 className="mt-2 font-serif text-[27px] leading-[1.12] tracking-[-0.01em] sm:text-[31px]">{q.title}</h2>
+            {"hint" in q && q.hint && <p className="mt-1.5 text-[13px] text-stone">{q.hint}</p>}
             <div className="mt-4 grid gap-2">
               {q.options.map((o) => {
                 const active = picked === o.value || (!picked && answers[q.key] === o.value);
@@ -187,12 +184,12 @@ export function QuizFunnel() {
                     type="button"
                     onClick={() => choose(q.key, o.value)}
                     className={cn(
-                      "group flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] font-semibold transition-all",
-                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-white hover:-translate-y-px hover:border-primary/50 hover:shadow-sm",
+                      "group flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-left text-[15px] font-medium transition-all duration-200",
+                      active ? "border-ink bg-paper" : "border-line bg-white hover:border-ink/40 hover:bg-paper/60",
                     )}
                   >
                     {o.label}
-                    <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border-2", active ? "border-primary bg-primary text-white" : "border-border")}>
+                    <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border-2", active ? "border-ink bg-ink text-white" : "border-line group-hover:border-ink/40")}>
                       {active && <CheckCircle2 className="size-3" strokeWidth={3} />}
                     </span>
                   </button>
@@ -200,7 +197,7 @@ export function QuizFunnel() {
               })}
             </div>
             {step === 0 && (
-              <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-medium text-muted">
+              <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-stone">
                 <Lock className="size-3" /> Sem cadastro para ver o resultado
               </p>
             )}
@@ -211,15 +208,15 @@ export function QuizFunnel() {
         {step === RESULT && result && (
           <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mt-5">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">Seu diagnóstico preliminar</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-stone">Diagnóstico preliminar</p>
               <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold", LEVEL_STYLE[result.level])}>
                 <TriangleAlert className="size-3" /> Atenção {result.level}
               </span>
             </div>
 
-            <div className="mt-3 rounded-2xl bg-ink p-4 text-white">
+            <div className="mt-3 rounded-xl bg-ink p-4 text-white">
               <p className="text-xs font-medium text-white/75">Pago em energia no período que a lei permite revisar ({result.months} faturas)</p>
-              <p className="mt-1 text-[30px] font-bold leading-tight tracking-tight text-volt">
+              <p className="mt-1 font-serif text-[38px] leading-none text-volt">
                 <NumberTicker value={result.auditableVolume} prefix="R$ " />
               </p>
               {result.icmsEmbedded !== null && (
@@ -234,24 +231,24 @@ export function QuizFunnel() {
               )}
             </div>
 
-            <p className="mt-4 text-sm font-bold">{result.fronts.length} frentes para verificar no seu caso:</p>
+            <p className="mt-5 text-sm font-semibold">{result.fronts.length} frentes a verificar no seu caso</p>
             <ul className="mt-2 space-y-1.5">
               {result.fronts.map((f) => (
                 <li key={f.code} className="flex gap-2 text-[13.5px] leading-snug">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-opportunity" />
+                  <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-ink" />
                   <span>
-                    <strong className="font-semibold">{f.title}.</strong> <span className="text-muted">{f.detail}</span>
+                    <strong className="font-semibold">{f.title}.</strong> <span className="text-stone">{f.detail}</span>
                   </span>
                 </li>
               ))}
             </ul>
 
-            <p className="mt-4 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium leading-snug text-opportunity">
+            <p className="mt-4 border-l-2 border-volt bg-paper px-3 py-2.5 text-[13px] leading-snug">
               A auditoria é gratuita. Havendo valores a recuperar, conduzimos todo o processo e {successFeeText()}.
             </p>
 
-            <form onSubmit={submitContact} noValidate className="mt-5 space-y-3 border-t border-border pt-5">
-              <p className="text-base font-bold">Para onde enviamos o diagnóstico completo?</p>
+            <form onSubmit={submitContact} noValidate className="mt-5 space-y-3 border-t border-line pt-5">
+              <p className="font-serif text-[22px] leading-tight">Para onde enviamos o diagnóstico completo?</p>
               <input tabIndex={-1} autoComplete="off" className="hidden" aria-hidden value={v.website} onChange={(e) => set("website", e.target.value)} name="website" />
               <Field label="Seu nome" error={errors.name}>
                 <Input autoComplete="name" value={v.name} onChange={(e) => set("name", e.target.value)} invalid={!!errors.name} placeholder="Como podemos te chamar?" />
@@ -262,34 +259,34 @@ export function QuizFunnel() {
               <Field label="WhatsApp" error={errors.phone}>
                 <Input inputMode="tel" autoComplete="tel" value={v.phone} onChange={(e) => set("phone", formatPhone(e.target.value))} invalid={!!errors.phone} placeholder="(11) 99999-9999" />
               </Field>
-              <label className="flex items-start gap-2.5 text-[12px] leading-snug text-muted">
-                <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+              <label className="flex items-start gap-2.5 text-[12px] leading-snug text-stone">
+                <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--ink)]" />
                 <span>
                   Autorizo o uso dos meus dados para receber o diagnóstico e ser contatado sobre o resultado por e-mail e WhatsApp, conforme a{" "}
-                  <Link href="/privacidade" target="_blank" className="font-semibold text-primary hover:underline">
+                  <Link href="/privacidade" target="_blank" className="font-medium text-foreground underline underline-offset-2 hover:no-underline">
                     Política de Privacidade
                   </Link>
                   . Posso revogar quando quiser.
                 </span>
               </label>
               {errors.consent && <p className="text-xs font-medium text-attention">{errors.consent}</p>}
-              <label className="flex items-start gap-2.5 text-[12px] leading-snug text-muted">
-                <input type="checkbox" checked={v.marketingConsent} onChange={(e) => set("marketingConsent", e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+              <label className="flex items-start gap-2.5 text-[12px] leading-snug text-stone">
+                <input type="checkbox" checked={v.marketingConsent} onChange={(e) => set("marketingConsent", e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--ink)]" />
                 <span>Quero receber conteúdos sobre redução de custos de energia (opcional).</span>
               </label>
               {formError && <p className="rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{formError}</p>}
-              <ShimmerButton type="submit" disabled={busy} className="w-full text-[15px]">
+              <button type="submit" disabled={busy} className="group inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-6 text-[15px] font-medium text-white transition-colors hover:bg-ink/85 disabled:opacity-60">
                 {busy ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Enviando…
                   </>
                 ) : (
                   <>
-                    RECEBER MEU DIAGNÓSTICO GRÁTIS <ArrowRight className="size-4" />
+                    Receber diagnóstico completo <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                   </>
                 )}
-              </ShimmerButton>
-              <p className="flex gap-1 text-[10.5px] leading-snug text-muted">
+              </button>
+              <p className="flex gap-1 text-[10.5px] leading-snug text-stone">
                 <Info className="mt-px size-3 shrink-0" /> Diagnóstico preliminar baseado nas suas respostas. Não é promessa de valor a recuperar.
               </p>
             </form>
@@ -299,15 +296,15 @@ export function QuizFunnel() {
         {/* ---------------- ENVIO DA FATURA ---------------- */}
         {step === UPLOAD && token && (
           <motion.div key="upload" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="mt-5">
-            <h2 className="text-xl font-bold leading-snug tracking-tight">{firstName ? `${firstName}, falta` : "Falta"} só a fatura.</h2>
-            <p className="mt-1 text-sm text-muted">Com ela, confirmamos o diagnóstico e começamos a auditoria. Resultado em até 1 minuto.</p>
-            <p className="mb-4 mt-3 flex items-start gap-2 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium text-opportunity">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Diagnóstico reservado! Também enviamos o link para o seu e-mail.
+            <h2 className="font-serif text-[28px] leading-tight">{firstName ? `${firstName}, falta` : "Falta"} só a fatura.</h2>
+            <p className="mt-1 text-sm text-stone">Com ela, confirmamos o diagnóstico e começamos a auditoria. Resultado em até 1 minuto.</p>
+            <p className="mb-4 mt-3 flex items-start gap-2 border-l-2 border-opportunity bg-paper px-3 py-2.5 text-[13px]">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-opportunity" /> Diagnóstico reservado. Enviamos também o link para o seu e-mail.
             </p>
             <InvoiceUploadStep token={token} compact initialBillRange={answers.bill ?? null} />
-            <p className="mt-3 text-center text-xs text-muted">
+            <p className="mt-3 text-center text-xs text-stone">
               Não está com a fatura agora?{" "}
-              <Link href={`/diagnostico/${token}`} className="font-semibold text-primary hover:underline">
+              <Link href={`/diagnostico/${token}`} className="font-medium text-foreground underline underline-offset-2 hover:no-underline">
                 Enviar depois pelo link
               </Link>
             </p>
@@ -316,7 +313,7 @@ export function QuizFunnel() {
       </AnimatePresence>
 
       {step !== UPLOAD && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-medium text-muted">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-line pt-4 text-[11px] text-stone">
           <span className="flex items-center gap-1">
             <Clock className="size-3" /> 30 segundos
           </span>
