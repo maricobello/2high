@@ -5,7 +5,7 @@ export const FAQ = [
   },
   {
     q: "Quanto custa?",
-    a: "O diagnóstico e a auditoria são gratuitos. Se encontrarmos valor a recuperar e você quiser seguir, cuidamos de tudo e cobramos apenas uma porcentagem do que for efetivamente recuperado, combinada em contrato antes de começar. Sem mensalidade e sem custo inicial. Se nada for recuperado, você não paga nada.",
+    a: "O diagnóstico e a auditoria são gratuitos. Se encontrarmos valor a recuperar e você quiser seguir, cuidamos de tudo e cobramos apenas uma porcentagem do que for efetivamente recuperado, combinada em contrato antes de começar. Sem mensalidade e sem custo inicial. Sem valor recuperado, não há cobrança.",
   },
   {
     q: "O que é o laudo de crédito de ICMS?",

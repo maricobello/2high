@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Info, Loader2, Lock, Shield
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BorderBeam } from "@/components/magicui/border-beam";
+import { ShineBorder } from "@/components/magicui/shine-border";
 import { celebrate } from "@/components/magicui/confetti";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
@@ -156,7 +156,7 @@ export function QuizFunnel() {
         highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(255,200,61,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
       )}
     >
-      <BorderBeam size={140} duration={9} />
+      <ShineBorder borderWidth={1.5} duration={12} shineColor={["#3d5afe", "#22d3ee", "#ffc83d"]} />
 
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
       <div className="flex items-center gap-3">
@@ -247,7 +247,7 @@ export function QuizFunnel() {
             </ul>
 
             <p className="mt-4 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium leading-snug text-opportunity">
-              Auditoria gratuita. Se houver valor a recuperar, fazemos tudo e {successFeeText()}. Não encontrou? Não paga nada.
+              A auditoria é gratuita. Havendo valores a recuperar, conduzimos todo o processo e {successFeeText()}.
             </p>
 
             <form onSubmit={submitContact} noValidate className="mt-5 space-y-3 border-t border-border pt-5">
@@ -324,7 +324,7 @@ export function QuizFunnel() {
             <ShieldCheck className="size-3" /> LGPD
           </span>
           <span className="flex items-center gap-1">
-            <Lock className="size-3" /> Só paga se recuperar
+            <Lock className="size-3" /> Sem custo inicial
           </span>
         </div>
       )}
