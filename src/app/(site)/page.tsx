@@ -1,308 +1,257 @@
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight, BadgeCheck, CheckCircle2, Factory, FileSearch, Handshake, Landmark, Receipt, Scale, Store, TrendingDown, Wallet } from "lucide-react";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
+import { AnimatedShinyText } from "@/components/magicui/animated-shiny-text";
+import { BlurFade } from "@/components/magicui/blur-fade";
+import { DotPattern } from "@/components/magicui/dot-pattern";
 import { Marquee } from "@/components/magicui/marquee";
-import { CountUp } from "@/components/motion/count-up";
-import { Marker } from "@/components/motion/marker";
-import { Reveal } from "@/components/motion/reveal";
-import { ScrubWords } from "@/components/motion/scrub-words";
-import { SmoothScroll } from "@/components/motion/smooth-scroll";
-import { SplitReveal } from "@/components/motion/split-reveal";
-import { AnnotatedInvoice } from "@/components/site/annotated-invoice";
-import { ProcessSteps, type ProcessStep } from "@/components/site/process-steps";
+import { Meteors } from "@/components/magicui/meteors";
+import { NumberTicker } from "@/components/magicui/number-ticker";
+import { HeroHeadline } from "@/components/site/hero-headline";
 import { StickyCta } from "@/components/site/sticky-cta";
+import { Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
 import { successFeeText } from "@/lib/brand";
 import { DISTRIBUTORS } from "@/modules/invoice/distributors";
 
 const DISTRIBUTOR_NAMES = [...new Set(DISTRIBUTORS.filter((d) => d.states.length).map((d) => d.name))];
 
-const FRONTS = [
-  {
-    title: "Cobranças indevidas",
-    text: "Leitura estimada, classe ou tarifa incorreta, multas sem fundamento. O que foi pago indevidamente pode ser restituído em dobro, com correção.",
-    law: "CDC, art. 42 · REN ANEEL 1.000/2021",
-  },
-  {
-    title: "ICMS pago a mais",
-    text: "Na indústria, o ICMS da energia consumida na produção pode gerar crédito, com laudo técnico. No Grupo A, o imposto só incide sobre a demanda efetivamente utilizada.",
-    law: "LC 87/96, art. 33 · Súmula 391, STJ",
-  },
-  {
-    title: "Contrato e tarifa",
-    text: "Demanda contratada ajustada ao uso real, modalidade tarifária adequada e, quando fizer sentido, energia por assinatura ou Mercado Livre.",
-    law: "Redução daqui para frente",
-  },
-];
-
-const STEPS: ProcessStep[] = [
-  { meta: "30 segundos", title: "Diagnóstico", text: "Cinco perguntas sobre a operação e uma fatura recente. O resultado preliminar sai na hora." },
-  { meta: "Até 60 faturas", title: "Auditoria técnica", text: "Cada fatura é conferida contra as regras vigentes no período: leitura, tarifa, demanda, energia reativa e tributos." },
-  { meta: "Sem ação judicial", title: "Pedido administrativo", text: "Protocolamos junto à distribuidora e, se necessário, à ouvidoria e à ANEEL. Laudos e documentação ficam por nossa conta." },
-  { meta: "Honorários de êxito", title: "Restituição", text: "O valor retorna à empresa, em devolução ou crédito. Os honorários incidem apenas sobre o que for efetivamente recuperado." },
-];
-
 /** Casos ILUSTRATIVOS (valores fictícios) — sinalizados como tal na página. */
 const CASES = [
-  { who: "Padaria", where: "SP · Grupo B", issue: "Leitura estimada por 14 meses seguidos", period: "14 faturas", value: 12_480, kind: "Restituição em dobro" },
-  { who: "Metalúrgica", where: "MG · Grupo A", issue: "Multa de reativo com fator de potência acima de 0,92", period: "22 faturas", value: 42_600, kind: "Restituição em dobro" },
-  { who: "Indústria de alimentos", where: "SC · Grupo A", issue: "ICMS da energia de produção nunca aproveitado", period: "60 meses", value: 186_400, kind: "Crédito de ICMS" },
+  { icon: Store, who: "Padaria · Grupo B · SP", issue: "Leitura estimada por 14 meses seguidos", rows: [["Faturas afetadas", "14"], ["Cobrado a mais", "R$ 6.240"]], label: "Devolução possível (em dobro)", value: 12_480 },
+  { icon: Factory, who: "Metalúrgica · Grupo A · MG", issue: "Multa de reativo com fator de potência acima de 0,92", rows: [["Faturas afetadas", "22"], ["Cobrado a mais", "R$ 21.300"]], label: "Devolução possível (em dobro)", value: 42_600 },
+  { icon: Factory, who: "Indústria de alimentos · SC", issue: "ICMS da energia da produção nunca aproveitado como crédito", rows: [["Período revisado", "60 meses"], ["Energia na produção (laudo)", "78%"]], label: "Crédito de ICMS possível", value: 186_400 },
+] as const;
+
+const FRONTS = [
+  {
+    icon: Receipt,
+    tag: "CDC art. 42 · REN ANEEL 1.000/2021",
+    title: "Cobranças indevidas na fatura",
+    text: "Leitura estimada, classe ou tarifa errada, multas indevidas. O que foi pago a mais pode voltar em dobro, das últimas 60 faturas.",
+  },
+  {
+    icon: Landmark,
+    tag: "LC 87/96 art. 33 · Súmula 391 STJ",
+    title: "ICMS pago a mais",
+    text: "Indústrias podem transformar em crédito o ICMS da energia usada na produção (com laudo técnico). E no Grupo A, ICMS só incide sobre a demanda realmente usada.",
+  },
+  {
+    icon: TrendingDown,
+    tag: "Daqui para frente",
+    title: "Conta menor todo mês",
+    text: "Demanda contratada certa, sem multa de reativo, energia por assinatura ou Mercado Livre — o que fizer sentido para o seu perfil.",
+  },
 ];
 
 /** Na landing, só as dúvidas que antecedem o diagnóstico (a IA conhece todas). */
 const FAQ_HOME = FAQ.filter((f) => !/Mercado Livre|solar por assinatura|instalar placas/i.test(f.q));
 
-function SectionLabel({ n, children, dark }: { n: string; children: React.ReactNode; dark?: boolean }) {
-  return (
-    <p className={`flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.16em] ${dark ? "text-white/55" : "text-stone"}`}>
-      <span>{n}</span>
-      <span className={`h-px w-8 ${dark ? "bg-white/25" : "bg-line"}`} />
-      <span>{children}</span>
-    </p>
-  );
-}
-
 export default function HomePage() {
   return (
-    <div className="bg-paper text-foreground">
-      <SmoothScroll />
-
-      {/* ================= HERO ================= */}
-      <section id="analisar" className="relative scroll-mt-16">
-        <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-10 px-4 pb-14 pt-8 sm:px-6 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] lg:gap-16 lg:pb-20 lg:pt-16">
+    <>
+      {/* ================= HERO = QUIZ ================= */}
+      <section id="analisar" className="relative scroll-mt-16 overflow-hidden bg-ink text-white">
+        <div className="glow absolute inset-0" />
+        <DotPattern className="[mask-image:radial-gradient(700px_circle_at_25%_30%,white,transparent)]" />
+        <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-7 px-4 pb-14 pt-6 sm:px-6 md:pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-12 lg:pb-20">
           <div className="flex min-w-0 flex-col justify-center">
-            <h1 className="font-serif text-[46px] leading-[0.98] tracking-[-0.015em] sm:text-[68px] lg:text-[84px]">
-              <SplitReveal as="span" immediate className="block">
-                O que sua empresa pagou a mais em energia
-              </SplitReveal>
-              <span className="rise-in block italic" style={{ animationDelay: "0.55s" }}>
-                <Marker>pode voltar.</Marker>
+            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-volt/30 bg-volt/10 px-3.5 py-1.5 text-xs font-semibold">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-volt opacity-60" />
+                <span className="relative inline-flex size-2 rounded-full bg-volt" />
               </span>
-            </h1>
-            <p className="rise-in mt-8 hidden flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11.5px] uppercase tracking-[0.12em] text-stone sm:flex" style={{ animationDelay: "0.8s" }}>
-              <span>Auditoria técnica</span>
-              <span className="h-3 w-px bg-line" />
-              <span>REN ANEEL 1.000/2021</span>
-              <span className="h-3 w-px bg-line" />
-              <span>CDC, art. 42</span>
-              <span className="h-3 w-px bg-line" />
-              <span>LC 87/96</span>
+              <AnimatedShinyText className="text-white/90">Você só paga se o dinheiro voltar</AnimatedShinyText>
+            </div>
+            <HeroHeadline />
+            <p className="rise-in mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg" style={{ animationDelay: "0.5s" }}>
+              Responda 5 perguntas e veja, em 30 segundos, onde sua empresa pode estar pagando a mais — e quanto está em jogo.
             </p>
+            <ul className="rise-in mt-6 hidden gap-3 text-[15px] font-medium text-white lg:grid" style={{ animationDelay: "0.65s" }}>
+              {["Auditoria gratuita de até 60 faturas", "Fazemos tudo: pedido, laudos e acompanhamento", "Sem mensalidade, sem custo inicial, sem ação judicial"].map((t) => (
+                <li key={t} className="flex items-center gap-2.5">
+                  <CheckCircle2 className="size-5 shrink-0 text-volt" /> {t}
+                </li>
+              ))}
+            </ul>
           </div>
-
-          <div className="rise-in" style={{ animationDelay: "0.35s" }}>
+          <BlurFade delay={0.1}>
             <QuizFunnel />
-          </div>
+          </BlurFade>
         </div>
 
-        {/* Faixa de fatos */}
-        <div className="border-y border-line">
-          <dl className="mx-auto grid max-w-6xl grid-cols-3 divide-x divide-line px-0 sm:px-6">
-            {[
-              { v: 60, prefix: "", l: "faturas no período revisável" },
-              { v: 12, prefix: "", l: "regras técnicas por fatura" },
-              { v: 0, prefix: "R$ ", l: "de custo inicial" },
-            ].map((k) => (
-              <div key={k.l} className="flex flex-col-reverse gap-1 px-4 py-6 sm:px-8 sm:py-8">
-                <dt className="text-[12.5px] leading-snug text-stone sm:text-sm">{k.l}</dt>
-                <dd className="font-serif text-[40px] leading-none sm:text-[56px]">
-                  <CountUp value={k.v} prefix={k.prefix} />
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-
-        <div className="py-6">
-          <p className="mb-3 text-center font-mono text-[10.5px] uppercase tracking-[0.18em] text-stone">Faturas das principais distribuidoras do país</p>
+        <div className="relative border-t border-white/10 bg-white/[0.02] py-5">
+          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-white/60">Auditamos faturas das principais distribuidoras do país</p>
           <div className="relative">
-            <Marquee className="[--duration:80s] [--gap:3.5rem]">
+            <Marquee className="[--duration:70s] [--gap:3rem]">
               {DISTRIBUTOR_NAMES.map((n) => (
-                <span key={n} className="whitespace-nowrap text-[15px] font-medium tracking-tight text-stone/80">
+                <span key={n} className="whitespace-nowrap text-[15px] font-bold tracking-tight text-white/50">
                   {n}
                 </span>
               ))}
             </Marquee>
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-paper" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-paper" />
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-ink" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-ink" />
           </div>
         </div>
       </section>
 
-      {/* ================= MÉTODO: FATURA ANOTADA ================= */}
-      <section id="metodo" className="scroll-mt-16 border-t border-line py-20 sm:py-28">
-        <div className="mx-auto grid max-w-6xl gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20">
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            <SectionLabel n="01">Método</SectionLabel>
-            <SplitReveal className="mt-6 font-serif text-[40px] leading-[1.02] tracking-[-0.01em] sm:text-[54px]">
-              Uma fatura tem dezenas de itens regulados. Quase ninguém confere.
-            </SplitReveal>
-            <Reveal>
-              <p data-reveal-item className="mt-6 max-w-md text-[17px] leading-relaxed text-stone">
-                Leitura, demanda, energia reativa, classe tarifária e tributos seguem regras da ANEEL e da legislação. Quando algo sai do padrão, o erro costuma se repetir todo mês — até alguém perceber.
-              </p>
-            </Reveal>
-          </div>
-          <AnnotatedInvoice />
-        </div>
-      </section>
-
-      {/* ================= ONDE ESTÃO OS VALORES ================= */}
-      <section className="bg-ink py-20 text-white sm:py-28">
+      {/* ================= RISCO ZERO (modelo de êxito) ================= */}
+      <section id="como-funciona" className="scroll-mt-16 bg-white py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <SectionLabel n="02" dark>
-            Onde estão os valores
-          </SectionLabel>
-          <SplitReveal className="mt-6 max-w-3xl font-serif text-[40px] leading-[1.02] tracking-[-0.01em] sm:text-[58px]">
-            Três frentes. Uma única auditoria.
-          </SplitReveal>
-          <Reveal className="mt-14 border-t border-white/15">
-            {FRONTS.map((f, i) => (
-              <div key={f.title} data-reveal-item className="grid gap-4 border-b border-white/15 py-8 md:grid-cols-[80px_minmax(0,1fr)_minmax(0,1.4fr)] md:gap-8">
-                <span className="font-mono text-[13px] text-white/45">{String(i + 1).padStart(2, "0")}</span>
-                <h3 className="font-serif text-[32px] leading-none sm:text-[38px]">{f.title}</h3>
-                <div>
-                  <p className="text-[16px] leading-relaxed text-white/75">{f.text}</p>
-                  <p className="mt-3 font-mono text-[11.5px] uppercase tracking-[0.1em] text-volt">{f.law}</p>
+          <BlurFade className="max-w-3xl">
+            <Eyebrow>Risco zero</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Você não paga para descobrir. Só paga se o dinheiro voltar.</h2>
+          </BlurFade>
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {[
+              { icon: FileSearch, n: "1", t: "Auditamos de graça", d: "Revisamos até 60 faturas e mostramos o que encontramos. Sem compromisso." },
+              { icon: Handshake, n: "2", t: "Fazemos tudo por você", d: "Pedido na distribuidora, laudos técnicos e acompanhamento. Você não perde tempo." },
+              { icon: Wallet, n: "3", t: "O dinheiro volta", d: `Só então ${successFeeText()}. Não recuperou? Não paga nada.` },
+            ].map(({ icon: Icon, n, t, d }, i) => (
+              <BlurFade key={t} delay={0.06 * i}>
+                <div className="relative h-full rounded-3xl border border-border bg-background p-6">
+                  <span className="absolute right-5 top-4 text-6xl font-bold tracking-tighter text-border">{n}</span>
+                  <span className="flex size-11 items-center justify-center rounded-xl bg-ink text-volt">
+                    <Icon className="size-5" />
+                  </span>
+                  <h3 className="mt-5 text-xl font-bold tracking-tight">{t}</h3>
+                  <p className="mt-1.5 text-[15px] leading-relaxed text-muted">{d}</p>
                 </div>
-              </div>
+              </BlurFade>
             ))}
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ================= PRAZO (frase que acende no scroll) ================= */}
-      <section className="py-24 sm:py-36">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <ScrubWords className="font-serif text-[36px] leading-[1.08] tracking-[-0.01em] sm:text-[60px]">
-            O direito de reaver valores pagos a mais prescreve em cinco anos. A cada mês, uma fatura deixa de poder ser revisada.
-          </ScrubWords>
-        </div>
-      </section>
-
-      {/* ================= COMO TRABALHAMOS ================= */}
-      <section id="como-funciona" className="scroll-mt-16 border-t border-line bg-paper-2/60 py-20 sm:py-28">
-        <div className="mx-auto grid max-w-6xl gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20">
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            <SectionLabel n="03">Como trabalhamos</SectionLabel>
-            <SplitReveal className="mt-6 font-serif text-[40px] leading-[1.02] tracking-[-0.01em] sm:text-[54px]">
-              Nós conduzimos. Você acompanha.
-            </SplitReveal>
-            <Reveal>
-              <p data-reveal-item className="mt-6 max-w-md text-[17px] leading-relaxed text-stone">
-                Da primeira fatura à restituição, cuidamos da análise, dos laudos e dos protocolos. Sua equipe não precisa parar para isso.
-              </p>
-              <div data-reveal-item className="mt-8 max-w-md border-l-2 border-volt pl-5">
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-stone">Honorários de êxito</p>
-                <p className="mt-2 text-[16px] leading-relaxed">Sem mensalidade e sem custo inicial: {successFeeText()}.</p>
-              </div>
-            </Reveal>
           </div>
-          <ProcessSteps steps={STEPS} />
+          <div className="mt-8 flex flex-wrap gap-2">
+            {["Sem mensalidade", "Sem custo inicial", "Sem ação judicial", "Sem trocar de fornecedor", "Especialistas do setor elétrico"].map((t) => (
+              <span key={t} className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-3 py-1.5 text-[13px] font-semibold">
+                <BadgeCheck className="size-4 text-primary" /> {t}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ================= CASOS ================= */}
-      <section id="casos" className="scroll-mt-16 border-t border-line bg-white py-20 sm:py-28">
+      {/* ================= ONDE ESTÁ O DINHEIRO ================= */}
+      <section className="relative overflow-hidden bg-ink py-20 text-white sm:py-24">
+        <div className="glow absolute inset-0 opacity-70" />
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <BlurFade className="max-w-3xl">
+            <Eyebrow className="text-volt">Dinheiro na mesa</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">
+              3 lugares onde sua empresa pode estar <span className="text-volt">perdendo dinheiro</span> agora.
+            </h2>
+          </BlurFade>
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {FRONTS.map(({ icon: Icon, tag, title, text }, i) => (
+              <BlurFade key={title} delay={0.06 * i}>
+                <div className="h-full rounded-2xl border border-white/10 bg-white/[0.04] p-6 transition-colors hover:border-volt/50">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-volt text-ink">
+                    <Icon className="size-5" />
+                  </span>
+                  <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-volt">{tag}</p>
+                  <h3 className="mt-1.5 text-xl font-bold tracking-tight">{title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-white/75">{text}</p>
+                </div>
+              </BlurFade>
+            ))}
+          </div>
+          <p className="mt-6 flex items-center gap-2 text-sm text-white/70">
+            <Scale className="size-4 shrink-0 text-volt" /> Direto com a distribuidora e o fisco, pelas vias administrativas. Todo mês, uma fatura sai do prazo de 5 anos.
+          </p>
+        </div>
+      </section>
+
+      {/* ================= EXEMPLOS ================= */}
+      <section id="exemplos" className="scroll-mt-16 bg-white py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <SectionLabel n="04">Casos</SectionLabel>
-          <SplitReveal className="mt-6 max-w-3xl font-serif text-[40px] leading-[1.02] tracking-[-0.01em] sm:text-[54px]">
-            O que uma auditoria costuma encontrar.
-          </SplitReveal>
-
-          <Reveal className="mt-14">
-            <div className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,0.6fr)_minmax(0,0.9fr)] gap-6 border-b border-line pb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-stone md:grid">
-              <span>Empresa</span>
-              <span>Ocorrência</span>
-              <span>Período</span>
-              <span className="text-right">Valor possível</span>
-            </div>
-            {CASES.map((c) => (
-              <div
-                key={c.who}
-                data-reveal-item
-                className="grid gap-2 border-b border-line py-7 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,0.6fr)_minmax(0,0.9fr)] md:items-baseline md:gap-6"
-              >
-                <div>
-                  <p className="text-[17px] font-medium">{c.who}</p>
-                  <p className="font-mono text-[11.5px] text-stone">{c.where}</p>
-                </div>
-                <p className="text-[16px] leading-snug">{c.issue}</p>
-                <p className="text-[15px] text-stone">{c.period}</p>
-                <div className="md:text-right">
-                  <p className="font-serif text-[38px] leading-none">
-                    <CountUp value={c.value} prefix="R$ " />
-                  </p>
-                  <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.1em] text-stone">{c.kind}</p>
-                </div>
-              </div>
+          <BlurFade className="max-w-3xl">
+            <Eyebrow>Exemplos</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Ninguém confere a conta de luz. É aí que o dinheiro some.</h2>
+          </BlurFade>
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {CASES.map(({ icon: Icon, who, issue, rows, label, value }, i) => (
+              <BlurFade key={who} delay={0.06 * i}>
+                <article className="flex h-full flex-col rounded-3xl border border-border bg-background p-6 shadow-[0_20px_50px_-30px_rgba(7,11,22,0.35)]">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-ink text-volt">
+                      <Icon className="size-5" />
+                    </span>
+                    <p className="text-sm font-semibold text-muted">{who}</p>
+                  </div>
+                  <p className="mt-5 text-lg font-bold leading-snug tracking-tight">{issue}</p>
+                  <dl className="mt-6 space-y-2 border-t border-border pt-5 text-sm">
+                    {rows.map(([k, v]) => (
+                      <div key={k} className="flex justify-between gap-3">
+                        <dt className="text-muted">{k}</dt>
+                        <dd className="font-semibold tabular">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <div className="mt-auto pt-5">
+                    <div className="rounded-2xl bg-ink px-4 py-3.5 text-white">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">{label}</p>
+                      <p className="mt-0.5 text-[28px] font-bold tracking-tight text-volt tabular">
+                        R$ <NumberTicker value={value} />
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              </BlurFade>
             ))}
-          </Reveal>
-          <p className="mt-5 text-[12.5px] text-stone">Casos ilustrativos, com valores fictícios. O resultado real depende da comprovação e da análise de cada caso.</p>
+          </div>
+          <p className="mt-4 text-xs text-muted">Exemplos ilustrativos com valores fictícios. O resultado real depende da comprovação e da análise de cada caso.</p>
+          <div className="mt-10">
+            <Link href="#analisar" className="pulse-ring inline-flex h-13 items-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-bold text-white hover:bg-primary-hover">
+              FAZER MEU DIAGNÓSTICO GRÁTIS <ArrowRight className="size-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* ================= DÚVIDAS ================= */}
-      <section id="faq" className="scroll-mt-16 border-t border-line py-20 sm:py-28">
-        <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
-          <div>
-            <SectionLabel n="05">Dúvidas</SectionLabel>
-            <SplitReveal className="mt-6 font-serif text-[40px] leading-[1.02] tracking-[-0.01em] sm:text-[54px]">
-              Antes de começar.
-            </SplitReveal>
-            <p className="mt-6 text-[15px] text-stone">
-              Outra pergunta? <OpenChatButton className="font-medium text-foreground underline underline-offset-4 hover:no-underline" label="Fale com nosso assistente" />
-            </p>
-          </div>
-          <Reveal className="border-t border-line">
+      {/* ================= FAQ ================= */}
+      <section id="faq" className="scroll-mt-16 bg-background py-20 sm:py-24">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <Eyebrow className="text-center">Perguntas frequentes</Eyebrow>
+          <h2 className="mt-3 text-center text-[32px] font-bold tracking-[-0.03em] sm:text-4xl">Sem letras miúdas</h2>
+          <div className="mt-10 space-y-3">
             {FAQ_HOME.map((f) => (
-              <details key={f.q} data-reveal-item className="group border-b border-line py-5 [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-[17px] font-medium">
+              <details key={f.q} className="group rounded-2xl border border-border bg-white px-5 py-4 transition-shadow open:shadow-[0_10px_30px_-15px_rgba(7,11,22,0.25)] [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-semibold">
                   {f.q}
-                  <span className="relative size-4 shrink-0 text-stone" aria-hidden>
-                    <span className="absolute left-0 top-1/2 h-px w-4 bg-current" />
-                    <span className="absolute left-1/2 top-0 h-4 w-px bg-current transition-transform duration-300 group-open:rotate-90" />
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-subtle text-lg leading-none text-foreground transition-transform duration-300 group-open:rotate-45 group-open:bg-primary group-open:text-white">
+                    +
                   </span>
                 </summary>
-                <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-stone">{f.a}</p>
+                <p className="mt-3 text-[15px] leading-relaxed text-muted">{f.a}</p>
               </details>
             ))}
-          </Reveal>
+          </div>
+          <p className="mt-8 text-center text-[15px] text-muted">
+            Outra dúvida? <OpenChatButton className="font-bold text-primary hover:underline" label="Pergunte à nossa IA" />
+          </p>
         </div>
       </section>
 
       {/* ================= CTA FINAL ================= */}
-      <section className="bg-ink text-white">
-        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32">
-          <SplitReveal className="max-w-4xl font-serif text-[48px] leading-[0.98] tracking-[-0.015em] sm:text-[88px]">Comece pelo diagnóstico.</SplitReveal>
-          <Reveal className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
-            <Link
-              data-reveal-item
-              href="#analisar"
-              className="group inline-flex h-13 items-center gap-2 rounded-full bg-white px-7 text-[15px] font-medium text-ink transition-colors hover:bg-volt"
-            >
-              Iniciar diagnóstico <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-            <p data-reveal-item className="text-[15px] text-white/65">
-              Cinco perguntas. Sem custo e sem compromisso.
-            </p>
-          </Reveal>
-          <div className="mt-20 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/15 pt-6 text-[13px] text-white/55">
-            <Link href="/guia-conta-de-energia" className="inline-flex items-center gap-1 hover:text-white">
-              Guia: como ler a conta de energia <ArrowUpRight className="size-3.5" />
-            </Link>
-            <Link href="/gd-por-assinatura" className="inline-flex items-center gap-1 hover:text-white">
-              Energia por assinatura <ArrowUpRight className="size-3.5" />
-            </Link>
-            <Link href="/mercado-livre" className="inline-flex items-center gap-1 hover:text-white">
-              Mercado Livre de energia <ArrowUpRight className="size-3.5" />
+      <section className="bg-background px-4 pb-24 sm:px-6">
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[32px] bg-ink px-6 py-16 text-center text-white sm:px-12 sm:py-20">
+          <div className="glow absolute inset-0" />
+          <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_0%,white,transparent)]" />
+          <Meteors number={16} />
+          <div className="relative">
+            <h2 className="mx-auto max-w-3xl text-[34px] font-bold leading-[1.08] tracking-[-0.035em] sm:text-6xl">
+              O pior cenário: você descobre que <span className="text-volt">está tudo certo.</span>
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg text-white/75">30 segundos, sem custo e sem compromisso. E, se tiver dinheiro seu na conta, a gente busca.</p>
+            <Link href="#analisar" className="mt-9 inline-flex h-14 items-center gap-2 rounded-2xl bg-white px-8 text-base font-bold text-ink shadow-[0_15px_40px_-10px_rgba(255,255,255,0.45)] transition-transform hover:-translate-y-0.5">
+              FAZER MEU DIAGNÓSTICO GRÁTIS <ArrowRight className="size-5" />
             </Link>
           </div>
         </div>
       </section>
 
       <StickyCta />
-    </div>
+    </>
   );
 }

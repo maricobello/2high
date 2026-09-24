@@ -30,12 +30,6 @@
   --analysis-soft: #fff3e6;
   --opportunity: #1f9d6a;
   --opportunity-soft: #e7f7ef;
-  /* Landing editorial: papel quente, tinta e linhas finas */
-  --paper: #f5f4ef;
-  --paper-2: #ecebe4;
-  --line: #dcdad2;
-  /* #66645d sobre --paper ≈ 5.3:1 (AA) */
-  --stone: #66645d;
 }
 
 @theme inline {
@@ -61,11 +55,6 @@
   --color-analysis-soft: var(--analysis-soft);
   --color-opportunity: var(--opportunity);
   --color-opportunity-soft: var(--opportunity-soft);
-  --color-paper: var(--paper);
-  --color-paper-2: var(--paper-2);
-  --color-line: var(--line);
-  --color-stone: var(--stone);
-  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -187,27 +176,3 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .word-in, .rise-in, .draw-line, .float-y, .pulse-ring { animation: none !important; opacity: 1; filter: none; transform: none; stroke-dashoffset: 0; }
 }
-
-/* ---------- Motion (GSAP) ---------- */
-/* Com JS, textos marcados começam ocultos até a animação assumir; sem JS ou com
-   movimento reduzido, tudo aparece normalmente. */
-html.js [data-split]:not([data-split-ready]) { visibility: hidden; }
-html.js [data-reveal-item] { opacity: 0; }
-@media (prefers-reduced-motion: reduce) {
-  html.js [data-split]:not([data-split-ready]) { visibility: visible; }
-  html.js [data-reveal-item] { opacity: 1; }
-}
-/* Marca-texto que "desenha" por baixo do destaque */
-.marker {
-  background-image: linear-gradient(transparent 58%, var(--volt) 58%, var(--volt) 92%, transparent 92%);
-  background-repeat: no-repeat;
-  background-size: 0% 100%;
-  transition: background-size 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.6s;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-}
-.marker[data-on="true"] { background-size: 100% 100%; }
-@media (prefers-reduced-motion: reduce) { .marker { transition: none; background-size: 100% 100%; } }
-html.lenis, html.lenis body { height: auto; }
-.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
-.lenis.lenis-stopped { overflow: hidden; }
