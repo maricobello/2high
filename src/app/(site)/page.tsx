@@ -1,14 +1,15 @@
-import { ArrowRight, BadgeCheck, CheckCircle2, Factory, FileSearch, Handshake, Landmark, Receipt, Scale, Store, TrendingDown, Wallet } from "lucide-react";
+import { ArrowRight, BadgeCheck, ShieldCheck, Factory, FileSearch, Handshake, Landmark, Receipt, Scale, Store, TrendingDown, Wallet } from "lucide-react";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
-import { AnimatedShinyText } from "@/components/magicui/animated-shiny-text";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
+import { GridPattern } from "@/components/magicui/grid-pattern";
 import { Marquee } from "@/components/magicui/marquee";
 import { Meteors } from "@/components/magicui/meteors";
 import { NumberTicker } from "@/components/magicui/number-ticker";
-import { HeroHeadline } from "@/components/site/hero-headline";
+import { AnimatedGroup } from "@/components/motion-primitives/animated-group";
+import { TextEffect } from "@/components/motion-primitives/text-effect";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
@@ -53,30 +54,79 @@ export default function HomePage() {
     <>
       {/* ================= HERO = QUIZ ================= */}
       <section id="analisar" className="relative scroll-mt-16 overflow-hidden bg-ink text-white">
-        <div className="glow absolute inset-0" />
-        <DotPattern className="[mask-image:radial-gradient(700px_circle_at_25%_30%,white,transparent)]" />
-        <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-7 px-4 pb-14 pt-6 sm:px-6 md:pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-12 lg:pb-20">
+        {/* Fundo: grid técnico com máscara radial + halo de luz no topo */}
+        <GridPattern
+          width={56}
+          height={56}
+          squares={[[2, 1], [5, 3], [9, 2], [13, 5], [4, 7], [16, 1]]}
+          className="stroke-white/[0.07] fill-white/[0.025] [mask-image:radial-gradient(900px_circle_at_28%_18%,white,transparent_75%)]"
+        />
+        <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-primary/25 blur-[140px]" />
+
+        <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-4 pb-14 pt-8 sm:px-6 md:pt-14 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)] lg:gap-14 lg:pb-20">
           <div className="flex min-w-0 flex-col justify-center">
-            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-volt/30 bg-volt/10 px-3.5 py-1.5 text-xs font-semibold">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-volt opacity-60" />
-                <span className="relative inline-flex size-2 rounded-full bg-volt" />
-              </span>
-              <AnimatedShinyText className="text-white/90">Você só paga se o dinheiro voltar</AnimatedShinyText>
-            </div>
-            <HeroHeadline />
-            <p className="rise-in mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg" style={{ animationDelay: "0.5s" }}>
-              Responda 5 perguntas e veja, em 30 segundos, onde sua empresa pode estar pagando a mais — e quanto está em jogo.
-            </p>
-            <ul className="rise-in mt-6 hidden gap-3 text-[15px] font-medium text-white lg:grid" style={{ animationDelay: "0.65s" }}>
-              {["Auditoria gratuita de até 60 faturas", "Fazemos tudo: pedido, laudos e acompanhamento", "Sem mensalidade, sem custo inicial, sem ação judicial"].map((t) => (
-                <li key={t} className="flex items-center gap-2.5">
-                  <CheckCircle2 className="size-5 shrink-0 text-volt" /> {t}
-                </li>
-              ))}
-            </ul>
+            <AnimatedGroup preset="blur-slide">
+              <Link
+                href="#frentes"
+                className="group inline-flex w-fit max-w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] p-1 pr-2 text-[12.5px] shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset] transition-colors hover:border-white/20 hover:bg-white/[0.07]"
+              >
+                <span className="rounded-full bg-volt px-2 py-0.5 text-[11px] font-bold text-ink">Novo</span>
+                <span className="truncate font-medium text-white/85">
+                  <span className="sm:hidden">Laudo de crédito de ICMS</span>
+                  <span className="hidden sm:inline">Laudo técnico de crédito de ICMS para indústrias</span>
+                </span>
+                <span className="block h-4 w-px bg-white/15" />
+                <span className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                  <ArrowRight className="size-3 transition-transform duration-300 group-hover:translate-x-4" />
+                  <ArrowRight className="-ml-3 size-3 -translate-x-4 transition-transform duration-300 group-hover:translate-x-0" />
+                </span>
+              </Link>
+            </AnimatedGroup>
+
+            <h1 className="mt-6 text-[36px] font-bold leading-[1.04] tracking-[-0.04em] sm:text-[54px] lg:text-[62px]">
+              <TextEffect as="span" per="word" preset="fade-in-blur" speedSegment={0.4}>
+                Recupere o que sua empresa
+              </TextEffect>{" "}
+              <TextEffect as="span" per="word" preset="fade-in-blur" speedSegment={0.4} delay={0.25} className="text-volt">
+                pagou a mais
+              </TextEffect>{" "}
+              <TextEffect as="span" per="word" preset="fade-in-blur" speedSegment={0.4} delay={0.4}>
+                em energia.
+              </TextEffect>
+            </h1>
+
+            <TextEffect as="p" per="line" preset="fade-in-blur" delay={0.55} speedSegment={0.4} className="mt-5 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">
+              Auditoria técnica de até 60 faturas por especialistas do setor elétrico. Identificamos cobranças indevidas e conduzimos a restituição junto à distribuidora — sem ação judicial e sem custo inicial.
+            </TextEffect>
+
+            <AnimatedGroup preset="blur-slide" className="mt-8">
+              <dl className="grid max-w-lg grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-white/[0.03]">
+                {[
+                  { v: "60", l: "faturas revisadas" },
+                  { v: "12", l: "regras técnicas" },
+                  { v: "R$ 0", l: "custo inicial" },
+                ].map((k) => (
+                  <div key={k.l} className="flex flex-col-reverse px-3 py-3.5 sm:px-5">
+                    <dt className="text-[11.5px] leading-tight text-white/60 sm:text-xs">{k.l}</dt>
+                    <dd className="text-2xl font-bold tracking-tight tabular sm:text-[28px]">{k.v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </AnimatedGroup>
+
+            <AnimatedGroup preset="fade" className="mt-7 hidden lg:block">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">Fundamentação</span>
+                {["REN ANEEL 1.000/2021", "CDC · art. 42", "LC 87/96"].map((b) => (
+                  <span key={b} className="flex items-center gap-1.5 text-[13px] font-medium text-white/70">
+                    <ShieldCheck className="size-3.5 text-white/40" /> {b}
+                  </span>
+                ))}
+              </div>
+            </AnimatedGroup>
           </div>
-          <BlurFade delay={0.1}>
+
+          <BlurFade delay={0.2}>
             <QuizFunnel />
           </BlurFade>
         </div>
@@ -101,14 +151,14 @@ export default function HomePage() {
       <section id="como-funciona" className="scroll-mt-16 bg-white py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-3xl">
-            <Eyebrow>Risco zero</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Você não paga para descobrir. Só paga se o dinheiro voltar.</h2>
+            <Eyebrow>Modelo de êxito</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-5xl">Honorários apenas sobre o valor recuperado.</h2>
           </BlurFade>
           <div className="mt-12 grid gap-4 md:grid-cols-3">
             {[
               { icon: FileSearch, n: "1", t: "Auditamos de graça", d: "Revisamos até 60 faturas e mostramos o que encontramos. Sem compromisso." },
               { icon: Handshake, n: "2", t: "Fazemos tudo por você", d: "Pedido na distribuidora, laudos técnicos e acompanhamento. Você não perde tempo." },
-              { icon: Wallet, n: "3", t: "O dinheiro volta", d: `Só então ${successFeeText()}. Não recuperou? Não paga nada.` },
+              { icon: Wallet, n: "3", t: "Restituição", d: `O valor volta para o caixa da empresa e ${successFeeText()}. Sem recuperação, sem cobrança.` },
             ].map(({ icon: Icon, n, t, d }, i) => (
               <BlurFade key={t} delay={0.06 * i}>
                 <div className="relative h-full rounded-3xl border border-border bg-background p-6">
@@ -133,7 +183,7 @@ export default function HomePage() {
       </section>
 
       {/* ================= ONDE ESTÁ O DINHEIRO ================= */}
-      <section className="relative overflow-hidden bg-ink py-20 text-white sm:py-24">
+      <section id="frentes" className="relative scroll-mt-16 overflow-hidden bg-ink py-20 text-white sm:py-24">
         <div className="glow absolute inset-0 opacity-70" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-3xl">
