@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description:
     "Diagnóstico gratuito em 30 segundos. Auditamos até 60 faturas, cuidamos da devolução e do crédito de ICMS — e você só paga se o dinheiro voltar.",
   openGraph: {
-    title: "Quanto sua empresa está deixando na mesa na conta de luz?",
+    title: "Sua empresa paga energia todo mês. Alguém confere?",
     description: "Diagnóstico gratuito em 30 segundos. Você só paga se o dinheiro voltar.",
     locale: "pt_BR",
     type: "website",
