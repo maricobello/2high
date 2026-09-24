@@ -178,7 +178,7 @@ export async function intakeQuickLead(input: QuickLeadInput, ctx: { ipHash: stri
     potentialCommission: null,
     partnerId: null,
     owner: null,
-    notes: null,
+    notes: input.quiz && Object.keys(input.quiz).length ? `Quiz: ${Object.values(input.quiz).join(" · ")}` : null,
     intentSignals: [],
     followUpOptOut: false,
     consentAt: new Date().toISOString(),

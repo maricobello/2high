@@ -112,6 +112,8 @@ export const quickLeadSchema = z.object({
   marketingConsent: z.boolean().optional().default(false),
   website: z.string().max(0).optional().default(""),
   utm: z.record(z.string(), z.string().max(200)).optional(),
+  /** Respostas do quiz do hero (rótulos legíveis) */
+  quiz: z.record(z.string().max(40), z.string().max(80)).optional(),
 });
 export type QuickLeadInput = z.infer<typeof quickLeadSchema>;
 

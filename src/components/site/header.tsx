@@ -32,7 +32,7 @@ export function SiteHeader() {
         <div className={cn("overflow-hidden bg-primary text-white transition-[max-height] duration-300", scrolled ? "max-h-0" : "max-h-10")}>
           <Link href="/#analisar" className="mx-auto flex h-9 max-w-6xl items-center justify-center gap-2 px-4 text-[12.5px] font-semibold">
             <Zap className="size-3.5 text-volt" />
-            <span className="truncate">Sua conta pode ter cobranças indevidas. Auditoria gratuita em 1 minuto</span>
+            <span className="truncate">Diagnóstico gratuito em 30 segundos — você só paga se o dinheiro voltar</span>
             <ArrowRight className="hidden size-3.5 sm:block" />
           </Link>
         </div>
@@ -53,7 +53,7 @@ export function SiteHeader() {
             href="/#analisar"
             className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-bold text-ink shadow-[0_6px_20px_-6px_rgba(255,255,255,0.4)] transition-transform hover:-translate-y-0.5"
           >
-            Auditoria grátis
+            Diagnóstico grátis
           </Link>
         </div>
       </div>

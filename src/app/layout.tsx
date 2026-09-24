@@ -7,14 +7,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(brand.appUrl),
   title: {
-    default: `${brand.name} — Auditoria gratuita da conta de energia`,
+    default: `${brand.name} — Recupere o que sua empresa pagou a mais de energia`,
     template: `%s · ${brand.name}`,
   },
   description:
-    "Sua empresa pode estar pagando energia a mais. Auditoria gratuita da fatura em 1 minuto e pedido de devolução de até 60 faturas, direto com a distribuidora.",
+    "Diagnóstico gratuito em 30 segundos. Auditamos até 60 faturas, cuidamos da devolução e do crédito de ICMS — e você só paga se o dinheiro voltar.",
   openGraph: {
-    title: "Sua empresa pode estar pagando energia a mais.",
-    description: "Auditoria gratuita da conta de energia. Se houver cobrança indevida, buscamos a devolução de até 60 faturas.",
+    title: "Quanto sua empresa está deixando na mesa na conta de luz?",
+    description: "Diagnóstico gratuito em 30 segundos. Você só paga se o dinheiro voltar.",
     locale: "pt_BR",
     type: "website",
   },
