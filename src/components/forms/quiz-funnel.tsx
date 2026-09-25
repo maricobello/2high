@@ -9,7 +9,7 @@ import { NumberTicker } from "@/components/magicui/number-ticker";
 import { Field, Input } from "@/components/ui/field";
 import { successFeeText } from "@/lib/brand";
 import { readUtm } from "@/lib/client/compress-image";
-import { OPEN_ANALYSIS_EVENT } from "@/lib/client/open-analysis";
+import { OPEN_ANALYSIS_EVENT, QUIZ_PROGRESS_EVENT } from "@/lib/client/open-analysis";
 import { cn, formatBRL } from "@/lib/utils";
 import { formatPhone } from "@/modules/leads/format";
 import { diagnose, QUESTIONS, quizSummary, type QuizAnswers } from "@/modules/quiz/diagnosis";
@@ -183,6 +183,12 @@ export function QuizFunnel() {
   // pré-carrega a etapa da fatura enquanto a pessoa lê o resultado
   useEffect(() => {
     if (step === RESULT || step === CONTACT) void loadUploadStep();
+  }, [step]);
+
+  // avisa o atalho "voltar ao diagnóstico" em que ponto a pessoa parou
+  useEffect(() => {
+    const label = step === 0 ? "Fazer diagnóstico" : step < TOTAL ? `Continuar diagnóstico · ${step + 1}/${TOTAL}` : step === RESULT ? "Ver meu resultado" : step === CONTACT ? "Continuar diagnóstico · quase lá" : "Enviar a fatura";
+    window.dispatchEvent(new CustomEvent(QUIZ_PROGRESS_EVENT, { detail: label }));
   }, [step]);
 
   const q = step < TOTAL ? QUESTIONS[step] : null;
