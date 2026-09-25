@@ -41,7 +41,7 @@ export default function HomePage() {
           <div className="flex min-w-0 flex-col justify-center">
             <HeroHeadline />
             <p className="rise-in mt-6 max-w-lg text-base leading-relaxed text-white/80 sm:text-xl sm:leading-relaxed" style={{ animationDelay: "0.5s" }}>
-              Auditamos até 60 faturas, pedimos a devolução de cobranças indevidas e gerimos sua energia todo mês.
+              <strong className="font-semibold text-white">Nós conferimos.</strong> Item por item, e pedimos de volta o que foi cobrado errado.
             </p>
             <p className="rise-in mt-4 text-[14px] font-medium text-white/90 lg:hidden" style={{ animationDelay: "0.6s" }}>
               <span className="text-volt">Sem custo.</span> Remuneração só sobre o valor recuperado.
