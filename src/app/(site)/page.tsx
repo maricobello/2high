@@ -1,5 +1,4 @@
 import { ArrowRight, ArrowUpRight, Check, Search, SolarPanel, Zap } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
@@ -7,7 +6,7 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
-import { HERO_PHOTO, HeroScene } from "@/components/site/hero-scene";
+import { HeroScene } from "@/components/site/hero-scene";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
@@ -297,8 +296,7 @@ export default function HomePage() {
       <section className="bg-background pb-20 sm:pb-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-ink text-white">
-            <Image src={HERO_PHOTO} alt="" fill sizes="(min-width: 1152px) 1152px, 100vw" quality={55} className="object-cover object-[75%_center] opacity-70" />
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,#030605_0%,rgba(3,6,5,0.93)_45%,rgba(3,6,5,0.45)_100%)]" />
+            <div className="glow absolute inset-0 opacity-70" />
             <BorderBeam size={220} duration={10} colorFrom="#3ee066" colorTo="#9cf5b2" borderWidth={2} />
             <div className="relative grid gap-10 px-6 py-12 sm:px-12 sm:py-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
               <div>

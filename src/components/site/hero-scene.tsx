@@ -98,9 +98,9 @@ export function HeroScene() {
           <path d="M-40 720 L180 940" strokeWidth="1" opacity="0.4" />
         </g>
       </svg>
-      <Image src={HERO_PHOTO} alt="" fill sizes="100vw" quality={60} className="object-cover object-[70%_center]" />
+      <Image src={HERO_PHOTO} alt="" fill sizes="100vw" quality={70} className="object-cover object-[70%_center]" />
       {/* leitura à esquerda e transição para a faixa de baixo */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,#030605_0%,rgba(3,6,5,0.92)_30%,rgba(3,6,5,0.55)_55%,rgba(3,6,5,0.2)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,6,5,0.95)_0%,rgba(3,6,5,0.8)_28%,rgba(3,6,5,0.3)_52%,rgba(3,6,5,0)_75%)] max-lg:bg-[linear-gradient(180deg,rgba(3,6,5,0.85)_0%,rgba(3,6,5,0.55)_45%,rgba(3,6,5,0.75)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent" />
       {/* linha verde animada (curva de energia) */}
       <svg viewBox="0 0 1600 900" preserveAspectRatio="xMaxYMid slice" className="absolute inset-0 h-full w-full">
