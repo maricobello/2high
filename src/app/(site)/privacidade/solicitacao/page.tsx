@@ -1,8 +1,9 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { PrivacyRequestForm } from "@/components/forms/privacy-request-form";
 import { brand } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Seus direitos (LGPD)" };
+export const metadata: Metadata = pageMetadata({ path: "/privacidade/solicitacao", title: "Seus direitos (LGPD)", description: "Solicite acesso, correção ou exclusão dos seus dados." });
 
 export default function PrivacyRequestPage() {
   return (

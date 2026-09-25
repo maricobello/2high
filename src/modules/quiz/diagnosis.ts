@@ -104,7 +104,7 @@ export function diagnose(a: QuizAnswers): Diagnosis {
   score += months === 60 ? 10 : months === 36 ? 5 : 0;
   score += a.segment === "industria" ? 5 : 0;
   score = Math.min(95, score);
-  const level = score >= 70 ? "ALTO" : score >= 55 ? "MÉDIO" : "MODERADO";
+  const level = score >= 75 ? "ALTO" : score >= 55 ? "MÉDIO" : "MODERADO";
 
   const fronts: Front[] = [
     {
@@ -113,16 +113,18 @@ export function diagnose(a: QuizAnswers): Diagnosis {
       detail: `Leitura, tarifa ou classe errada nas últimas ${months} faturas.`,
     },
   ];
+  // Quem não sabe o grupo vê os itens de Grupo A como condicionais
+  const ifA = a.voltage === "nao_sei" ? "Se a conta for do Grupo A: " : "";
   if (a.voltage !== "b") {
     fronts.push({
       code: "demanda_reativo",
       title: "Demanda e reativo",
-      detail: "Ultrapassagens, contrato acima do uso e cobrança de energia reativa.",
+      detail: `${ifA}ultrapassagens, contrato acima do uso e cobrança de energia reativa.`,
     });
     fronts.push({
       code: "icms_demanda",
       title: "ICMS sobre demanda",
-      detail: "Só incide sobre a demanda utilizada (Súmula 391 do STJ).",
+      detail: `${ifA}só incide sobre a demanda utilizada (Súmula 391 do STJ).`,
     });
   }
   const industrial = a.segment === "industria";

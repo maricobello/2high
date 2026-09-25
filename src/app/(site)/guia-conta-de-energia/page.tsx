@@ -1,12 +1,14 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Printer } from "lucide-react";
 import { Badge } from "@/components/ui/card";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/guia-conta-de-energia",
   title: "Guia: 7 pontos que mais pesam na conta de energia da sua empresa",
   description: "Um guia prático para ler a fatura de energia da empresa e identificar pontos de atenção.",
-};
+});
 
 const POINTS = [
   {

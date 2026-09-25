@@ -4,13 +4,14 @@ import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
-import { Marquee } from "@/components/magicui/marquee";
+import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
 import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
 import { brand } from "@/lib/brand";
+import { jsonLd, pageMetadata } from "@/lib/seo";
 import { DISTRIBUTORS } from "@/modules/invoice/distributors";
 
 const DISTRIBUTOR_NAMES = [...new Set(DISTRIBUTORS.filter((d) => d.states.length).map((d) => d.name))];
@@ -66,17 +67,50 @@ const STEPS = [
 
 const FAQ_HOME = FAQ.filter((f) => f.home);
 
+export const metadata = pageMetadata({
+  path: "/",
+  absoluteTitle: true,
+  title: `${brand.name} — Auditoria e gestão de energia para empresas`,
+  description: "Sua empresa paga energia todo mês. Alguém confere? Auditamos a conta item por item e pedimos de volta o que foi cobrado errado. Diagnóstico sem custo.",
+});
+
+/** Dados estruturados (Organization, Service e FAQ) para buscadores e assistentes de IA. */
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: brand.name,
+      url: brand.appUrl,
+      ...(brand.legalName ? { legalName: brand.legalName } : {}),
+      ...(brand.legalCnpj ? { taxID: brand.legalCnpj } : {}),
+    },
+    {
+      "@type": "Service",
+      name: "Auditoria de faturas de energia",
+      serviceType: "Auditoria e gestão de energia elétrica",
+      provider: { "@type": "Organization", name: brand.name },
+      areaServed: { "@type": "Country", name: "Brasil" },
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: FAQ_HOME.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+    },
+  ],
+};
+
 /** CTA padrão (fundo claro): h-12, cantos 12px, 15px, peso 600. */
 const cta =
-  "group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30";
+  "group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 /** CTA sobre fundo escuro. */
 const ctaLight =
-  "group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-6 text-[15px] font-semibold text-ink transition-colors hover:bg-volt focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40";
+  "group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-6 text-[15px] font-semibold text-ink transition-colors hover:bg-volt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-ink";
 const arrow = <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />;
 
 export default function HomePage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(STRUCTURED_DATA)} />
       {/* ================= HERO + QUIZ ================= */}
       <section id="analisar" className="relative scroll-mt-16 overflow-hidden bg-ink text-white">
         <div className="glow absolute inset-0" />
@@ -101,25 +135,11 @@ export default function HomePage() {
               ))}
             </ul>
           </div>
-          <BlurFade delay={0.1}>
-            <QuizFunnel />
-          </BlurFade>
+          {/* Sem animação de entrada: o quiz é o maior elemento da tela (LCP) e aparece já pintado */}
+          <QuizFunnel />
         </div>
 
-        <div className="relative border-t border-white/10 bg-white/[0.02] py-5">
-          <p className="mb-3 text-center text-[12px] font-medium text-white/60">Lemos faturas de</p>
-          <div className="relative">
-            <Marquee className="[--duration:70s] [--gap:3rem]">
-              {DISTRIBUTOR_NAMES.map((n) => (
-                <span key={n} className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-white/65">
-                  {n}
-                </span>
-              ))}
-            </Marquee>
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-ink" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-28 bg-gradient-to-l from-ink" />
-          </div>
-        </div>
+        <DistributorStrip names={DISTRIBUTOR_NAMES} />
       </section>
 
       {/* ================= NA IMPRENSA (contexto: a conta sobe) ================= */}
@@ -128,6 +148,7 @@ export default function HomePage() {
           <BlurFade className="max-w-2xl">
             <Eyebrow>Na imprensa</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A conta de luz sobe acima da inflação</h2>
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">Com a tarifa mais alta, cada erro de leitura, demanda ou tarifa custa mais. Vale conferir.</p>
           </BlurFade>
 
           <BlurFade delay={0.05}>
@@ -137,7 +158,7 @@ export default function HomePage() {
                   <dd className="text-5xl font-bold tracking-[-0.03em] text-volt tabular">{st.value}</dd>
                   <dt className="mt-2 text-[15px] leading-snug text-white/80">
                     {st.label}{" "}
-                    <a href={st.href} target="_blank" rel="noopener noreferrer" className="text-white/55 underline-offset-2 hover:text-white hover:underline">
+                    <a href={st.href} target="_blank" rel="noopener noreferrer" className="text-white/70 underline underline-offset-2 hover:text-white">
                       Fonte: {st.source}
                     </a>
                   </dt>
@@ -148,12 +169,12 @@ export default function HomePage() {
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {NEWS.map((n, i) => (
-              <BlurFade key={n.href} delay={0.05 * i}>
+              <BlurFade key={n.href} className={i >= 2 ? "hidden md:block" : undefined}>
                 <a
                   href={n.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex h-full flex-col rounded-3xl border border-border bg-white p-6 transition-shadow hover:shadow-[0_20px_50px_-30px_rgba(7,11,22,0.35)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                  className="group flex h-full flex-col rounded-3xl border border-border bg-white p-6 transition-shadow hover:shadow-[0_20px_50px_-30px_rgba(7,11,22,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">{n.outlet}</p>
                   <p className="mt-2 text-lg font-bold leading-snug tracking-tight">“{n.title}”</p>
@@ -181,15 +202,15 @@ export default function HomePage() {
           <ScanDemo />
           <div className="mt-12 flex flex-wrap items-center gap-4">
             <Link href="#analisar" className={ctaLight}>
-              Quero o Raio-X da minha fatura {arrow}
+              Fazer diagnóstico {arrow}
             </Link>
-            <span className="text-sm text-white/70">Sem custo · relatório antes de qualquer contrato</span>
+            <span className="text-sm text-white/70">5 perguntas, depois a fatura · sem custo</span>
           </div>
         </div>
       </section>
 
       {/* ================= COMO FUNCIONA ================= */}
-      <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-white py-16 sm:py-20">
+      <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-white py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
             <Eyebrow>Como funciona</Eyebrow>
@@ -223,7 +244,7 @@ export default function HomePage() {
       </section>
 
       {/* ================= PERGUNTAS ================= */}
-      <section id="faq" className="scroll-mt-16 border-t border-border bg-background py-20 sm:py-28">
+      <section id="faq" className="scroll-mt-16 border-t border-border bg-background py-20 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
           <div>
             <Eyebrow>Perguntas frequentes</Eyebrow>
@@ -237,7 +258,7 @@ export default function HomePage() {
               <details key={f.q} className="group rounded-2xl border border-border bg-white px-5 py-4 transition-shadow open:shadow-[0_10px_30px_-15px_rgba(7,11,22,0.25)] [&_summary::-webkit-details-marker]:hidden">
                 <summary className="flex min-h-8 cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-semibold">
                   {f.q}
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-subtle text-lg leading-none text-foreground transition-transform duration-300 group-open:rotate-45 group-open:bg-primary group-open:text-white">
+                  <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-subtle text-lg leading-none text-foreground transition-transform duration-300 group-open:rotate-45 group-open:bg-primary group-open:text-white">
                     +
                   </span>
                 </summary>
@@ -249,19 +270,21 @@ export default function HomePage() {
       </section>
 
       {/* ================= CTA FINAL ================= */}
-      <section className="bg-background px-4 pb-24 sm:px-6">
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[28px] bg-ink px-6 py-16 text-center text-white sm:px-12 sm:py-20">
-          <div className="glow absolute inset-0" />
-          <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_0%,white,transparent)]" />
-          <div className="relative">
-            <h2 className="mx-auto max-w-3xl text-balance text-[34px] font-bold leading-[1.08] tracking-[-0.035em] sm:text-6xl">
-              Pior cenário: você confirma que <span className="text-volt">está tudo certo.</span>
-            </h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg text-white/75">Cinco perguntas. A fatura pode ficar para depois.</p>
-            <Link href="#analisar" className={`${ctaLight} mt-9`}>
-              Fazer diagnóstico {arrow}
-            </Link>
-            <p className="mt-6 text-[13px] text-white/60">Sem custo · Relatório antes de qualquer contrato · Dados tratados conforme a LGPD</p>
+      <section className="bg-background pb-20 sm:pb-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="relative overflow-hidden rounded-[28px] bg-ink px-6 py-16 text-center text-white sm:px-12 sm:py-20">
+            <div className="glow absolute inset-0" />
+            <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_0%,white,transparent)]" />
+            <div className="relative">
+              <h2 className="mx-auto max-w-3xl text-balance text-[32px] font-bold leading-[1.08] tracking-[-0.035em] sm:text-5xl">
+                Pior cenário: você confirma que <span className="text-volt">está tudo certo.</span>
+              </h2>
+              <p className="mx-auto mt-5 max-w-xl text-lg text-white/75">Cinco perguntas. A fatura pode ficar para depois.</p>
+              <Link href="#analisar" className={`${ctaLight} mt-9`}>
+                Fazer diagnóstico {arrow}
+              </Link>
+              <p className="mt-6 text-[13px] text-white/60">Sem custo · Relatório antes de qualquer contrato · Dados tratados conforme a LGPD</p>
+            </div>
           </div>
         </div>
       </section>

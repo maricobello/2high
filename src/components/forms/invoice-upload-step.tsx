@@ -3,7 +3,6 @@
 import { ChevronDown, FileText, Loader2, Lock, UploadCloud, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { compressImageIfNeeded } from "@/lib/client/compress-image";
 import { cn } from "@/lib/utils";
@@ -185,15 +184,15 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
 
       {error && <p className="rounded-xl bg-attention-soft px-3 py-2 text-sm font-medium text-attention">{error}</p>}
 
-      <ShimmerButton type="submit" disabled={busy} className="w-full text-[15px]">
+      <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60">
         {busy ? (
           <>
             <Loader2 className="size-4 animate-spin" /> Enviando com segurança…
           </>
         ) : (
-          "GERAR MEU RAIO-X GRATUITO"
+          "Gerar meu Raio-X"
         )}
-      </ShimmerButton>
+      </button>
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted">
         <Lock className="size-3" /> Arquivo criptografado em trânsito e armazenado em ambiente privado
       </p>

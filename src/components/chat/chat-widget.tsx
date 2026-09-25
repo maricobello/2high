@@ -29,6 +29,7 @@ export function ChatWidget() {
   const [suggestUpload, setSuggestUpload] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -92,12 +93,13 @@ export function ChatWidget() {
     <>
       {/* Botão flutuante */}
       <button
+        ref={toggleRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Fechar atendimento" : "Abrir atendimento com IA"}
         className={cn(
           "fixed bottom-4 right-4 z-40 flex size-14 items-center justify-center rounded-full bg-ink text-white shadow-2xl shadow-primary/30 ring-1 ring-white/10 transition-transform hover:scale-105 print:hidden",
-          !open && "animate-[rise_.4s_ease_both]",
+          !open && "motion-safe:animate-[rise_.4s_ease_both]",
           !open && heroVisible && "max-md:hidden",
         )}
       >
@@ -120,12 +122,12 @@ export function ChatWidget() {
               <p className="text-sm font-semibold">Assistente de energia</p>
               <p className="text-[11px] text-white/60">IA · responde na hora · especialista quando precisar</p>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Fechar" className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white">
+            <button onClick={() => { setOpen(false); toggleRef.current?.focus(); }} aria-label="Fechar" className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white">
               <X className="size-4" />
             </button>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto bg-subtle/40 p-4 text-sm">
+          <div role="log" aria-live="polite" aria-label="Conversa com o assistente" className="flex-1 space-y-3 overflow-y-auto bg-subtle/40 p-4 text-sm">
             <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-white px-3.5 py-2.5 shadow-sm">
               Olá! Sou a assistente virtual. Posso explicar a análise gratuita da fatura, GD por assinatura, Mercado Livre{token ? " e o seu Raio-X" : ""}. Como posso ajudar?
             </div>

@@ -1,10 +1,11 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { Prose } from "@/components/site/prose";
 import Link from "next/link";
 import { brand } from "@/lib/brand";
 import { CONSENT_VERSION } from "@/modules/leads/schema";
 
-export const metadata: Metadata = { title: "Política de privacidade" };
+export const metadata: Metadata = pageMetadata({ path: "/privacidade", title: "Política de privacidade", description: "Como tratamos seus dados, conforme a LGPD." });
 
 export default function PrivacyPage() {
   return (

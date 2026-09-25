@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { readUtm } from "@/lib/client/compress-image";
-import { formatCnpj, formatPhone } from "@/modules/leads/schema";
+import { formatCnpj, formatPhone } from "@/modules/leads/format";
 import { UFS } from "@/modules/leads/types";
 
 /** Captura de contato após simulação (GD / Mercado Livre) → cria lead e abre o Raio-X. */

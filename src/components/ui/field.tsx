@@ -1,8 +1,8 @@
-import { forwardRef } from "react";
+import { cloneElement, forwardRef, isValidElement, useId } from "react";
 import { cn } from "@/lib/utils";
 
 const base =
-  "w-full rounded-xl border bg-white px-3.5 text-[15px] text-foreground placeholder:text-muted/70 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-60";
+  "w-full rounded-xl border bg-white px-3.5 text-[15px] text-foreground placeholder:text-muted/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-60";
 
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(
   ({ className, invalid, ...props }, ref) => (
@@ -38,9 +38,13 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
   return <label className={cn("mb-1.5 block text-[13px] font-medium text-foreground/80", className)} {...props} />;
 }
 
-export function FieldError({ message }: { message?: string }) {
+export function FieldError({ message, id }: { message?: string; id?: string }) {
   if (!message) return null;
-  return <p className="mt-1 text-xs font-medium text-attention">{message}</p>;
+  return (
+    <p id={id} role="alert" className="mt-1 text-xs font-medium text-attention">
+      {message}
+    </p>
+  );
 }
 
 /**
@@ -49,11 +53,17 @@ export function FieldError({ message }: { message?: string }) {
  */
 export function Field({ label, error, children, className, group }: { label: string; error?: string; children: React.ReactNode; className?: string; group?: boolean }) {
   const Wrapper = group ? "div" : "label";
+  const errorId = useId();
+  // Erro ligado ao controle: leitores de tela anunciam o campo como inválido e leem a mensagem
+  const control =
+    error && !group && isValidElement<Record<string, unknown>>(children)
+      ? cloneElement(children, { "aria-invalid": true, "aria-describedby": errorId })
+      : children;
   return (
     <Wrapper className={cn("block", className)}>
       <span className="mb-1.5 block text-[13px] font-medium text-foreground/80">{label}</span>
-      {children}
-      <FieldError message={error} />
+      {control}
+      <FieldError message={error} id={errorId} />
     </Wrapper>
   );
 }

@@ -16,6 +16,7 @@ const LINES = [
   { label: "Demanda contratada", value: "300 kW", hl: true },
   { label: "Demanda medida", value: "342 kW", hl: true },
   { label: "Fator de potência", value: "0,87", hl: true },
+  { label: "Leitura", value: "Estimada", hl: true },
   { label: "Bandeira", value: "Amarela", hl: false },
   { label: "Total a pagar", value: "R$ 48.732,18", hl: false },
 ];
@@ -23,8 +24,8 @@ const LINES = [
 const FINDINGS = [
   { tone: "bg-attention", chip: "text-attention", label: "Ponto de atenção", title: "Possível ultrapassagem de demanda", at: 4 },
   { tone: "bg-attention", chip: "text-attention", label: "Ponto de atenção", title: "Indicador de energia reativa", at: 5 },
-  { tone: "bg-analysis", chip: "text-analysis", label: "Análise recomendada", title: "Revisão da estrutura tarifária", at: 6 },
-  { tone: "bg-opportunity", chip: "text-opportunity", label: "Oportunidade", title: "Perfil para avaliar o Mercado Livre", at: 8 },
+  { tone: "bg-attention", chip: "text-attention", label: "Ponto de atenção", title: "Possível cobrança indevida de leitura", at: 7 },
+  { tone: "bg-analysis", chip: "text-analysis", label: "Análise recomendada", title: "Revisão da estrutura tarifária", at: 8 },
 ];
 
 export function ScanDemo() {
@@ -35,7 +36,7 @@ export function ScanDemo() {
 
   useEffect(() => {
     if (!inView || reduce) return;
-    const id = setInterval(() => setTick((t) => (t >= 12 ? 0 : t + 1)), 700);
+    const id = setInterval(() => setTick((t) => Math.min(t + 1, 12)), 650);
     return () => clearInterval(id);
   }, [inView, reduce]);
 
@@ -70,15 +71,15 @@ export function ScanDemo() {
           })}
         </ul>
         {/* Linha de varredura */}
-        {!reduce && inView && (
+        {!reduce && inView && k < 12 && (
           <div className="pointer-events-none absolute inset-x-0 h-10 bg-gradient-to-b from-transparent via-cyan/35 to-transparent" style={{ animation: "scan-y 5.6s linear infinite", top: 0 }} />
         )}
-        <span className="absolute -right-2 -top-3 rounded-full bg-ink px-2.5 py-1 text-[10px] font-semibold text-white shadow-lg">Exemplo ilustrativo</span>
+        <span className="absolute -right-2 -top-3 rounded-full bg-ink px-2.5 py-1 text-[10px] font-semibold text-white shadow-lg">Exemplo fictício</span>
       </div>
 
       {/* Achados */}
-      <div className="space-y-3">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-cyan">{k < 9 ? "Analisando a fatura…" : "Raio-X pronto"}</p>
+      <div className="min-h-[360px] space-y-3">
+        <p className="text-[13px] font-semibold text-cyan">{k < 10 ? "Analisando a fatura…" : "Raio-X pronto"}</p>
         <AnimatePresence>
           {FINDINGS.filter((f) => k >= f.at).map((f) => (
             <motion.div
@@ -97,11 +98,10 @@ export function ScanDemo() {
             </motion.div>
           ))}
         </AnimatePresence>
-        {k >= 9 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-volt/40 bg-volt/10 px-4 py-3 text-sm text-white">
-            Potencial estimado para avaliar: <strong className="text-volt">R$ 2.924 – R$ 7.310/mês</strong>
-            <span className="block text-[11px] text-white/70">Estimativa preliminar, sujeita à validação técnica.</span>
-          </motion.div>
+        {k >= 10 && (
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-1 text-[13px] text-white/70">
+            Cada ponto vira um item do relatório, com a regra e o valor calculados na auditoria.
+          </motion.p>
         )}
       </div>
     </div>
