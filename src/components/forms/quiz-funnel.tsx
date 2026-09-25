@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, CheckCircle2, Info, Loader2, Lock, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Info, Loader2, Lock } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NumberTicker } from "@/components/magicui/number-ticker";
 import { Field, Input } from "@/components/ui/field";
 import { successFeeText } from "@/lib/brand";
 import { readUtm } from "@/lib/client/compress-image";
@@ -31,7 +32,8 @@ function compactBRL(n: number) {
 const FRONTS_SHOWN = 3;
 const TOTAL = QUESTIONS.length;
 const RESULT = TOTAL;
-const UPLOAD = TOTAL + 1;
+const CONTACT = TOTAL + 1;
+const UPLOAD = TOTAL + 2;
 
 /** Nível do diagnóstico lido como potencial (positivo), não como alarme. */
 const LEVEL_STYLE = {
@@ -57,6 +59,22 @@ export function QuizFunnel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  // Foco acompanha a troca de tela só depois que a pessoa começou o quiz.
+  // Ref estável: roda ao montar o título, nunca a cada tecla digitada.
+  const interacted = useRef(false);
+  const focusOnMount = useCallback((el: HTMLElement | null) => {
+    if (el && interacted.current) el.focus({ preventScroll: true });
+  }, []);
+  // No celular o resultado é mais alto que a pergunta: traz o card inteiro para a tela
+  const revealOnMount = useCallback((el: HTMLElement | null) => {
+    const card = cardRef.current;
+    if (!el || !card || !interacted.current) return;
+    requestAnimationFrame(() => {
+      if (card.getBoundingClientRect().bottom <= window.innerHeight) return;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    });
+  }, []);
 
   const complete = QUESTIONS.every((q) => answers[q.key]);
   const result = useMemo(() => (complete ? diagnose(answers as QuizAnswers) : null), [answers, complete]);
@@ -104,6 +122,7 @@ export function QuizFunnel() {
   }, []);
 
   function choose(key: string, value: string) {
+    interacted.current = true;
     setPicked(value);
     setAnswers((p) => ({ ...p, [key]: value }));
     // pequeno atraso: o toque "acende" antes de avançar (feedback de seleção)
@@ -163,7 +182,7 @@ export function QuizFunnel() {
 
   // pré-carrega a etapa da fatura enquanto a pessoa lê o resultado
   useEffect(() => {
-    if (step === RESULT) void loadUploadStep();
+    if (step === RESULT || step === CONTACT) void loadUploadStep();
   }, [step]);
 
   const q = step < TOTAL ? QUESTIONS[step] : null;
@@ -173,6 +192,8 @@ export function QuizFunnel() {
   return (
     <div
       ref={cardRef}
+      role="region"
+      aria-label="Diagnóstico em 5 perguntas"
       className={cn(
         "relative scroll-mt-20 overflow-hidden rounded-[28px] border border-white/10 bg-white p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.8)] ring-1 ring-black/5 transition-shadow duration-500 sm:p-7",
         highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(255,200,61,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
@@ -180,7 +201,7 @@ export function QuizFunnel() {
     >
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
       <div className="flex items-center gap-3">
-        {step > 0 && step <= RESULT && (
+        {step > 0 && step <= CONTACT && (
           <button type="button" onClick={() => setStep((s) => s - 1)} aria-label="Voltar" className="-my-1.5 -ml-1.5 flex size-11 items-center justify-center rounded-full text-foreground hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             <ArrowLeft className="size-4" />
           </button>
@@ -188,7 +209,7 @@ export function QuizFunnel() {
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-subtle" role="progressbar" aria-label="Progresso do diagnóstico" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
           <motion.div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan" initial={false} animate={{ width: `${Math.max(6, progress)}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
         </div>
-        <span aria-live="polite" className="text-xs font-bold tabular text-muted">{step < TOTAL ? `${step + 1}/${TOTAL}` : step === RESULT ? "Pronto" : "Último passo"}</span>
+        <span aria-live="polite" className="text-xs font-bold tabular text-muted">{step < TOTAL ? `${step + 1}/${TOTAL}` : step === RESULT ? "Pronto" : step === CONTACT ? "Quase lá" : "Último passo"}</span>
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -196,7 +217,7 @@ export function QuizFunnel() {
         {q && (
           <motion.div key={q.key} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }} className="mt-5">
             {step === 0 && <p className="text-[13px] font-semibold text-primary">Empresas e condomínios · sem custo</p>}
-            <h2 id={titleId} tabIndex={-1} ref={(el) => { if (el && step > 0) el.focus({ preventScroll: true }); }} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">{q.title}</h2>
+            <h2 id={titleId} tabIndex={-1} ref={focusOnMount} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">{q.title}</h2>
             {"hint" in q && q.hint && <p className="mt-1 text-[13px] text-muted">{q.hint}</p>}
             <div
               className="mt-4 grid gap-2"
@@ -241,34 +262,36 @@ export function QuizFunnel() {
           </motion.div>
         )}
 
-        {/* ---------------- RESULTADO + CONTATO ---------------- */}
+        {/* ---------------- RESULTADO ---------------- */}
         {step === RESULT && result && (
-          <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mt-5">
+          <motion.div key="result" ref={revealOnMount} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mt-5">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[13px] font-semibold text-primary">Seu diagnóstico preliminar</p>
               <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold", LEVEL_STYLE[result.level])}>
                 {LEVEL_LABEL[result.level]}
               </span>
             </div>
+            <h2 tabIndex={-1} ref={focusOnMount} className="mt-2 text-lg font-bold leading-snug tracking-tight outline-none sm:text-xl">
+              {result.fronts.length} {result.fronts.length === 1 ? "ponto merece" : "pontos merecem"} auditoria na sua conta
+            </h2>
 
-            <h2 tabIndex={-1} ref={(el) => el?.focus({ preventScroll: true })} className="mt-2 text-lg font-bold leading-snug tracking-tight outline-none">Pontos que merecem auditoria na sua conta</h2>
-
+            {/* Destaque: total já pago no período revisável (o que a pessoa pode rever) */}
             <div className="mt-3 rounded-2xl bg-ink p-4 text-white">
-              <p className="text-[28px] font-bold leading-tight tracking-tight text-volt">
-                {result.fronts.length} {result.fronts.length === 1 ? "ponto" : "pontos"} a verificar
+              <p className="text-[12.5px] font-medium leading-snug text-white/75">Pago nas últimas {result.months} faturas (estimativa)</p>
+              <p className="mt-0.5 text-[30px] font-bold leading-tight tracking-tight text-volt sm:text-[34px]">
+                <NumberTicker value={result.auditableVolume} prefix="R$ " />
               </p>
-              <p className="mt-1 text-[13px] leading-snug text-white/80">
-                Volume que vamos revisar: <strong className="font-semibold text-white">{compactBRL(result.auditableVolume)}</strong> em {result.months} faturas (estimativa).
+              <p className="mt-2 border-t border-white/10 pt-2 text-[13px] leading-snug text-white/80">
+                O que foi cobrado errado pode voltar <strong className="font-semibold text-white">em dobro</strong> (CDC, art. 42), pedido direto à distribuidora.
               </p>
               {result.icmsEmbedded !== null && (
-                <p className="mt-1.5 text-[12.5px] leading-snug text-white/85">
-                  Desse total, cerca de <strong className="text-white">{compactBRL(result.icmsEmbedded)}</strong> são ICMS. Parte pode virar crédito.
+                <p className="mt-1.5 text-[12.5px] leading-snug text-white/80">
+                  Cerca de <strong className="text-white">{compactBRL(result.icmsEmbedded)}</strong> são ICMS; parte pode virar crédito.
                 </p>
               )}
             </div>
 
-            <p className="mt-4 text-sm font-bold">O que verificar no seu caso</p>
-            <ul className="mt-2 space-y-1.5">
+            <ul className="mt-3.5 space-y-1.5">
               {result.fronts.slice(0, FRONTS_SHOWN).map((f) => (
                 <li key={f.code} className="flex gap-2 text-[13.5px] leading-snug">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-opportunity" />
@@ -277,41 +300,65 @@ export function QuizFunnel() {
                   </span>
                 </li>
               ))}
-              {result.fronts.length > FRONTS_SHOWN && (
-                <li className="pl-6 text-[13px] font-medium text-muted">+ {result.fronts.length - FRONTS_SHOWN} no relatório completo</li>
-              )}
+              {result.fronts.length > FRONTS_SHOWN && <li className="pl-6 text-[13px] font-medium text-muted">+ {result.fronts.length - FRONTS_SHOWN} no relatório completo</li>}
             </ul>
 
-            <p className="mt-4 rounded-xl bg-subtle px-3 py-2.5 text-[13px] font-medium leading-snug text-foreground/80">
+            <button
+              type="button"
+              onClick={() => {
+                interacted.current = true;
+                setStep(CONTACT);
+              }}
+              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              Receber o relatório completo <ArrowRight className="size-4" />
+            </button>
+            <p className="mt-2.5 text-center text-[12px] text-muted">
               Auditoria sem custo. {successFeeText()}.
             </p>
+          </motion.div>
+        )}
 
-            <form onSubmit={submitContact} noValidate className="mt-5 space-y-3 border-t border-border pt-5">
-              <p className="text-base font-bold">Para onde enviamos o relatório?</p>
+        {/* ---------------- CONTATO ---------------- */}
+        {step === CONTACT && result && (
+          <motion.div key="contact" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }} className="mt-5">
+            <p className="text-[13px] font-semibold text-primary">
+              {compactBRL(result.auditableVolume)} pagos · {result.fronts.length} {result.fronts.length === 1 ? "ponto" : "pontos"} a verificar
+            </p>
+            <h2 tabIndex={-1} ref={focusOnMount} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">
+              Para onde enviamos o relatório?
+            </h2>
+            <form onSubmit={submitContact} noValidate className="mt-4 space-y-3">
               <input tabIndex={-1} autoComplete="off" className="hidden" aria-hidden value={v.website} onChange={(e) => set("website", e.target.value)} name="website" />
               <Field label="Seu nome" error={errors.name}>
-                <Input autoComplete="name" value={v.name} onChange={(e) => set("name", e.target.value)} invalid={!!errors.name} placeholder="Como podemos te chamar?" />
+                <Input autoComplete="name" value={v.name} onChange={(e) => set("name", e.target.value)} invalid={!!errors.name} placeholder="Nome e sobrenome" />
               </Field>
-              <Field label="E-mail" error={errors.email}>
-                <Input type="email" autoComplete="email" inputMode="email" value={v.email} onChange={(e) => set("email", e.target.value)} invalid={!!errors.email} placeholder="voce@email.com.br" />
-              </Field>
-              <Field label="WhatsApp" error={errors.phone}>
-                <Input inputMode="tel" autoComplete="tel" value={v.phone} onChange={(e) => set("phone", formatPhone(e.target.value))} invalid={!!errors.phone} placeholder="(11) 99999-9999" />
-              </Field>
-              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13.5px] leading-snug text-muted">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="E-mail" error={errors.email}>
+                  <Input type="email" autoComplete="email" inputMode="email" value={v.email} onChange={(e) => set("email", e.target.value)} invalid={!!errors.email} placeholder="voce@email.com.br" />
+                </Field>
+                <Field label="WhatsApp" error={errors.phone}>
+                  <Input inputMode="tel" autoComplete="tel" value={v.phone} onChange={(e) => set("phone", formatPhone(e.target.value))} invalid={!!errors.phone} placeholder="(11) 99999-9999" />
+                </Field>
+              </div>
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13px] leading-snug text-muted">
                 <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} aria-invalid={errors.consent ? true : undefined} aria-describedby={errors.consent ? "consent-error" : undefined} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
                 <span>
-                  Autorizo o uso dos meus dados para receber o diagnóstico e ser contatado sobre o resultado por e-mail e WhatsApp, conforme a{" "}
+                  Autorizo o uso dos meus dados para receber o diagnóstico e ser contatado por e-mail e WhatsApp, conforme a{" "}
                   <Link href="/privacidade" target="_blank" className="font-semibold text-primary hover:underline">
                     Política de Privacidade
                   </Link>
                   . Posso revogar quando quiser.
                 </span>
               </label>
-              {errors.consent && <p id="consent-error" role="alert" className="text-xs font-medium text-attention">{errors.consent}</p>}
-              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13.5px] leading-snug text-muted">
+              {errors.consent && (
+                <p id="consent-error" role="alert" className="text-xs font-medium text-attention">
+                  {errors.consent}
+                </p>
+              )}
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13px] leading-snug text-muted">
                 <input type="checkbox" checked={v.marketingConsent} onChange={(e) => set("marketingConsent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
-                <span>Quero receber conteúdos sobre redução de custos de energia (opcional).</span>
+                <span>Quero receber conteúdos sobre custos de energia (opcional).</span>
               </label>
               {formError && <p className="rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{formError}</p>}
               <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60">
@@ -326,7 +373,7 @@ export function QuizFunnel() {
                 )}
               </button>
               <p className="flex gap-1 text-[12px] leading-snug text-muted">
-                <Info className="mt-px size-3 shrink-0" /> No próximo passo, envie a fatura agora ou depois. Estimativa baseada nas suas respostas; não é promessa de valor.
+                <Info className="mt-px size-3 shrink-0" /> Depois, envie a fatura agora ou mais tarde. Estimativa, não promessa de valor.
               </p>
             </form>
           </motion.div>
@@ -335,31 +382,30 @@ export function QuizFunnel() {
         {/* ---------------- ENVIO DA FATURA ---------------- */}
         {step === UPLOAD && token && (
           <motion.div key="upload" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="mt-5">
-            <h2 className="text-xl font-bold leading-snug tracking-tight">{firstName ? `${firstName}, falta` : "Falta"} só a fatura.</h2>
-            <p className="mt-1 text-sm text-muted">Envie a mais recente. A análise leva cerca de 1 minuto.</p>
-            <p className="mb-4 mt-3 flex items-start gap-2 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium text-opportunity">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Diagnóstico reservado. Também enviamos o link por e-mail.
+            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-opportunity">
+              <CheckCircle2 className="size-4 shrink-0" /> Diagnóstico reservado<span className="hidden sm:inline"> · link enviado por e-mail</span>
             </p>
+            <h2 tabIndex={-1} ref={focusOnMount} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">
+              {firstName ? `${firstName}, falta` : "Falta"} só a fatura.
+            </h2>
+            <p className="mb-4 mt-1 text-sm text-muted">Envie a mais recente. A análise leva cerca de 1 minuto.</p>
             <InvoiceUploadStep token={token} compact initialBillRange={answers.bill ?? null} />
             <div className="mt-4 border-t border-border pt-4">
-              <p className="text-center text-[13px] text-muted">A fatura está com o financeiro ou a administradora? Encaminhe o link.</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <p className="text-center text-[13px] text-muted">A fatura está com outra pessoa? Encaminhe o link.</p>
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
                 <a
                   href={`https://wa.me/?text=${encodeURIComponent(`Pode enviar a fatura de energia neste link para o diagnóstico? ${typeof window !== "undefined" ? window.location.origin : ""}/diagnostico/${token}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-3 text-[13.5px] font-semibold text-foreground hover:bg-subtle"
                 >
-                  Encaminhar no WhatsApp
+                  Pelo WhatsApp
                 </a>
                 <Link href={`/diagnostico/${token}`} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-3 text-[13.5px] font-semibold text-foreground hover:bg-subtle">
                   Enviar depois
                 </Link>
               </div>
             </div>
-            <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted">
-              <ShieldCheck className="size-3" /> Envio criptografado. Uso restrito ao diagnóstico, conforme a LGPD.
-            </p>
           </motion.div>
         )}
       </AnimatePresence>

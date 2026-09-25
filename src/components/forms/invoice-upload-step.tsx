@@ -83,7 +83,7 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
         className={cn(
           "group relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 text-center transition-all",
-          compact ? "py-5" : "py-7",
+          compact ? "py-4" : "py-7",
           dragging ? "border-primary bg-primary-soft" : error && !file ? "border-attention/60 bg-attention-soft/40" : "border-border bg-subtle/60 hover:border-primary/50 hover:bg-primary-soft/50",
         )}
       >
@@ -111,7 +111,7 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
           </div>
         ) : (
           <>
-            <span className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-primary shadow-sm transition-transform group-hover:-translate-y-0.5">
+            <span className={cn("flex items-center justify-center rounded-2xl bg-white text-primary shadow-sm transition-transform group-hover:-translate-y-0.5", compact ? "mb-2 size-10" : "mb-3 size-12")}>
               <UploadCloud className="size-6" />
             </span>
             <p className="text-sm font-semibold">Arraste a fatura ou toque para escolher</p>
@@ -120,6 +120,8 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
         )}
       </div>
 
+      {/* No funil do quiz o valor já foi respondido: não perguntar de novo */}
+      {!(compact && initialBillRange) && (
       <Field label="Valor médio mensal da conta (opcional)" group>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {BILL_RANGES.map((r) => (
@@ -137,9 +139,10 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
           ))}
         </div>
       </Field>
+      )}
 
       <button type="button" onClick={() => setMore((m) => !m)} className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-        Mais detalhes para um diagnóstico melhor (opcional) <ChevronDown className={cn("size-3.5 transition-transform", more && "rotate-180")} />
+        {compact ? "Adicionar detalhes (opcional)" : "Mais detalhes para um diagnóstico melhor (opcional)"} <ChevronDown className={cn("size-3.5 transition-transform", more && "rotate-180")} />
       </button>
       {more && (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -194,7 +197,7 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
         )}
       </button>
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted">
-        <Lock className="size-3" /> Arquivo criptografado em trânsito e armazenado em ambiente privado
+        <Lock className="size-3 shrink-0" /> Arquivo criptografado, uso restrito ao diagnóstico (LGPD)
       </p>
     </form>
   );
