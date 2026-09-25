@@ -28,8 +28,8 @@ const UPLOAD = TOTAL + 1;
 
 /** Nível do diagnóstico lido como potencial (positivo), não como alarme. */
 const LEVEL_STYLE = {
-  ALTO: "bg-volt text-ink",
-  MÉDIO: "bg-primary text-white",
+  ALTO: "bg-primary text-white",
+  MÉDIO: "bg-primary-soft text-primary",
   MODERADO: "bg-subtle text-foreground",
 } as const;
 const LEVEL_LABEL = { ALTO: "Potencial alto", MÉDIO: "Potencial médio", MODERADO: "Potencial moderado" } as const;
@@ -182,7 +182,19 @@ export function QuizFunnel() {
             {step === 0 && <p className="text-[13px] font-semibold text-primary">Diagnóstico sem custo · 5 perguntas</p>}
             <h2 id={titleId} tabIndex={-1} ref={(el) => { if (el && step > 0) el.focus({ preventScroll: true }); }} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">{q.title}</h2>
             {"hint" in q && q.hint && <p className="mt-1 text-[13px] text-muted">{q.hint}</p>}
-            <div className="mt-4 grid gap-2" role="radiogroup" aria-labelledby={titleId}>
+            <div
+              className="mt-4 grid gap-2"
+              role="radiogroup"
+              aria-labelledby={titleId}
+              onKeyDown={(e) => {
+                if (!["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft"].includes(e.key)) return;
+                const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=radio]"));
+                const i = items.indexOf(document.activeElement as HTMLButtonElement);
+                const next = e.key === "ArrowDown" || e.key === "ArrowRight" ? i + 1 : i - 1;
+                items[(next + items.length) % items.length]?.focus();
+                e.preventDefault();
+              }}
+            >
               {q.options.map((o) => {
                 const active = picked === o.value || (!picked && answers[q.key] === o.value);
                 return (
@@ -275,7 +287,7 @@ export function QuizFunnel() {
               <Field label="WhatsApp" error={errors.phone}>
                 <Input inputMode="tel" autoComplete="tel" value={v.phone} onChange={(e) => set("phone", formatPhone(e.target.value))} invalid={!!errors.phone} placeholder="(11) 99999-9999" />
               </Field>
-              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[12.5px] leading-snug text-muted">
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13.5px] leading-snug text-muted">
                 <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
                 <span>
                   Autorizo o uso dos meus dados para receber o diagnóstico e ser contatado sobre o resultado por e-mail e WhatsApp, conforme a{" "}
@@ -286,7 +298,7 @@ export function QuizFunnel() {
                 </span>
               </label>
               {errors.consent && <p className="text-xs font-medium text-attention">{errors.consent}</p>}
-              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[12.5px] leading-snug text-muted">
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13.5px] leading-snug text-muted">
                 <input type="checkbox" checked={v.marketingConsent} onChange={(e) => set("marketingConsent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
                 <span>Quero receber conteúdos sobre redução de custos de energia (opcional).</span>
               </label>

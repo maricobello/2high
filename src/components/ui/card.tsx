@@ -17,5 +17,5 @@ export function Badge({ className, tone = "neutral", ...props }: React.HTMLAttri
 }
 
 export function Eyebrow({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-xs font-semibold uppercase tracking-[0.18em] text-primary", className)} {...props} />;
+  return <p className={cn("text-[14px] font-semibold text-primary", className)} {...props} />;
 }
