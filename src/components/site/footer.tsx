@@ -30,7 +30,11 @@ export function SiteFooter() {
           <Link className="block hover:text-white" href="/termos">Termos de uso</Link>
           <Link className="block hover:text-white" href="/privacidade/solicitacao">Seus direitos (LGPD)</Link>
           <Link className="block hover:text-white" href="/guia-conta-de-energia">Guia: 7 pontos da conta de energia</Link>
-          <a className="block hover:text-white" href={`mailto:${brand.dpoEmail}`}>Encarregado de dados: {brand.dpoEmail}</a>
+          {brand.dpoEmail.endsWith("@example.com") ? (
+            <Link className="block hover:text-white" href="/privacidade/solicitacao">Encarregado de dados (LGPD)</Link>
+          ) : (
+            <a className="block hover:text-white" href={`mailto:${brand.dpoEmail}`}>Encarregado de dados: {brand.dpoEmail}</a>
+          )}
         </div>
       </div>
       <div className="border-t border-white/5">
