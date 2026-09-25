@@ -111,10 +111,10 @@ export function ChatWidget() {
         <div
           role="dialog"
           aria-label="Atendimento com IA"
-          className="fixed inset-x-2 bottom-20 z-40 flex max-h-[min(640px,calc(100dvh-6rem))] flex-col overflow-hidden rounded-3xl border border-border bg-white shadow-2xl sm:inset-x-auto sm:right-4 sm:w-[390px] print:hidden"
+          className="fixed inset-x-2 bottom-20 z-40 flex max-h-[min(640px,calc(100dvh-6rem))] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl sm:inset-x-auto sm:right-4 sm:w-[390px] print:hidden"
         >
           <div className="flex items-center gap-3 bg-ink px-4 py-3.5 text-white">
-            <span className="relative flex size-9 items-center justify-center rounded-full bg-primary">
+            <span className="relative flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Bot className="size-5" />
               <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-ink bg-opportunity" />
             </span>
@@ -128,7 +128,7 @@ export function ChatWidget() {
           </div>
 
           <div role="log" aria-live="polite" aria-label="Conversa com o assistente" className="flex-1 space-y-3 overflow-y-auto bg-subtle/40 p-4 text-sm">
-            <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-white px-3.5 py-2.5 shadow-sm">
+            <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-card px-3.5 py-2.5 shadow-sm">
               Olá! Sou a assistente virtual. Posso explicar a análise gratuita da fatura, GD por assinatura, Mercado Livre{token ? " e o seu Raio-X" : ""}. Como posso ajudar?
             </div>
             {msgs.map((m, i) => (
@@ -136,21 +136,21 @@ export function ChatWidget() {
                 key={i}
                 className={cn(
                   "max-w-[88%] whitespace-pre-line rounded-2xl px-3.5 py-2.5 leading-relaxed",
-                  m.role === "user" ? "ml-auto rounded-tr-md bg-primary text-white" : "rounded-tl-md bg-white shadow-sm",
+                  m.role === "user" ? "ml-auto rounded-tr-md bg-primary text-primary-foreground" : "rounded-tl-md bg-card shadow-sm",
                 )}
               >
                 {m.content}
               </div>
             ))}
             {busy && (
-              <div className="flex w-fit items-center gap-2 rounded-2xl bg-white px-3.5 py-2.5 text-muted shadow-sm">
+              <div className="flex w-fit items-center gap-2 rounded-2xl bg-card px-3.5 py-2.5 text-muted shadow-sm">
                 <Loader2 className="size-3.5 animate-spin" /> digitando…
               </div>
             )}
             {!busy && (handoff || suggestUpload) && (
               <div className="flex flex-wrap gap-2">
                 {suggestUpload && (
-                  <button onClick={goUpload} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white">
+                  <button onClick={goUpload} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
                     <UploadCloud className="size-3.5" /> Fazer diagnóstico
                   </button>
                 )}
@@ -189,7 +189,7 @@ export function ChatWidget() {
               aria-label="Mensagem"
               className="h-11 flex-1 rounded-xl border border-border px-3.5 text-[15px] focus:border-primary focus:outline-none"
             />
-            <button type="submit" disabled={busy || !input.trim()} aria-label="Enviar" className="flex size-11 items-center justify-center rounded-xl bg-primary text-white disabled:opacity-40">
+            <button type="submit" disabled={busy || !input.trim()} aria-label="Enviar" className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40">
               <Send className="size-4" />
             </button>
           </form>

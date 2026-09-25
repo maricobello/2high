@@ -36,7 +36,7 @@ export function RequestStatusSelect({ id, status }: { id: string; status: string
   return (
     <select
       defaultValue={status}
-      className="h-8 rounded-lg border border-border bg-white px-2 text-xs"
+      className="h-8 rounded-lg border border-border bg-card px-2 text-xs"
       onChange={async (e) => {
         await fetch("/api/admin/privacy-requests", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: e.target.value }) });
         router.refresh();

@@ -10,12 +10,12 @@ export function HistoryChart({ data, current }: { data: { month: string; kwh: nu
     <figure>
       <div className="relative h-44 w-full">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full" role="img" aria-label="Histórico de consumo mensal">
-          <line x1="0" x2="100" y1={100 - (avg / max) * 100} y2={100 - (avg / max) * 100} stroke="#3d5afe" strokeWidth="0.4" strokeDasharray="1.5 1.5" vectorEffect="non-scaling-stroke" />
+          <line x1="0" x2="100" y1={100 - (avg / max) * 100} y2={100 - (avg / max) * 100} stroke="#3ee066" strokeWidth="0.4" strokeDasharray="1.5 1.5" vectorEffect="non-scaling-stroke" />
           {data.map((d, i) => {
             const h = (d.kwh / max) * 100;
             const last = i === data.length - 1;
             return (
-              <rect key={d.month} x={i * w + w * 0.18} y={100 - h} width={w * 0.64} height={h} rx="0.8" fill={last ? "#3d5afe" : "#c9d2ff"}>
+              <rect key={d.month} x={i * w + w * 0.18} y={100 - h} width={w * 0.64} height={h} rx="0.8" fill={last ? "#3ee066" : "#c9d2ff"}>
                 <title>{`${d.month}: ${d.kwh.toLocaleString("pt-BR")} kWh`}</title>
               </rect>
             );

@@ -40,7 +40,7 @@ export function PipelineBeam() {
         </Node>
       </div>
       <div className="flex flex-col items-center gap-3">
-        <Node ref={engine} className="size-20 bg-primary text-white shadow-[0_0_40px_-6px_rgba(61,90,254,0.9)]" label="Leitura + motor de regras">
+        <Node ref={engine} className="size-20 bg-primary text-primary-foreground shadow-[0_0_40px_-6px_rgba(62,224,102,0.9)]" label="Leitura + motor de regras">
           <Cpu className="size-9" />
         </Node>
         <div className="hidden gap-2 text-[10px] text-white/40 sm:flex">

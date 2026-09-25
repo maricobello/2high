@@ -47,7 +47,7 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {kpis.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-2xl border border-border bg-white p-4">
+          <div key={label} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted">{label}</p>
               <Icon className="size-4 text-primary" />

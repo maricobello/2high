@@ -11,7 +11,7 @@ export default function PrivacyRequestPage() {
       <h1 className="text-3xl font-semibold tracking-tight">Seus direitos sobre seus dados</h1>
       <p className="mt-3 text-muted">
         Pela LGPD (art. 18), você pode pedir acesso, correção, exclusão, portabilidade e revogar o consentimento a qualquer momento. Também pode escrever para{" "}
-        <a className="text-primary" href={`mailto:${brand.dpoEmail}`}>
+        <a className="text-primary underline underline-offset-2" href={`mailto:${brand.dpoEmail}`}>
           {brand.dpoEmail}
         </a>
         .

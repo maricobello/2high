@@ -110,7 +110,7 @@ export function DiagnosticView({ token, initial, whatsappEnabled }: { token: str
         <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
           <div className="space-y-6">
             {/* Resumo */}
-            <section className="rounded-2xl border border-border bg-white p-6">
+            <section className="rounded-2xl border border-border bg-card p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Resumo executivo</p>
               <p className="mt-3 leading-relaxed text-foreground/85">{d.summary}</p>
             </section>
@@ -119,7 +119,7 @@ export function DiagnosticView({ token, initial, whatsappEnabled }: { token: str
             <section className="space-y-4">
               <h2 className="text-lg font-semibold tracking-tight">O que encontramos</h2>
               {a.findings.length === 0 ? (
-                <p className="rounded-2xl border border-border bg-white p-6 text-sm text-muted">
+                <p className="rounded-2xl border border-border bg-card p-6 text-sm text-muted">
                   Não identificamos pontos de atenção com os dados disponíveis. Uma análise com histórico completo pode revelar outras oportunidades.
                 </p>
               ) : (
@@ -128,7 +128,7 @@ export function DiagnosticView({ token, initial, whatsappEnabled }: { token: str
             </section>
 
             {d.history.length >= 3 && (
-              <section className="rounded-2xl border border-border bg-white p-6">
+              <section className="rounded-2xl border border-border bg-card p-6">
                 <h2 className="mb-5 font-semibold">Histórico de consumo</h2>
                 <HistoryChart data={d.history} current={m.consumptionKwh} />
               </section>
@@ -162,7 +162,7 @@ export function DiagnosticView({ token, initial, whatsappEnabled }: { token: str
 
 function Kpi({ label, value, hint, tone, small }: { label: string; value: string; hint?: string; tone?: "attention" | "opportunity"; small?: boolean }) {
   return (
-    <div className="rounded-2xl border border-border bg-white p-4 shadow-[0_10px_30px_-15px_rgba(6,10,19,0.25)]">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-[0_10px_30px_-15px_rgba(6,10,19,0.25)]">
       <p className="text-[11px] font-medium uppercase tracking-wider text-muted">{label}</p>
       <p
         className={cn(
@@ -200,7 +200,7 @@ function GdCard({ token, audit }: { token: string; audit: Audit }) {
   const { state, send } = useIntent(token, "requested_gd_proposal");
   if (gd.fit === "dados_insuficientes") return null;
   return (
-    <section className="rounded-2xl border border-border bg-white p-5">
+    <section className="rounded-2xl border border-border bg-card p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{SOLUTION_LABELS.gd_assinatura}</p>
       <p className="mt-2 font-semibold">{gd.fitLabel}</p>
       {gd.savingsMin !== null && gd.savingsMax !== null && gd.fit !== "baixo_potencial" && (
@@ -231,7 +231,7 @@ function FreeMarketCard({ token, audit }: { token: string; audit: Audit }) {
   const fm = audit.freeMarket;
   const { state, send } = useIntent(token, "requested_ml_analysis");
   return (
-    <section className="rounded-2xl border border-border bg-white p-5">
+    <section className="rounded-2xl border border-border bg-card p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Mercado Livre — análise preliminar</p>
       <p className="mt-2 font-semibold">{fm.statusLabel}</p>
       <p className="mt-2 text-sm leading-relaxed text-foreground/75">{fm.profileSummary}</p>
@@ -359,7 +359,7 @@ function AwaitingInvoice({ token, name, protocol, onUploaded }: { token: string;
             ))}
           </ul>
         </div>
-        <div className="relative overflow-hidden rounded-3xl bg-white p-5 text-foreground shadow-2xl sm:p-7">
+        <div className="relative overflow-hidden rounded-3xl bg-card p-5 text-foreground shadow-2xl sm:p-7">
           <BorderBeam size={120} duration={9} />
           <p className="mb-4 text-lg font-semibold">Envie a conta de energia</p>
           <InvoiceUploadStep token={token} onUploaded={onUploaded} />
@@ -387,7 +387,7 @@ function Failed({ token, name, protocol, whatsappEnabled, onUploaded }: { token:
             </a>
           )}
         </div>
-        <div className="relative overflow-hidden rounded-3xl bg-white p-5 text-foreground shadow-2xl sm:p-7">
+        <div className="relative overflow-hidden rounded-3xl bg-card p-5 text-foreground shadow-2xl sm:p-7">
           <p className="mb-4 text-lg font-semibold">Enviar outro arquivo</p>
           <InvoiceUploadStep token={token} onUploaded={onUploaded} />
         </div>

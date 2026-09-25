@@ -21,7 +21,7 @@ export function BentoCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col justify-end overflow-hidden rounded-2xl border border-border bg-white",
+        "group relative flex flex-col justify-end overflow-hidden rounded-2xl border border-border bg-card",
         "shadow-[0_0_0_1px_rgba(0,0,0,.02),0_2px_4px_rgba(0,0,0,.04),0_12px_24px_rgba(0,0,0,.04)]",
         className,
       )}

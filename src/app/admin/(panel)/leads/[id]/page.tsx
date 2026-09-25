@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-5">
+    <section className="rounded-2xl border border-border bg-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-semibold">{title}</h2>
         {action}
@@ -68,7 +68,7 @@ export default async function LeadDetail(props: PageProps<"/admin/leads/[id]">) 
           <a href={waLink} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#1fa855] px-3 text-sm font-semibold text-white">
             <MessageCircle className="size-4" /> WhatsApp
           </a>
-          <a href={diagnosticUrl(lead)} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-sm font-medium">
+          <a href={diagnosticUrl(lead)} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium">
             <ExternalLink className="size-4" /> Ver Raio-X
           </a>
           <ReprocessButton id={lead.id} />
@@ -228,7 +228,7 @@ export default async function LeadDetail(props: PageProps<"/admin/leads/[id]">) 
             <ol className="relative space-y-4 border-l border-border pl-4">
               {activities.map((a) => (
                 <li key={a.id} className="text-sm">
-                  <span className="absolute -left-[5px] mt-1.5 size-2.5 rounded-full border-2 border-white bg-primary" />
+                  <span className="absolute -left-[5px] mt-1.5 size-2.5 rounded-full border-2 border-card bg-primary" />
                   <p className="text-xs text-muted">
                     {formatDateTime(a.createdAt)} · {a.type}
                     {a.channel ? ` · ${a.channel}` : ""} · {a.author ?? "—"}

@@ -45,7 +45,7 @@ export function ScanDemo() {
   return (
     <div ref={ref} className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-center">
       {/* Fatura */}
-      <div className="relative mx-auto w-full max-w-md rotate-[-1.5deg] rounded-2xl bg-white p-5 text-foreground shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9)]">
+      <div className="relative mx-auto w-full max-w-md rotate-[-1.5deg] rounded-2xl bg-card p-5 text-foreground shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9)]">
         <div className="mb-4 flex items-center justify-between border-b border-dashed border-border pb-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Conta de energia</p>

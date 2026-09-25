@@ -30,7 +30,7 @@ export function StickyCta() {
         inert={!show}
         className={cn("fixed inset-x-0 bottom-0 z-30 border-t border-border bg-white/95 p-3 pr-20 backdrop-blur transition-all duration-300 md:hidden print:hidden", show ? "visible translate-y-0" : "invisible translate-y-full")}
       >
-        <a href="#analisar" className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/30">
+        <a href="#analisar" className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30">
           {label} <ArrowRight className="size-4" />
         </a>
       </div>

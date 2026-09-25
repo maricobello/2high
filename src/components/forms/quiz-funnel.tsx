@@ -37,7 +37,7 @@ const UPLOAD = TOTAL + 2;
 
 /** Nível do diagnóstico lido como potencial (positivo), não como alarme. */
 const LEVEL_STYLE = {
-  ALTO: "bg-primary text-white",
+  ALTO: "bg-primary text-primary-foreground",
   MÉDIO: "bg-primary-soft text-primary",
   MODERADO: "bg-subtle text-foreground",
 } as const;
@@ -201,8 +201,8 @@ export function QuizFunnel() {
       role="region"
       aria-label="Diagnóstico em 5 perguntas"
       className={cn(
-        "relative scroll-mt-20 overflow-hidden rounded-[28px] border border-white/10 bg-white p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.8)] ring-1 ring-black/5 transition-shadow duration-500 sm:p-7",
-        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(255,200,61,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
+        "relative scroll-mt-20 self-center overflow-hidden rounded-[28px] border border-primary/40 bg-card/90 p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9),0_0_60px_-20px_rgba(62,224,102,0.35)] transition-shadow duration-500 sm:p-7",
+        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(62,224,102,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
       )}
     >
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
@@ -213,7 +213,7 @@ export function QuizFunnel() {
           </button>
         )}
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-subtle" role="progressbar" aria-label="Progresso do diagnóstico" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
-          <motion.div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan" initial={false} animate={{ width: `${Math.max(6, progress)}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
+          <motion.div className="h-full rounded-full bg-primary" initial={false} animate={{ width: `${Math.max(6, progress)}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
         </div>
         <span aria-live="polite" className="text-xs font-bold tabular text-muted">{step < TOTAL ? `${step + 1}/${TOTAL}` : step === RESULT ? "Pronto" : step === CONTACT ? "Quase lá" : "Último passo"}</span>
       </div>
@@ -222,7 +222,7 @@ export function QuizFunnel() {
         {/* ---------------- PERGUNTAS ---------------- */}
         {q && (
           <motion.div key={q.key} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }} className="mt-5">
-            {step === 0 && <p className="text-[13px] font-semibold text-primary">Empresas e condomínios · sem custo</p>}
+            {step === 0 && <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">Empresas e condomínios · sem custo</p>}
             <h2 id={titleId} tabIndex={-1} ref={focusOnMount} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">{q.title}</h2>
             {"hint" in q && q.hint && <p className="mt-1 text-[13px] text-muted">{q.hint}</p>}
             <div
@@ -248,12 +248,12 @@ export function QuizFunnel() {
                     aria-checked={active}
                     onClick={() => choose(q.key, o.value)}
                     className={cn(
-                      "group flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-white hover:-translate-y-px hover:border-primary/50 hover:shadow-sm",
+                      "group flex min-h-[52px] items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-left text-[15px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      active ? "border-primary bg-primary-soft text-primary" : "border-white/15 bg-white/[0.02] hover:-translate-y-px hover:border-primary/60",
                     )}
                   >
                     {o.label}
-                    <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border-2", active ? "border-primary bg-primary text-white" : "border-border")}>
+                    <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border-2", active ? "border-primary bg-primary text-primary-foreground" : "border-white/40")}>
                       {active && <CheckCircle2 className="size-3" strokeWidth={3} />}
                     </span>
                   </button>
@@ -282,7 +282,7 @@ export function QuizFunnel() {
             </h2>
 
             {/* Destaque: total já pago no período revisável (o que a pessoa pode rever) */}
-            <div className="mt-3 rounded-2xl bg-ink p-4 text-white">
+            <div className="mt-3 rounded-2xl border border-primary/25 bg-ink p-4 text-white">
               <p className="text-[12.5px] font-medium leading-snug text-white/75">Pago nas últimas {result.months} faturas (estimativa)</p>
               <p className="mt-0.5 text-[30px] font-bold leading-tight tracking-tight text-volt sm:text-[34px]">
                 <NumberTicker value={result.auditableVolume} prefix="R$ " />
@@ -315,7 +315,7 @@ export function QuizFunnel() {
                 interacted.current = true;
                 setStep(CONTACT);
               }}
-              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               Receber o relatório completo <ArrowRight className="size-4" />
             </button>
@@ -367,7 +367,7 @@ export function QuizFunnel() {
                 <span>Quero receber conteúdos sobre custos de energia (opcional).</span>
               </label>
               {formError && <p className="rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{formError}</p>}
-              <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60">
+              <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60">
                 {busy ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Enviando…

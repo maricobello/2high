@@ -1,35 +1,36 @@
 @import "tailwindcss";
 
 /*
- * Design tokens — energy-tech / fintech B2B.
- * Paleta: tinta profunda + azul elétrico. Verde, laranja e vermelho são
- * reservados para semântica (oportunidade / análise / atenção).
+ * Design tokens — identidade Aferi (docs/estilo.md).
+ * Tema escuro: preto esverdeado + verde energia. Laranja e vermelho só para sinais.
  */
 :root {
-  --background: #f7f8fb;
-  --foreground: #070b16;
-  --card: #ffffff;
-  /* #4a5367 sobre branco ≈ 7.6:1 (WCAG AAA para texto normal) */
-  --muted: #4a5367;
-  --subtle: #eef0f6;
-  --border: #dde1ea;
-  --ink: #04060c;
-  --ink-2: #0c1220;
-  --ink-3: #141c2f;
-  --ink-border: #1f2940;
-  --primary: #3d5afe;
-  --primary-hover: #2f4ae6;
-  --primary-soft: #eef1ff;
-  --cyan: #34d3f0;
+  color-scheme: dark;
+  --background: #060a08;
+  --foreground: #eef3f0;
+  --card: #0c1310;
+  /* #9ba7a0 sobre --card ≈ 7.4:1 */
+  --muted: #9ba7a0;
+  --subtle: #121b17;
+  --border: #1f2b26;
+  --ink: #030605;
+  --ink-2: #08100c;
+  --ink-3: #0f1814;
+  --ink-border: #1c2823;
+  --primary: #3ee066;
+  --primary-hover: #6cef8b;
+  --primary-soft: #0f2a1a;
+  --primary-foreground: #03140a;
+  --cyan: #9cf5b2;
   --amber: #f5b53d;
-  /* Destaque "volt": só para ênfase sobre fundo escuro (≈ 12:1 sobre --ink) */
-  --volt: #ffc83d;
-  --attention: #c62f35;
-  --attention-soft: #fdecec;
-  --analysis: #ef8a2c;
-  --analysis-soft: #fff3e6;
-  --opportunity: #137a52;
-  --opportunity-soft: #e7f7ef;
+  /* Destaque: o mesmo verde da marca (≈ 11:1 sobre --ink) */
+  --volt: #3ee066;
+  --attention: #ff7a7a;
+  --attention-soft: #2b1315;
+  --analysis: #f5a524;
+  --analysis-soft: #2a1f0c;
+  --opportunity: #3ee066;
+  --opportunity-soft: #0f2a1a;
 }
 
 @theme inline {
@@ -46,6 +47,7 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
   --color-cyan: var(--cyan);
   --color-volt: var(--volt);
   --color-amber: var(--amber);
@@ -78,8 +80,8 @@ body {
 }
 
 .glow {
-  background: radial-gradient(600px circle at 70% 10%, rgba(61, 90, 254, 0.35), transparent 60%),
-    radial-gradient(500px circle at 10% 90%, rgba(52, 211, 240, 0.12), transparent 60%);
+  background: radial-gradient(600px circle at 70% 10%, rgba(62, 224, 102, 0.35), transparent 60%),
+    radial-gradient(500px circle at 10% 90%, rgba(62, 224, 102, 0.08), transparent 60%);
 }
 
 @keyframes rise {
@@ -161,17 +163,17 @@ body {
 }
 
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(61, 90, 254, 0.55); }
-  100% { box-shadow: 0 0 0 14px rgba(61, 90, 254, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(62, 224, 102, 0.55); }
+  100% { box-shadow: 0 0 0 14px rgba(62, 224, 102, 0); }
 }
 .pulse-ring { animation: pulse-ring 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
 
 /* Slider de valor da conta (hero) */
-.range-energy { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--primary) var(--fill, 30%), #dde1ea var(--fill, 30%)); outline: none; }
-.range-energy::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(61, 90, 254, 0.45); cursor: grab; transition: transform 0.15s; }
+.range-energy { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--primary) var(--fill, 30%), var(--border) var(--fill, 30%)); outline: none; }
+.range-energy::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(62, 224, 102, 0.45); cursor: grab; transition: transform 0.15s; }
 .range-energy::-webkit-slider-thumb:active { transform: scale(1.12); cursor: grabbing; }
-.range-energy::-moz-range-thumb { width: 16px; height: 16px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(61, 90, 254, 0.45); cursor: grab; }
-.range-energy:focus-visible { box-shadow: 0 0 0 4px rgba(61, 90, 254, 0.25); }
+.range-energy::-moz-range-thumb { width: 16px; height: 16px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(62, 224, 102, 0.45); cursor: grab; }
+.range-energy:focus-visible { box-shadow: 0 0 0 4px rgba(62, 224, 102, 0.25); }
 
 @media (prefers-reduced-motion: reduce) {
   .word-in, .rise-in, .draw-line, .float-y, .pulse-ring { animation: none !important; opacity: 1; filter: none; transform: none; stroke-dashoffset: 0; }

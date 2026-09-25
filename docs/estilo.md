@@ -14,18 +14,26 @@ página, siga este guia e **mude uma coisa por vez**.
 
 ### Cores
 
+Tema escuro em todo o site (identidade Aferi: preto esverdeado + verde energia).
+
 | Uso | Token | Valor |
 |---|---|---|
-| Fundo das seções escuras (topo, destaques) | `--ink` | `#04060c` |
-| Fundo das seções claras | `--background` | `#f7f8fb` |
-| Texto principal | `--foreground` | `#070b16` |
-| Texto secundário | `--muted` | `#4a5367` |
-| Botões e links | `--primary` | `#3d5afe` |
-| Destaque (só sobre fundo escuro) | `--volt` | `#ffc83d` |
-| Cards | `--card` | `#ffffff` |
+| Fundo do topo e destaques | `--ink` | `#030605` |
+| Fundo das seções | `--background` | `#060a08` |
+| Cards | `--card` | `#0c1310` |
+| Texto principal | `--foreground` | `#eef3f0` |
+| Texto secundário | `--muted` | `#9ba7a0` |
+| Botões, links e destaque | `--primary` | `#3ee066` |
+| Texto sobre o verde | `--primary-foreground` | `#03140a` |
 
-- O amarelo é só para **uma** palavra ou frase de destaque por bloco e para os ícones de check.
-- Verde, laranja e vermelho são só para sinais (oportunidade, análise, atenção).
+- Botão principal: pílula verde, texto escuro, caixa-alta com espaçamento.
+- O verde destaca **uma** frase por bloco (ex.: "Alguém confere?").
+- Laranja e vermelho só para sinais (análise, atenção).
+
+### Marca
+
+- Logo: "A" em chevron com raio verde + "ΛFERI" + "Gestão inteligente de energia" (`src/components/site/logo.tsx`; favicon em `src/app/icon.svg`).
+- Rótulos (eyebrows): fonte mono, caixa-alta, espaçamento largo, em verde, com traço à esquerda.
 
 ### Tipografia
 
@@ -36,18 +44,18 @@ página, siga este guia e **mude uma coisa por vez**.
 
 ### Topo (hero)
 
-- Fundo `--ink` com brilho azul sutil (`.glow`) e textura de pontos com máscara radial.
-- Esquerda: título + subtítulo curto + até 3 tópicos com check amarelo (tópicos só no computador).
-- Direita (abaixo, no celular): **quiz** em card branco, cantos bem arredondados (28px), sombra profunda.
-- Frase-chave do título em amarelo, com **sublinhado desenhado à mão** (SVG animado).
-- Abaixo do topo: faixa de distribuidoras rolando sozinha (Marquee).
+- Fundo `--ink` com cenário em SVG (pôr do sol, torres, placas solares) e traços verdes.
+- Esquerda: rótulo "Auditoria e gestão de energia", título, subtítulo, 3 serviços com ícones verdes e 2 botões (só no computador).
+- Direita (abaixo, no celular): **quiz** em card escuro translúcido, borda verde, cantos 28px.
+- Frase-chave do título em verde.
+- Abaixo do topo: faixa de distribuidoras rolando devagar (Marquee).
 
 ### Componentes
 
-- **Card:** branco, borda fina `--border`, cantos 16–28px.
-- **Botão principal:** azul `--primary`, texto branco, negrito.
-- **Selos e rótulos pequenos:** caixa-alta com espaçamento largo, em azul, **com moderação**.
-- **Seções:** alternam fundo escuro e claro; uma ideia por seção.
+- **Card:** `--card`, borda fina `--border` (ou verde a 25–40% nos destaques), cantos 16–28px.
+- **Botão principal:** pílula verde `--primary`, texto `--primary-foreground`, caixa-alta.
+- **Selos e rótulos pequenos:** mono, caixa-alta, espaçamento largo, em verde, **com moderação**.
+- **Seções:** fundos escuros alternando `--ink` e `--background`; uma ideia por seção.
 - **Números:** contam ao aparecer (NumberTicker).
 
 ### Animações

@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Search, SolarPanel, Zap } from "lucide-react";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
@@ -6,6 +6,7 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
+import { HeroScene } from "@/components/site/hero-scene";
 import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
@@ -67,6 +68,12 @@ const STEPS = [
 
 const FAQ_HOME = FAQ.filter((f) => f.home);
 
+const SERVICES = [
+  { icon: Search, title: "Auditoria de", sub: "faturas de energia" },
+  { icon: SolarPanel, title: "Geração Distribuída", sub: "(energia solar por assinatura)" },
+  { icon: Zap, title: "Mercado Livre", sub: "de Energia" },
+];
+
 export const metadata = pageMetadata({
   path: "/",
   absoluteTitle: true,
@@ -99,12 +106,15 @@ const STRUCTURED_DATA = {
   ],
 };
 
-/** CTA padrão (fundo claro): h-12, cantos 12px, 15px, peso 600. */
+/** CTA padrão: verde da marca, texto escuro. */
 const cta =
-  "group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
-/** CTA sobre fundo escuro. */
-const ctaLight =
-  "group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-6 text-[15px] font-semibold text-ink transition-colors hover:bg-volt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-ink";
+  "group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-7 text-[13px] font-bold uppercase tracking-[0.08em] text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+/** CTA sobre fundo escuro (mesmo estilo). */
+const ctaLight = cta;
+/** Botões do topo (pílula verde e pílula contornada), como na identidade. */
+const pill = `${cta} h-[52px] px-8 shadow-[0_0_32px_-8px_rgba(62,224,102,0.7)]`;
+const pillOutline =
+  "inline-flex h-[52px] items-center justify-center rounded-full border border-white/30 px-8 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const arrow = <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />;
 
 export default function HomePage() {
@@ -113,27 +123,39 @@ export default function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(STRUCTURED_DATA)} />
       {/* ================= HERO + QUIZ ================= */}
       <section id="analisar" className="relative scroll-mt-16 overflow-hidden bg-ink text-white">
-        <div className="glow absolute inset-0" />
-        <DotPattern className="[mask-image:radial-gradient(700px_circle_at_25%_30%,white,transparent)]" />
-        <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-7 px-4 pb-14 pt-6 sm:px-6 md:pt-12 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:gap-12 lg:pb-20">
+        <HeroScene />
+        <div className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-7 px-4 pb-14 pt-6 sm:px-6 md:pt-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-14 lg:px-10 lg:pb-20">
           <div className="flex min-w-0 flex-col justify-center">
+            <p className="rise-in mb-4 flex items-center gap-3 font-mono text-[11px] font-semibold uppercase tracking-[0.28em] text-primary sm:text-[13px]">
+              <span className="h-0.5 w-10 rounded-full bg-primary" aria-hidden />
+              Auditoria e gestão de energia
+            </p>
             <HeroHeadline />
-            <p className="rise-in mt-6 max-w-lg text-base leading-relaxed text-white/80 sm:text-xl sm:leading-relaxed" style={{ animationDelay: "0.5s" }}>
-              <strong className="font-semibold text-white">Nós conferimos.</strong> Item por item, e pedimos de volta o que foi cobrado errado.
+            <p className="rise-in mt-5 max-w-xl text-base leading-relaxed text-white/80 lg:hidden" style={{ animationDelay: "0.5s" }}>
+              Analisamos sua fatura e pedimos de volta o que foi cobrado errado. <span className="font-medium text-primary">Sem custo.</span>
             </p>
-            <p className="rise-in mt-4 text-[14px] font-medium text-white/90 lg:hidden" style={{ animationDelay: "0.6s" }}>
-              <span className="text-volt">Sem custo.</span> Remuneração só sobre o valor recuperado.
+            <p className="rise-in mt-6 hidden max-w-xl text-lg leading-relaxed text-white/80 lg:block" style={{ animationDelay: "0.5s" }}>
+              Nós analisamos sua fatura de energia, identificamos oportunidades de economia e estruturamos soluções em GD, Mercado Livre e muito mais.
             </p>
-            <ul className="rise-in mt-8 hidden gap-3.5 text-[15px] font-medium text-white/90 lg:grid" style={{ animationDelay: "0.65s" }}>
-              {["Auditoria sem custo", "Remuneração só sobre o valor recuperado", "Relatório antes de qualquer contrato"].map((t) => (
-                <li key={t} className="flex items-center gap-3">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-volt text-ink">
-                    <Check className="size-3.5" strokeWidth={3} />
-                  </span>
-                  {t}
+            <ul className="rise-in mt-9 hidden grid-cols-3 lg:grid" style={{ animationDelay: "0.65s" }}>
+              {SERVICES.map(({ icon: Icon, title, sub }, i) => (
+                <li key={title} className={i ? "border-l border-white/15 pl-6" : "pr-6"}>
+                  <Icon className="size-8 text-primary" strokeWidth={1.5} aria-hidden />
+                  <p className="mt-3 text-[15px] leading-snug text-white/90">
+                    {title}
+                    {sub && <span className="block text-white/70">{sub}</span>}
+                  </p>
                 </li>
               ))}
             </ul>
+            <div className="rise-in mt-9 hidden flex-wrap gap-4 lg:flex" style={{ animationDelay: "0.75s" }}>
+              <Link href="#analisar" className={pill}>
+                Fazer uma análise gratuita {arrow}
+              </Link>
+              <Link href="#como-funciona" className={pillOutline}>
+                Saiba mais
+              </Link>
+            </div>
           </div>
           {/* Sem animação de entrada: o quiz é o maior elemento da tela (LCP) e aparece já pintado */}
           <QuizFunnel />
@@ -154,7 +176,7 @@ export default function HomePage() {
           <BlurFade delay={0.05}>
             <dl className="mt-10 grid gap-4 sm:grid-cols-2">
               {STATS.map((st) => (
-                <div key={st.label} className="rounded-3xl bg-ink px-6 py-6 text-white">
+                <div key={st.label} className="rounded-3xl border border-primary/20 bg-ink px-6 py-6 text-white">
                   <dd className="text-5xl font-bold tracking-[-0.03em] text-volt tabular">{st.value}</dd>
                   <dt className="mt-2 text-[15px] leading-snug text-white/80">
                     {st.label}{" "}
@@ -174,7 +196,7 @@ export default function HomePage() {
                   href={n.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex h-full flex-col rounded-3xl border border-border bg-white p-6 transition-shadow hover:shadow-[0_20px_50px_-30px_rgba(7,11,22,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  className="group flex h-full flex-col rounded-3xl border border-border bg-card p-6 transition-shadow hover:shadow-[0_20px_50px_-30px_rgba(7,11,22,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">{n.outlet}</p>
                   <p className="mt-2 text-lg font-bold leading-snug tracking-tight">“{n.title}”</p>
@@ -210,7 +232,7 @@ export default function HomePage() {
       </section>
 
       {/* ================= COMO FUNCIONA ================= */}
-      <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-white py-20 sm:py-24">
+      <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-card py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
             <Eyebrow>Como funciona</Eyebrow>
@@ -222,7 +244,7 @@ export default function HomePage() {
             {STEPS.map((s, i) => (
               <li key={s.title} className="relative">
                 <BlurFade delay={0.08 * i}>
-                  <span className="relative flex size-10 items-center justify-center rounded-full bg-ink text-sm font-bold text-volt ring-8 ring-white">{i + 1}</span>
+                  <span className="relative flex size-10 items-center justify-center rounded-full bg-ink text-sm font-bold text-volt ring-8 ring-card border border-primary/40">{i + 1}</span>
                   <h3 className="mt-5 text-xl font-bold tracking-tight">{s.title}</h3>
                   <p className="mt-1.5 max-w-xs text-[15px] leading-relaxed text-muted">{s.text}</p>
                 </BlurFade>
@@ -231,7 +253,7 @@ export default function HomePage() {
           </ol>
 
           <BlurFade>
-            <div className="mt-10 flex flex-col gap-5 rounded-3xl bg-ink px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
+            <div className="mt-10 flex flex-col gap-5 rounded-3xl border border-primary/25 bg-ink px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
               <p className="text-lg font-semibold tracking-tight sm:text-xl">
                 Diagnóstico e auditoria sem custo. <span className="text-white/65">Remuneração só sobre o valor recuperado. Sem mensalidade.</span>
               </p>
@@ -255,10 +277,10 @@ export default function HomePage() {
           </div>
           <div className="space-y-3">
             {FAQ_HOME.map((f) => (
-              <details key={f.q} className="group rounded-2xl border border-border bg-white px-5 py-4 transition-shadow open:shadow-[0_10px_30px_-15px_rgba(7,11,22,0.25)] [&_summary::-webkit-details-marker]:hidden">
+              <details key={f.q} className="group rounded-2xl border border-border bg-card px-5 py-4 transition-shadow open:shadow-[0_10px_30px_-15px_rgba(7,11,22,0.25)] [&_summary::-webkit-details-marker]:hidden">
                 <summary className="flex min-h-8 cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-semibold">
                   {f.q}
-                  <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-subtle text-lg leading-none text-foreground transition-transform duration-300 group-open:rotate-45 group-open:bg-primary group-open:text-white">
+                  <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-subtle text-lg leading-none text-foreground transition-transform duration-300 group-open:rotate-45 group-open:bg-primary group-open:text-primary-foreground">
                     +
                   </span>
                 </summary>
@@ -272,7 +294,7 @@ export default function HomePage() {
       {/* ================= CTA FINAL ================= */}
       <section className="bg-background pb-20 sm:pb-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="relative overflow-hidden rounded-[28px] bg-ink px-6 py-16 text-center text-white sm:px-12 sm:py-20">
+          <div className="relative overflow-hidden rounded-[28px] border border-primary/25 bg-ink px-6 py-16 text-center text-white sm:px-12 sm:py-20">
             <div className="glow absolute inset-0" />
             <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_0%,white,transparent)]" />
             <div className="relative">
