@@ -10,6 +10,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // CSS do Tailwind embutido no HTML: elimina a requisição que bloqueia a renderização
+  experimental: { inlineCss: true },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

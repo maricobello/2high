@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { brand } from "@/lib/brand";
+
+export const metadata: Metadata = { title: "Recebemos seu interesse", robots: { index: false, follow: false } };
 
 export default function ContactUnavailable() {
   return (

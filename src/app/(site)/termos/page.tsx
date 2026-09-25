@@ -1,8 +1,9 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { Prose } from "@/components/site/prose";
 import { brand } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Termos de uso" };
+export const metadata: Metadata = pageMetadata({ path: "/termos", title: "Termos de uso", description: "Termos de uso do diagnóstico e da auditoria de faturas de energia." });
 
 export default function TermsPage() {
   return (

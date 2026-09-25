@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, CheckCircle2, Info, Loader2, Lock, ShieldCheck } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -9,9 +10,15 @@ import { successFeeText } from "@/lib/brand";
 import { readUtm } from "@/lib/client/compress-image";
 import { OPEN_ANALYSIS_EVENT } from "@/lib/client/open-analysis";
 import { cn, formatBRL } from "@/lib/utils";
-import { formatPhone } from "@/modules/leads/schema";
+import { formatPhone } from "@/modules/leads/format";
 import { diagnose, QUESTIONS, quizSummary, type QuizAnswers } from "@/modules/quiz/diagnosis";
-import { InvoiceUploadStep } from "./invoice-upload-step";
+
+/** Etapa da fatura só é baixada quando necessária (pré-carregada no resultado). */
+const loadUploadStep = () => import("./invoice-upload-step");
+const InvoiceUploadStep = dynamic(() => loadUploadStep().then((m) => m.InvoiceUploadStep), {
+  ssr: false,
+  loading: () => <div className="h-40 animate-pulse rounded-2xl bg-subtle" />,
+});
 
 type Errors = Record<string, string>;
 
@@ -119,7 +126,11 @@ export function QuizFunnel() {
     if (v.phone.replace(/\D/g, "").length < 10) errs.phone = "WhatsApp com DDD";
     if (!v.consent) errs.consent = "Precisamos da sua autorização para enviar o diagnóstico";
     setErrors(errs);
-    if (Object.keys(errs).length) return;
+    if (Object.keys(errs).length) {
+      // leva o foco ao primeiro campo com erro
+      requestAnimationFrame(() => cardRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
@@ -150,6 +161,11 @@ export function QuizFunnel() {
     setBusy(false);
   }
 
+  // pré-carrega a etapa da fatura enquanto a pessoa lê o resultado
+  useEffect(() => {
+    if (step === RESULT) void loadUploadStep();
+  }, [step]);
+
   const q = step < TOTAL ? QUESTIONS[step] : null;
   const progress = step >= RESULT ? 100 : (step / TOTAL) * 100;
   const titleId = `quiz-q-${step}`;
@@ -165,7 +181,7 @@ export function QuizFunnel() {
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
       <div className="flex items-center gap-3">
         {step > 0 && step <= RESULT && (
-          <button type="button" onClick={() => setStep((s) => s - 1)} aria-label="Voltar" className="-my-1.5 -ml-1.5 flex size-11 items-center justify-center rounded-full text-foreground hover:bg-subtle focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30">
+          <button type="button" onClick={() => setStep((s) => s - 1)} aria-label="Voltar" className="-my-1.5 -ml-1.5 flex size-11 items-center justify-center rounded-full text-foreground hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             <ArrowLeft className="size-4" />
           </button>
         )}
@@ -179,7 +195,7 @@ export function QuizFunnel() {
         {/* ---------------- PERGUNTAS ---------------- */}
         {q && (
           <motion.div key={q.key} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }} className="mt-5">
-            {step === 0 && <p className="text-[13px] font-semibold text-primary">Diagnóstico sem custo · 5 perguntas</p>}
+            {step === 0 && <p className="text-[13px] font-semibold text-primary">Empresas e condomínios · sem custo</p>}
             <h2 id={titleId} tabIndex={-1} ref={(el) => { if (el && step > 0) el.focus({ preventScroll: true }); }} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">{q.title}</h2>
             {"hint" in q && q.hint && <p className="mt-1 text-[13px] text-muted">{q.hint}</p>}
             <div
@@ -205,7 +221,7 @@ export function QuizFunnel() {
                     aria-checked={active}
                     onClick={() => choose(q.key, o.value)}
                     className={cn(
-                      "group flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30",
+                      "group flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       active ? "border-primary bg-primary-soft text-primary" : "border-border bg-white hover:-translate-y-px hover:border-primary/50 hover:shadow-sm",
                     )}
                   >
@@ -235,7 +251,7 @@ export function QuizFunnel() {
               </span>
             </div>
 
-            <h3 className="mt-2 text-lg font-bold leading-snug tracking-tight">Pontos que merecem auditoria na sua conta</h3>
+            <h2 tabIndex={-1} ref={(el) => el?.focus({ preventScroll: true })} className="mt-2 text-lg font-bold leading-snug tracking-tight outline-none">Pontos que merecem auditoria na sua conta</h2>
 
             <div className="mt-3 rounded-2xl bg-ink p-4 text-white">
               <p className="text-[28px] font-bold leading-tight tracking-tight text-volt">
@@ -247,11 +263,6 @@ export function QuizFunnel() {
               {result.icmsEmbedded !== null && (
                 <p className="mt-1.5 text-[12.5px] leading-snug text-white/85">
                   Desse total, cerca de <strong className="text-white">{compactBRL(result.icmsEmbedded)}</strong> são ICMS. Parte pode virar crédito.
-                </p>
-              )}
-                            {result.gdSavings && (
-                <p className="mt-1.5 text-[12.5px] leading-snug text-white/85">
-                  Economia possível com energia por assinatura: <strong className="text-white">{formatBRL(result.gdSavings.min, { cents: false })}–{formatBRL(result.gdSavings.max, { cents: false })} por mês</strong>.
                 </p>
               )}
             </div>
@@ -271,24 +282,24 @@ export function QuizFunnel() {
               )}
             </ul>
 
-            <p className="mt-4 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium leading-snug text-opportunity">
+            <p className="mt-4 rounded-xl bg-subtle px-3 py-2.5 text-[13px] font-medium leading-snug text-foreground/80">
               Auditoria sem custo. {successFeeText()}.
             </p>
 
             <form onSubmit={submitContact} noValidate className="mt-5 space-y-3 border-t border-border pt-5">
-              <p className="text-base font-bold">Para onde enviamos o diagnóstico completo?</p>
+              <p className="text-base font-bold">Para onde enviamos o relatório?</p>
               <input tabIndex={-1} autoComplete="off" className="hidden" aria-hidden value={v.website} onChange={(e) => set("website", e.target.value)} name="website" />
               <Field label="Seu nome" error={errors.name}>
                 <Input autoComplete="name" value={v.name} onChange={(e) => set("name", e.target.value)} invalid={!!errors.name} placeholder="Como podemos te chamar?" />
               </Field>
-              <Field label="E-mail de trabalho" error={errors.email}>
-                <Input type="email" autoComplete="email" inputMode="email" value={v.email} onChange={(e) => set("email", e.target.value)} invalid={!!errors.email} placeholder="voce@empresa.com.br" />
+              <Field label="E-mail" error={errors.email}>
+                <Input type="email" autoComplete="email" inputMode="email" value={v.email} onChange={(e) => set("email", e.target.value)} invalid={!!errors.email} placeholder="voce@email.com.br" />
               </Field>
               <Field label="WhatsApp" error={errors.phone}>
                 <Input inputMode="tel" autoComplete="tel" value={v.phone} onChange={(e) => set("phone", formatPhone(e.target.value))} invalid={!!errors.phone} placeholder="(11) 99999-9999" />
               </Field>
               <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13.5px] leading-snug text-muted">
-                <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
+                <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} aria-invalid={errors.consent ? true : undefined} aria-describedby={errors.consent ? "consent-error" : undefined} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
                 <span>
                   Autorizo o uso dos meus dados para receber o diagnóstico e ser contatado sobre o resultado por e-mail e WhatsApp, conforme a{" "}
                   <Link href="/privacidade" target="_blank" className="font-semibold text-primary hover:underline">
@@ -297,25 +308,25 @@ export function QuizFunnel() {
                   . Posso revogar quando quiser.
                 </span>
               </label>
-              {errors.consent && <p className="text-xs font-medium text-attention">{errors.consent}</p>}
+              {errors.consent && <p id="consent-error" role="alert" className="text-xs font-medium text-attention">{errors.consent}</p>}
               <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[13.5px] leading-snug text-muted">
                 <input type="checkbox" checked={v.marketingConsent} onChange={(e) => set("marketingConsent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
                 <span>Quero receber conteúdos sobre redução de custos de energia (opcional).</span>
               </label>
               {formError && <p className="rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{formError}</p>}
-              <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 disabled:opacity-60">
+              <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60">
                 {busy ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Enviando…
                   </>
                 ) : (
                   <>
-                    Receber diagnóstico completo <ArrowRight className="size-4" />
+                    Reservar meu diagnóstico <ArrowRight className="size-4" />
                   </>
                 )}
               </button>
               <p className="flex gap-1 text-[12px] leading-snug text-muted">
-                <Info className="mt-px size-3 shrink-0" /> Estimativa baseada nas suas respostas. Não é promessa de valor.
+                <Info className="mt-px size-3 shrink-0" /> No próximo passo, envie a fatura agora ou depois. Estimativa baseada nas suas respostas; não é promessa de valor.
               </p>
             </form>
           </motion.div>
@@ -330,12 +341,22 @@ export function QuizFunnel() {
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Diagnóstico reservado. Também enviamos o link por e-mail.
             </p>
             <InvoiceUploadStep token={token} compact initialBillRange={answers.bill ?? null} />
-            <p className="mt-3 text-center text-xs text-muted">
-              Sem a fatura agora?{" "}
-              <Link href={`/diagnostico/${token}`} className="font-semibold text-primary hover:underline">
-                Enviar depois
-              </Link>
-            </p>
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="text-center text-[13px] text-muted">A fatura está com o financeiro ou a administradora? Encaminhe o link.</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Pode enviar a fatura de energia neste link para o diagnóstico? ${typeof window !== "undefined" ? window.location.origin : ""}/diagnostico/${token}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-3 text-[13.5px] font-semibold text-foreground hover:bg-subtle"
+                >
+                  Encaminhar no WhatsApp
+                </a>
+                <Link href={`/diagnostico/${token}`} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-3 text-[13.5px] font-semibold text-foreground hover:bg-subtle">
+                  Enviar depois
+                </Link>
+              </div>
+            </div>
             <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted">
               <ShieldCheck className="size-3" /> Envio criptografado. Uso restrito ao diagnóstico, conforme a LGPD.
             </p>

@@ -20,6 +20,29 @@ export function CookieBanner() {
       setShow(true);
     }
   }, []);
+  // Só cookies essenciais: o aviso é informativo. Fecha com Esc ou quando a pessoa começa o quiz,
+  // para não cobrir as opções no celular.
+  useEffect(() => {
+    if (!show) return;
+    const dismiss = () => {
+      try {
+        localStorage.setItem(KEY, "ok");
+      } catch {}
+      setShow(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && dismiss();
+    const onClick = (e: MouseEvent) => (e.target as Element | null)?.closest?.("[role=radio]") && dismiss();
+    // ao rolar além do topo, sai da frente da barra fixa de CTA
+    const onScroll = () => window.scrollY > 600 && dismiss();
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onClick, true);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [show]);
   if (!show) return null;
   const close = (value: string) => {
     try {
@@ -29,7 +52,7 @@ export function CookieBanner() {
   };
   return (
     <div
-      className="fixed inset-x-2 bottom-[84px] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-white/95 px-3 py-2 shadow-xl backdrop-blur sm:bottom-4 print:hidden"
+      className="fixed inset-x-2 bottom-2 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-white/95 px-3 py-2 shadow-xl backdrop-blur md:bottom-4 print:hidden"
       role="region"
       aria-label="Aviso de cookies"
     >
@@ -39,7 +62,7 @@ export function CookieBanner() {
           Privacidade
         </Link>
       </p>
-      <button onClick={() => close("ok")} className="h-8 shrink-0 rounded-lg bg-foreground px-3 text-xs font-semibold text-white">
+      <button onClick={() => close("ok")} className="min-h-9 shrink-0 rounded-lg bg-foreground px-3 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         Entendi
       </button>
     </div>

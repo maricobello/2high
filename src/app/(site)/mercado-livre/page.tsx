@@ -1,11 +1,13 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { FreeMarketSimulator } from "@/components/forms/free-market-simulator";
 import { Badge } from "@/components/ui/card";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/mercado-livre",
   title: "Mercado Livre de Energia",
   description: "Análise preliminar de perfil para o Mercado Livre de Energia.",
-};
+});
 
 export default function FreeMarketPage() {
   return (

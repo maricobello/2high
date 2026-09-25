@@ -1,13 +1,15 @@
+import { pageMetadata } from "@/lib/seo";
 import { Building2, FileCheck2, PlugZap, Sun } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { GdSimulator } from "@/components/forms/gd-simulator";
 import { Badge } from "@/components/ui/card";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/gd-por-assinatura",
   title: "Energia solar sem instalar painéis",
   description: "Simule a economia estimada com geração distribuída por assinatura para sua empresa.",
-};
+});
 
 export default function GdPage() {
   return (

@@ -12,7 +12,7 @@ import { Field, Input } from "@/components/ui/field";
 import { readUtm } from "@/lib/client/compress-image";
 import { OPEN_ANALYSIS_EVENT } from "@/lib/client/open-analysis";
 import { cn, formatBRL } from "@/lib/utils";
-import { formatPhone } from "@/modules/leads/schema";
+import { formatPhone } from "@/modules/leads/format";
 import { billRangeFromAmount } from "@/modules/leads/types";
 import { simulateGd } from "@/modules/simulators/gd";
 import { InvoiceUploadStep } from "./invoice-upload-step";
