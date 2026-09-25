@@ -1,6 +1,6 @@
 "use client";
 
-import { useInView, useMotionValue, useSpring } from "motion/react";
+import { useInView, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
@@ -12,9 +12,14 @@ export function NumberTicker({ value, decimalPlaces = 0, className, prefix = "",
   const inView = useInView(ref, { once: true, margin: "0px" });
   const fmt = (n: number) => `${prefix}${Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }).format(n)}${suffix}`;
 
+  const reduce = useReducedMotion();
+
   useEffect(() => {
-    if (inView) motionValue.set(value);
-  }, [inView, motionValue, value]);
+    if (!inView) return;
+    // "Reduzir movimento": mostra o valor final, sem contagem
+    if (reduce) spring.jump(value);
+    else motionValue.set(value);
+  }, [inView, motionValue, spring, reduce, value]);
 
   useEffect(
     () =>

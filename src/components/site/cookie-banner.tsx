@@ -20,8 +20,8 @@ export function CookieBanner() {
       setShow(true);
     }
   }, []);
-  // Só cookies essenciais: o aviso é informativo. Fecha com Esc ou quando a pessoa começa o quiz,
-  // para não cobrir as opções no celular.
+  // Só cookies essenciais: o aviso é informativo. Fecha com Esc ou quando a pessoa começa o quiz.
+  // No celular fica no topo, sobre o cabeçalho, para não cobrir as opções do quiz.
   useEffect(() => {
     if (!show) return;
     const dismiss = () => {
@@ -52,7 +52,7 @@ export function CookieBanner() {
   };
   return (
     <div
-      className="fixed inset-x-2 bottom-2 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-white/95 px-3 py-2 shadow-xl backdrop-blur md:bottom-4 print:hidden"
+      className="fixed inset-x-2 top-2 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-white/95 px-3 py-2 shadow-xl backdrop-blur md:top-auto md:bottom-4 print:hidden"
       role="region"
       aria-label="Aviso de cookies"
     >
