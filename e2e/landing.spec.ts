@@ -212,3 +212,15 @@ test("atalho discreto volta ao quiz onde a pessoa parou", async ({ page }) => {
   await expect(page.getByRole("radiogroup", { name: QUESTIONS[2].title })).toBeInViewport();
   await expect(shortcut).toHaveCount(0);
 });
+
+test("áudio do especialista toca e pausa no topo", async ({ page }) => {
+  await open(page);
+  const play = page.getByRole("button", { name: /Ouvir o especialista/ });
+  await expect(play).toBeVisible();
+  await play.click();
+  const pause = page.getByRole("button", { name: "Pausar o áudio do especialista" });
+  await expect(pause).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.querySelector("audio")?.currentTime ?? 0), { timeout: 10_000 }).toBeGreaterThan(0.3);
+  await pause.click();
+  await expect(page.getByRole("button", { name: /Ouvir o especialista/ })).toBeVisible();
+});
