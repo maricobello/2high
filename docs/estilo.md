@@ -8,7 +8,7 @@ página, siga este guia e **mude uma coisa por vez**.
 1. **Manter o que funciona.** Todo pedido de mudança diz o que muda; o resto fica igual.
 2. **Uma seção por vez.** Nada de redesenhar a página inteira num passo só.
 3. **Concreto, não adjetivo.** "Título menor", "menos texto", "tirar o brilho da borda", não "mais profissional".
-4. **Prévia antes de publicar.** Mudança visual grande vai para um link de prévia e só entra no ar depois de aprovada.
+4. **Publicar direto.** Depois das checagens (build, testes e prints no computador e no celular), a mudança vai direto para o ar. Link de prévia só se o dono pedir.
 
 ## Visual
 
@@ -81,5 +81,5 @@ Mude só: [a seção/elemento].
 O que quero: [descrição concreta: tamanho, cor, texto, ordem].
 Referência: [link ou print, e o que gosto nele].
 Sucesso é: [ex.: o quiz aparece sem rolar no celular].
-Me mostre [3 opções de texto / um link de prévia] antes de publicar.
+(Opcional) Me mostre 3 opções de texto antes de aplicar.
 ```
