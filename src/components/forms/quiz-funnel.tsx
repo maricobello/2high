@@ -4,10 +4,6 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Info, Loader2, Lock, ShieldCheck }
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BorderBeam } from "@/components/magicui/border-beam";
-import { celebrate } from "@/components/magicui/confetti";
-import { NumberTicker } from "@/components/magicui/number-ticker";
-import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { Field, Input } from "@/components/ui/field";
 import { successFeeText } from "@/lib/brand";
 import { readUtm } from "@/lib/client/compress-image";
@@ -18,6 +14,14 @@ import { diagnose, QUESTIONS, quizSummary, type QuizAnswers } from "@/modules/qu
 import { InvoiceUploadStep } from "./invoice-upload-step";
 
 type Errors = Record<string, string>;
+
+/** Valor arredondado e legível (R$ 1,5 milhão · R$ 360 mil): evita falsa precisão. */
+function compactBRL(n: number) {
+  if (n >= 1_000_000) return `R$ ${(n / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${n >= 2_000_000 ? "milhões" : "milhão"}`;
+  if (n >= 1_000) return `R$ ${Math.round(n / 1_000).toLocaleString("pt-BR")} mil`;
+  return formatBRL(n, { cents: false });
+}
+const FRONTS_SHOWN = 3;
 const TOTAL = QUESTIONS.length;
 const RESULT = TOTAL;
 const UPLOAD = TOTAL + 1;
@@ -140,7 +144,6 @@ export function QuizFunnel() {
       setToken(data.token);
       setStep(UPLOAD);
       cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      celebrate();
     } catch {
       setFormError("Falha de conexão. Verifique sua internet e tente novamente.");
     }
@@ -149,6 +152,7 @@ export function QuizFunnel() {
 
   const q = step < TOTAL ? QUESTIONS[step] : null;
   const progress = step >= RESULT ? 100 : (step / TOTAL) * 100;
+  const titleId = `quiz-q-${step}`;
 
   return (
     <div
@@ -158,38 +162,38 @@ export function QuizFunnel() {
         highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(255,200,61,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
       )}
     >
-      <BorderBeam size={140} duration={9} />
-
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
       <div className="flex items-center gap-3">
         {step > 0 && step <= RESULT && (
-          <button type="button" onClick={() => setStep((s) => s - 1)} aria-label="Voltar" className="flex size-8 items-center justify-center rounded-full bg-subtle text-foreground hover:bg-border">
+          <button type="button" onClick={() => setStep((s) => s - 1)} aria-label="Voltar" className="-my-1.5 -ml-1.5 flex size-11 items-center justify-center rounded-full text-foreground hover:bg-subtle focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30">
             <ArrowLeft className="size-4" />
           </button>
         )}
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-subtle">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-subtle" role="progressbar" aria-label="Progresso do diagnóstico" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
           <motion.div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan" initial={false} animate={{ width: `${Math.max(6, progress)}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
         </div>
-        <span className="text-xs font-bold tabular text-muted">{step < TOTAL ? `${step + 1}/${TOTAL}` : step === RESULT ? "Pronto" : "Último passo"}</span>
+        <span aria-live="polite" className="text-xs font-bold tabular text-muted">{step < TOTAL ? `${step + 1}/${TOTAL}` : step === RESULT ? "Pronto" : "Último passo"}</span>
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
         {/* ---------------- PERGUNTAS ---------------- */}
         {q && (
           <motion.div key={q.key} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.2 }} className="mt-5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">Diagnóstico gratuito · 30 segundos</p>
-            <h2 className="mt-1.5 text-xl font-bold leading-snug tracking-tight sm:text-[22px]">{q.title}</h2>
+            {step === 0 && <p className="text-[13px] font-semibold text-primary">Diagnóstico sem custo · 5 perguntas</p>}
+            <h2 id={titleId} tabIndex={-1} ref={(el) => { if (el && step > 0) el.focus({ preventScroll: true }); }} className="mt-1.5 text-xl font-bold leading-snug tracking-tight outline-none sm:text-[22px]">{q.title}</h2>
             {"hint" in q && q.hint && <p className="mt-1 text-[13px] text-muted">{q.hint}</p>}
-            <div className="mt-4 grid gap-2">
+            <div className="mt-4 grid gap-2" role="radiogroup" aria-labelledby={titleId}>
               {q.options.map((o) => {
                 const active = picked === o.value || (!picked && answers[q.key] === o.value);
                 return (
                   <button
                     key={o.value}
                     type="button"
+                    role="radio"
+                    aria-checked={active}
                     onClick={() => choose(q.key, o.value)}
                     className={cn(
-                      "group flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] font-semibold transition-all",
+                      "group flex min-h-12 items-center justify-between gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-[15px] font-semibold transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30",
                       active ? "border-primary bg-primary-soft text-primary" : "border-border bg-white hover:-translate-y-px hover:border-primary/50 hover:shadow-sm",
                     )}
                   >
@@ -203,7 +207,7 @@ export function QuizFunnel() {
             </div>
             {step === 0 && (
               <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-medium text-muted">
-                <Lock className="size-3" /> Resultado na tela, sem cadastro.
+                <Lock className="size-3" /> Resultado na tela, antes de qualquer cadastro.
               </p>
             )}
           </motion.div>
@@ -213,7 +217,7 @@ export function QuizFunnel() {
         {step === RESULT && result && (
           <motion.div key="result" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mt-5">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">Seu diagnóstico preliminar</p>
+              <p className="text-[13px] font-semibold text-primary">Seu diagnóstico preliminar</p>
               <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold", LEVEL_STYLE[result.level])}>
                 {LEVEL_LABEL[result.level]}
               </span>
@@ -222,17 +226,18 @@ export function QuizFunnel() {
             <h3 className="mt-2 text-lg font-bold leading-snug tracking-tight">Pontos que merecem auditoria na sua conta</h3>
 
             <div className="mt-3 rounded-2xl bg-ink p-4 text-white">
-              <p className="text-xs font-medium text-white/75">Pago em energia nas últimas {result.months} faturas (estimativa)</p>
-              <p className="mt-1 text-[30px] font-bold leading-tight tracking-tight text-volt">
-                <NumberTicker value={result.auditableVolume} prefix="R$ " />
+              <p className="text-[28px] font-bold leading-tight tracking-tight text-volt">
+                {result.fronts.length} {result.fronts.length === 1 ? "ponto" : "pontos"} a verificar
+              </p>
+              <p className="mt-1 text-[13px] leading-snug text-white/80">
+                Volume que vamos revisar: <strong className="font-semibold text-white">{compactBRL(result.auditableVolume)}</strong> em {result.months} faturas (estimativa).
               </p>
               {result.icmsEmbedded !== null && (
                 <p className="mt-1.5 text-[12.5px] leading-snug text-white/85">
-                  Desse total, cerca de <strong className="text-white">{formatBRL(result.icmsEmbedded, { cents: false })}</strong> são ICMS. Parte pode virar crédito.
+                  Desse total, cerca de <strong className="text-white">{compactBRL(result.icmsEmbedded)}</strong> são ICMS. Parte pode virar crédito.
                 </p>
               )}
-              <p className="mt-2 text-[11px] leading-snug text-white/55">É o volume auditado, não o valor a recuperar.</p>
-              {result.gdSavings && (
+                            {result.gdSavings && (
                 <p className="mt-1.5 text-[12.5px] leading-snug text-white/85">
                   Economia possível com energia por assinatura: <strong className="text-white">{formatBRL(result.gdSavings.min, { cents: false })}–{formatBRL(result.gdSavings.max, { cents: false })} por mês</strong>.
                 </p>
@@ -241,7 +246,7 @@ export function QuizFunnel() {
 
             <p className="mt-4 text-sm font-bold">O que verificar no seu caso</p>
             <ul className="mt-2 space-y-1.5">
-              {result.fronts.map((f) => (
+              {result.fronts.slice(0, FRONTS_SHOWN).map((f) => (
                 <li key={f.code} className="flex gap-2 text-[13.5px] leading-snug">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-opportunity" />
                   <span>
@@ -249,6 +254,9 @@ export function QuizFunnel() {
                   </span>
                 </li>
               ))}
+              {result.fronts.length > FRONTS_SHOWN && (
+                <li className="pl-6 text-[13px] font-medium text-muted">+ {result.fronts.length - FRONTS_SHOWN} no relatório completo</li>
+              )}
             </ul>
 
             <p className="mt-4 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium leading-snug text-opportunity">
@@ -261,14 +269,14 @@ export function QuizFunnel() {
               <Field label="Seu nome" error={errors.name}>
                 <Input autoComplete="name" value={v.name} onChange={(e) => set("name", e.target.value)} invalid={!!errors.name} placeholder="Como podemos te chamar?" />
               </Field>
-              <Field label="E-mail" error={errors.email}>
+              <Field label="E-mail de trabalho" error={errors.email}>
                 <Input type="email" autoComplete="email" inputMode="email" value={v.email} onChange={(e) => set("email", e.target.value)} invalid={!!errors.email} placeholder="voce@empresa.com.br" />
               </Field>
               <Field label="WhatsApp" error={errors.phone}>
                 <Input inputMode="tel" autoComplete="tel" value={v.phone} onChange={(e) => set("phone", formatPhone(e.target.value))} invalid={!!errors.phone} placeholder="(11) 99999-9999" />
               </Field>
-              <label className="flex items-start gap-2.5 text-[12px] leading-snug text-muted">
-                <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[12.5px] leading-snug text-muted">
+                <input type="checkbox" checked={v.consent} onChange={(e) => set("consent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
                 <span>
                   Autorizo o uso dos meus dados para receber o diagnóstico e ser contatado sobre o resultado por e-mail e WhatsApp, conforme a{" "}
                   <Link href="/privacidade" target="_blank" className="font-semibold text-primary hover:underline">
@@ -278,12 +286,12 @@ export function QuizFunnel() {
                 </span>
               </label>
               {errors.consent && <p className="text-xs font-medium text-attention">{errors.consent}</p>}
-              <label className="flex items-start gap-2.5 text-[12px] leading-snug text-muted">
-                <input type="checkbox" checked={v.marketingConsent} onChange={(e) => set("marketingConsent", e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-[12.5px] leading-snug text-muted">
+                <input type="checkbox" checked={v.marketingConsent} onChange={(e) => set("marketingConsent", e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" />
                 <span>Quero receber conteúdos sobre redução de custos de energia (opcional).</span>
               </label>
               {formError && <p className="rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{formError}</p>}
-              <ShimmerButton type="submit" disabled={busy} className="w-full text-[15px]">
+              <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 disabled:opacity-60">
                 {busy ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Enviando…
@@ -293,8 +301,8 @@ export function QuizFunnel() {
                     Receber diagnóstico completo <ArrowRight className="size-4" />
                   </>
                 )}
-              </ShimmerButton>
-              <p className="flex gap-1 text-[10.5px] leading-snug text-muted">
+              </button>
+              <p className="flex gap-1 text-[12px] leading-snug text-muted">
                 <Info className="mt-px size-3 shrink-0" /> Estimativa baseada nas suas respostas. Não é promessa de valor.
               </p>
             </form>
@@ -305,7 +313,7 @@ export function QuizFunnel() {
         {step === UPLOAD && token && (
           <motion.div key="upload" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="mt-5">
             <h2 className="text-xl font-bold leading-snug tracking-tight">{firstName ? `${firstName}, falta` : "Falta"} só a fatura.</h2>
-            <p className="mt-1 text-sm text-muted">Envie a fatura mais recente para confirmar o diagnóstico. Resultado em cerca de 1 minuto.</p>
+            <p className="mt-1 text-sm text-muted">Envie a mais recente. A análise leva cerca de 1 minuto.</p>
             <p className="mb-4 mt-3 flex items-start gap-2 rounded-xl bg-opportunity-soft px-3 py-2.5 text-[13px] font-medium text-opportunity">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Diagnóstico reservado. Também enviamos o link por e-mail.
             </p>
@@ -313,7 +321,7 @@ export function QuizFunnel() {
             <p className="mt-3 text-center text-xs text-muted">
               Sem a fatura agora?{" "}
               <Link href={`/diagnostico/${token}`} className="font-semibold text-primary hover:underline">
-                Envie depois pelo link
+                Enviar depois
               </Link>
             </p>
             <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted">

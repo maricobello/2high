@@ -46,6 +46,16 @@ export function ChatWidget() {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [msgs, busy]);
 
+  // No celular, o botão some enquanto o quiz do topo está na tela (não cobre as opções).
+  const [heroVisible, setHeroVisible] = useState(false);
+  useEffect(() => {
+    const hero = document.getElementById("analisar");
+    if (!hero) return;
+    const io = new IntersectionObserver(([e]) => setHeroVisible(e.isIntersecting), { threshold: 0.15 });
+    io.observe(hero);
+    return () => io.disconnect();
+  }, [path]);
+
   async function send(text: string) {
     const content = text.trim();
     if (!content || busy) return;
@@ -88,6 +98,7 @@ export function ChatWidget() {
         className={cn(
           "fixed bottom-4 right-4 z-40 flex size-14 items-center justify-center rounded-full bg-ink text-white shadow-2xl shadow-primary/30 ring-1 ring-white/10 transition-transform hover:scale-105 print:hidden",
           !open && "animate-[rise_.4s_ease_both]",
+          !open && heroVisible && "max-md:hidden",
         )}
       >
         {open ? <X className="size-6" /> : <Bot className="size-6" />}

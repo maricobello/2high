@@ -8,7 +8,7 @@ const KEY = "Alguém confere?";
 
 export function HeroHeadline() {
   return (
-    <h1 className="text-[33px] font-bold leading-[1.06] tracking-[-0.035em] text-white sm:text-[52px] lg:text-[64px]">
+    <h1 className="text-balance text-[33px] font-bold leading-[1.06] tracking-[-0.035em] text-white sm:text-[52px] lg:text-[60px]">
       {WORDS.map((w, i) => (
         // a pergunta-chave ocupa a própria linha (display: block), sem linha vazia antes
         <span key={i} className="word-in" style={{ animationDelay: `${0.06 * i}s`, ...(w === KEY ? { display: "block", width: "fit-content" } : null) }}>
