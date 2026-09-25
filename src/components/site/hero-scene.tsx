@@ -1,6 +1,11 @@
+import Image from "next/image";
+
+/** Foto do topo: usina solar e linha de transmissão ao pôr do sol (gerada no Higgsfield). */
+export const HERO_PHOTO = "https://d8j0ntlcm91z4.cloudfront.net/user_300aA2A2UbIvp6ou5XtUmlVDLTR/hf_20260925_145352_bfe9e274-0a38-452e-884f-1b247bee1f34.png";
+
 /**
- * Cenário do topo (SVG leve, sem imagem): pôr do sol, torres de transmissão,
- * placas solares em perspectiva e traços verdes da marca. Puramente decorativo.
+ * Cenário do topo: foto de fundo sobre um cenário em SVG (reserva se a foto não carregar),
+ * escurecida à esquerda para leitura, com a linha verde animada da marca.
  */
 function Tower({ x, base, h }: { x: number; base: number; h: number }) {
   const w = h * 0.34; // abertura da base
@@ -85,8 +90,6 @@ export function HeroScene() {
         <line x1="820" y1="640" x2="560" y2="900" stroke="#3ee066" strokeWidth="8" opacity="0.15" />
         <line x1="820" y1="640" x2="560" y2="900" stroke="#3ee066" strokeWidth="2" opacity="0.85" />
 
-        {/* leitura à esquerda */}
-        <rect width="1600" height="900" fill="url(#hs-fade)" />
 
         {/* traços verdes da marca */}
         <g stroke="#3ee066" fill="none">
@@ -94,6 +97,15 @@ export function HeroScene() {
           <path d="M-40 640 L260 940" strokeWidth="1.6" opacity="0.7" />
           <path d="M-40 720 L180 940" strokeWidth="1" opacity="0.4" />
         </g>
+      </svg>
+      <Image src={HERO_PHOTO} alt="" fill sizes="100vw" quality={60} className="object-cover object-[70%_center]" />
+      {/* leitura à esquerda e transição para a faixa de baixo */}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,#030605_0%,rgba(3,6,5,0.92)_30%,rgba(3,6,5,0.55)_55%,rgba(3,6,5,0.2)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent" />
+      {/* linha verde animada (curva de energia) */}
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMaxYMid slice" className="absolute inset-0 h-full w-full">
+        <path d="M-40 860 C 420 820, 700 640, 980 470 S 1420 150, 1680 60" fill="none" stroke="#3ee066" strokeOpacity="0.18" strokeWidth="1.5" />
+        <path d="M-40 860 C 420 820, 700 640, 980 470 S 1420 150, 1680 60" fill="none" stroke="#3ee066" strokeWidth="2.5" strokeLinecap="round" pathLength={1} className="energy-line" />
       </svg>
       {/* brilho verde suave atrás do quiz */}
       <div className="absolute inset-0 bg-[radial-gradient(700px_circle_at_78%_40%,rgba(62,224,102,0.10),transparent_70%)]" />
