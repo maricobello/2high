@@ -23,12 +23,12 @@ export interface QuizAnswers {
 export const QUESTIONS = [
   {
     key: "bill",
-    title: "Quanto sua empresa paga de energia por mês?",
+    title: "Quanto é a conta de energia por mês?",
     options: BILL_RANGES.map((r) => ({ value: r.value, label: r.label })),
   },
   {
     key: "segment",
-    title: "Qual é o segmento da empresa?",
+    title: "Qual é o segmento?",
     options: [
       { value: "industria", label: "Indústria" },
       { value: "comercio", label: "Comércio e varejo" },
@@ -40,7 +40,7 @@ export const QUESTIONS = [
   },
   {
     key: "audited",
-    title: "Alguém já auditou as contas de energia da empresa?",
+    title: "As contas de energia já foram auditadas?",
     options: [
       { value: "nunca", label: "Nunca" },
       { value: "mais_2_anos", label: "Sim, há mais de 2 anos" },
@@ -49,7 +49,7 @@ export const QUESTIONS = [
   },
   {
     key: "tenure",
-    title: "Há quanto tempo a empresa está nesse endereço?",
+    title: "Há quanto tempo vocês estão neste endereço?",
     options: [
       { value: "menos_1", label: "Menos de 1 ano" },
       { value: "1_5", label: "De 1 a 5 anos" },
@@ -58,8 +58,8 @@ export const QUESTIONS = [
   },
   {
     key: "voltage",
-    title: "A unidade é de média ou alta tensão (Grupo A)?",
-    hint: "Grupo A costuma ter “demanda contratada” na fatura.",
+    title: "A conta é do Grupo A (média ou alta tensão)?",
+    hint: "Se a fatura mostra “demanda contratada”, provavelmente sim.",
     options: [
       { value: "a", label: "Sim, Grupo A" },
       { value: "b", label: "Não, baixa tensão (Grupo B)" },
@@ -109,28 +109,28 @@ export function diagnose(a: QuizAnswers): Diagnosis {
   const fronts: Front[] = [
     {
       code: "cobrancas",
-      title: "Cobranças indevidas na fatura",
-      detail: `Erros de leitura, tarifa ou classe em até ${months} faturas. Valor pago a mais pode voltar em dobro (CDC, art. 42).`,
+      title: "Cobranças indevidas",
+      detail: `Leitura, tarifa ou classe errada nas últimas ${months} faturas.`,
     },
   ];
   if (a.voltage !== "b") {
     fronts.push({
       code: "demanda_reativo",
-      title: "Demanda contratada e energia reativa",
-      detail: "Ultrapassagens, contrato acima do uso e multas de reativo estão entre os custos mais comuns no Grupo A.",
+      title: "Demanda e reativo",
+      detail: "Ultrapassagens, contrato acima do uso e cobrança de energia reativa.",
     });
     fronts.push({
       code: "icms_demanda",
-      title: "ICMS sobre demanda não utilizada",
-      detail: "O ICMS só incide sobre a demanda efetivamente utilizada (Súmula 391 do STJ).",
+      title: "ICMS sobre demanda",
+      detail: "Só incide sobre a demanda utilizada (Súmula 391 do STJ).",
     });
   }
   const industrial = a.segment === "industria";
   if (industrial) {
     fronts.push({
       code: "icms_credito",
-      title: "Crédito de ICMS da energia usada na produção",
-      detail: "Indústrias podem se creditar do ICMS da energia consumida no processo produtivo, com laudo técnico (LC 87/96, art. 33).",
+      title: "Crédito de ICMS",
+      detail: "A energia da produção pode gerar crédito, com laudo técnico.",
     });
   }
   let gdSavings: Diagnosis["gdSavings"] = null;
@@ -138,11 +138,11 @@ export function diagnose(a: QuizAnswers): Diagnosis {
     const gd = simulateGd({ monthlyBill, tariffGroup: null });
     if (gd.savingsMin !== null && gd.savingsMax !== null) {
       gdSavings = { min: gd.savingsMin, max: gd.savingsMax };
-      fronts.push({ code: "gd", title: "Energia por assinatura", detail: "Desconto na conta daqui para frente, sem obra e sem trocar de distribuidora." });
+      fronts.push({ code: "gd", title: "Energia por assinatura", detail: "Desconto mensal, sem obra e sem trocar de distribuidora." });
     }
   }
   if (a.voltage === "a" && monthlyBill >= 10_000) {
-    fronts.push({ code: "mercado_livre", title: "Mercado Livre de energia", detail: "Unidades do Grupo A podem comprar energia com preço negociado." });
+    fronts.push({ code: "mercado_livre", title: "Mercado Livre", detail: "Preço negociado para contas do Grupo A." });
   }
 
   return {

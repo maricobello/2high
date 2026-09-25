@@ -7,14 +7,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(brand.appUrl),
   title: {
-    default: `${brand.name} — Recupere o que sua empresa pagou a mais de energia`,
+    default: `${brand.name} — Auditoria e gestão de energia`,
     template: `%s · ${brand.name}`,
   },
   description:
-    "Diagnóstico gratuito em 30 segundos. Auditamos até 60 faturas, cuidamos da devolução e do crédito de ICMS — e você só paga se o dinheiro voltar.",
+    "Auditoria e gestão de energia para empresas e condomínios. Auditamos suas últimas 60 faturas e pedimos a devolução de cobranças indevidas. Remuneração apenas sobre o valor recuperado.",
   openGraph: {
     title: "Sua empresa paga energia todo mês. Alguém confere?",
-    description: "Diagnóstico gratuito em 30 segundos. Você só paga se o dinheiro voltar.",
+    description: "Auditoria e gestão de energia. Diagnóstico em cinco perguntas.",
     locale: "pt_BR",
     type: "website",
   },

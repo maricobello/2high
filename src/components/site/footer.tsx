@@ -9,7 +9,7 @@ export function SiteFooter() {
         <div className="space-y-4">
           <Logo />
           <p className="max-w-sm text-sm leading-relaxed">
-            Plataforma de inteligência de energia para empresas. Diagnósticos preliminares, baseados em regras técnicas e sujeitos à validação por especialistas.
+            Auditoria e gestão de energia para empresas e condomínios. Diagnósticos preliminares, sujeitos à validação técnica.
           </p>
           {brand.legalName && (
             <p className="text-xs text-white/60">

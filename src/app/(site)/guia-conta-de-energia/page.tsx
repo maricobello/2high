@@ -59,7 +59,7 @@ export default function GuidePage() {
       <div className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-ink p-8 text-center text-white print:hidden">
         <p className="text-xl font-semibold">Quer que a gente verifique esses 7 pontos na sua fatura?</p>
         <Link href="/#analisar" className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold hover:bg-primary-hover">
-          ANALISAR MINHA FATURA GRÁTIS
+          Fazer diagnóstico
         </Link>
         <p className="flex items-center gap-1.5 text-xs text-white/50">
           <Printer className="size-3" /> Dica: use “Imprimir → Salvar como PDF” para guardar este guia.
