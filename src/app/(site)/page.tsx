@@ -43,6 +43,9 @@ export default function HomePage() {
             <p className="rise-in mt-6 max-w-lg text-base leading-relaxed text-white/80 sm:text-xl sm:leading-relaxed" style={{ animationDelay: "0.5s" }}>
               Auditamos até 60 faturas, pedimos a devolução de cobranças indevidas e gerimos sua energia todo mês.
             </p>
+            <p className="rise-in mt-4 text-[14px] font-medium text-white/90 lg:hidden" style={{ animationDelay: "0.6s" }}>
+              <span className="text-volt">Sem custo.</span> Remuneração só sobre o valor recuperado.
+            </p>
             <ul className="rise-in mt-8 hidden gap-3.5 text-[15px] font-medium text-white/90 lg:grid" style={{ animationDelay: "0.65s" }}>
               {["Auditoria sem custo", "Remuneração só sobre o valor recuperado", "Relatório antes de qualquer contrato"].map((t) => (
                 <li key={t} className="flex items-center gap-3">
@@ -93,14 +96,14 @@ export default function HomePage() {
       </section>
 
       {/* ================= COMO FUNCIONA ================= */}
-      <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-white py-20 sm:py-28">
+      <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-white py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
             <Eyebrow>Como funciona</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Três etapas, pela via administrativa</h2>
           </BlurFade>
 
-          <ol className="relative mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
+          <ol className="relative mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
             <span aria-hidden className="absolute left-5 right-5 top-5 hidden h-px bg-border md:block" />
             {STEPS.map((s, i) => (
               <li key={s.title} className="relative">
@@ -114,11 +117,11 @@ export default function HomePage() {
           </ol>
 
           <BlurFade>
-            <div className="mt-14 flex flex-col gap-5 rounded-3xl bg-ink px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
+            <div className="mt-10 flex flex-col gap-5 rounded-3xl bg-ink px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
               <p className="text-lg font-semibold tracking-tight sm:text-xl">
                 Diagnóstico e auditoria sem custo. <span className="text-white/65">Remuneração só sobre o valor recuperado. Sem mensalidade.</span>
               </p>
-              <Link href="#analisar" className={`${ctaLight} shrink-0`}>
+              <Link href="#analisar" className={`${cta} shrink-0`}>
                 Fazer diagnóstico {arrow}
               </Link>
             </div>
