@@ -52,7 +52,7 @@ export function CookieBanner() {
   };
   return (
     <div
-      className="fixed inset-x-2 top-2 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-white/95 px-3 py-2 shadow-xl backdrop-blur md:top-auto md:bottom-4 print:hidden"
+      className="fixed inset-x-2 top-2 z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-border bg-card/95 px-3 py-2 shadow-xl backdrop-blur md:top-auto md:bottom-4 print:hidden"
       role="region"
       aria-label="Aviso de cookies"
     >
@@ -62,7 +62,7 @@ export function CookieBanner() {
           Privacidade
         </Link>
       </p>
-      <button onClick={() => close("ok")} className="min-h-9 shrink-0 rounded-lg bg-foreground px-3 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <button onClick={() => close("ok")} className="min-h-9 shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         Entendi
       </button>
     </div>

@@ -24,8 +24,8 @@ export default async function LeadsPage(props: PageProps<"/admin/leads">) {
   return (
     <div className="space-y-4">
       <form className="flex flex-wrap items-center gap-2">
-        <input name="q" defaultValue={q} placeholder="Buscar nome, empresa, e-mail, CNPJ, protocolo" className="h-9 w-80 rounded-lg border border-border bg-white px-3 text-sm" />
-        <select name="stage" defaultValue={stage} className="h-9 rounded-lg border border-border bg-white px-2 text-sm">
+        <input name="q" defaultValue={q} placeholder="Buscar nome, empresa, e-mail, CNPJ, protocolo" className="h-9 w-80 rounded-lg border border-border bg-card px-3 text-sm" />
+        <select name="stage" defaultValue={stage} className="h-9 rounded-lg border border-border bg-card px-2 text-sm">
           <option value="">Todos os estágios</option>
           {STAGES.map((s) => (
             <option key={s.value} value={s.value}>
@@ -33,18 +33,18 @@ export default async function LeadsPage(props: PageProps<"/admin/leads">) {
             </option>
           ))}
         </select>
-        <select name="temperature" defaultValue={temperature} className="h-9 rounded-lg border border-border bg-white px-2 text-sm">
+        <select name="temperature" defaultValue={temperature} className="h-9 rounded-lg border border-border bg-card px-2 text-sm">
           <option value="">Todas temperaturas</option>
           <option>HOT</option>
           <option>WARM</option>
           <option>COLD</option>
         </select>
-        <button className="h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-white">Filtrar</button>
-        <a href={csv} className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-sm font-medium">
+        <button className="h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-background">Filtrar</button>
+        <a href={csv} className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium">
           <Download className="size-4" /> Exportar CSV
         </a>
       </form>
-      <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card">
         <table className="w-full min-w-[980px] text-sm">
           <thead className="border-b border-border bg-subtle/60 text-left text-xs uppercase tracking-wider text-muted">
             <tr>

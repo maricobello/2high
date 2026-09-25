@@ -33,7 +33,7 @@ export function ChatDemo() {
   return (
     <div ref={ref} className="relative rounded-3xl border border-white/10 bg-ink-2 p-4 shadow-2xl">
       <div className="mb-3 flex items-center gap-2.5 border-b border-white/10 pb-3">
-        <span className="flex size-8 items-center justify-center rounded-full bg-primary text-white">
+        <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Bot className="size-4" />
         </span>
         <div>
@@ -49,7 +49,7 @@ export function ChatDemo() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className={cn("max-w-[85%] rounded-2xl px-3.5 py-2", m.me ? "ml-auto rounded-tr-md bg-primary text-white" : "rounded-tl-md bg-white/10 text-white")}
+              className={cn("max-w-[85%] rounded-2xl px-3.5 py-2", m.me ? "ml-auto rounded-tr-md bg-primary text-primary-foreground" : "rounded-tl-md bg-white/10 text-white")}
             >
               {m.text}
             </motion.div>

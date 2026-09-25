@@ -66,7 +66,7 @@ export function FreeMarketSimulator() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-      <form onSubmit={analyze} className="rounded-3xl border border-border bg-white p-5 sm:p-7">
+      <form onSubmit={analyze} className="rounded-3xl border border-border bg-card p-5 sm:p-7">
         <p className="flex items-center gap-2 font-semibold">
           <BarChart3 className="size-4 text-primary" /> Dados da unidade
         </p>
@@ -151,7 +151,7 @@ export function FreeMarketSimulator() {
         </Button>
       </form>
 
-      <div className="rounded-3xl border border-border bg-white p-5 sm:p-7">
+      <div className="rounded-3xl border border-border bg-card p-5 sm:p-7">
         {!result ? (
           <div className="flex h-full flex-col items-center justify-center py-10 text-center text-muted">
             <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary-soft text-primary">

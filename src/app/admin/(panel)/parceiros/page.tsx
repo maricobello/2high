@@ -7,11 +7,11 @@ export default async function PartnersPage() {
   const partners = await db().listPartners();
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h1 className="mb-4 font-semibold">Novo parceiro</h1>
         <PartnerForm />
       </section>
-      <section className="overflow-x-auto rounded-2xl border border-border bg-white">
+      <section className="overflow-x-auto rounded-2xl border border-border bg-card">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b border-border bg-subtle/60 text-left text-xs uppercase tracking-wider text-muted">
             <tr>

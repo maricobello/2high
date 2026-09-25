@@ -33,7 +33,7 @@ export function PrivacyRequestForm() {
     );
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-2xl border border-border bg-white p-6">
+    <form onSubmit={submit} className="space-y-4 rounded-2xl border border-border bg-card p-6">
       <input tabIndex={-1} autoComplete="off" className="hidden" aria-hidden value={v.website} onChange={(e) => setV({ ...v, website: e.target.value })} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome completo">

@@ -49,8 +49,8 @@ export default function GuidePage() {
       <p className="mt-4 text-muted">Um roteiro prático para ler a fatura com olhar técnico. Conteúdo informativo — cada caso depende de análise da unidade consumidora.</p>
       <ol className="mt-10 space-y-6">
         {POINTS.map((p, i) => (
-          <li key={p.t} className="flex gap-4 rounded-2xl border border-border bg-white p-5">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary font-mono text-sm font-semibold text-white">{i + 1}</span>
+          <li key={p.t} className="flex gap-4 rounded-2xl border border-border bg-card p-5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary font-mono text-sm font-semibold text-primary-foreground">{i + 1}</span>
             <div>
               <h2 className="font-semibold">{p.t}</h2>
               <p className="mt-1.5 text-sm leading-relaxed text-foreground/80">{p.d}</p>
@@ -60,7 +60,7 @@ export default function GuidePage() {
       </ol>
       <div className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-ink p-8 text-center text-white print:hidden">
         <p className="text-xl font-semibold">Quer que a gente verifique esses 7 pontos na sua fatura?</p>
-        <Link href="/#analisar" className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold hover:bg-primary-hover">
+        <Link href="/#analisar" className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
           Fazer diagnóstico
         </Link>
         <p className="flex items-center gap-1.5 text-xs text-white/50">

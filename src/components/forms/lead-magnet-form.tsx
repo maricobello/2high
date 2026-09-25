@@ -160,8 +160,8 @@ export function LeadMagnetForm() {
     <div
       ref={cardRef}
       className={cn(
-        "relative scroll-mt-20 overflow-hidden rounded-[28px] border border-white/10 bg-white p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.8)] ring-1 ring-black/5 transition-shadow duration-500 sm:p-7",
-        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(255,200,61,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
+        "relative scroll-mt-20 overflow-hidden rounded-[28px] border border-white/10 bg-card p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.8)] ring-1 ring-black/5 transition-shadow duration-500 sm:p-7",
+        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(62,224,102,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
       )}
     >
       <BorderBeam size={140} duration={9} />

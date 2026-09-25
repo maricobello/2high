@@ -90,7 +90,7 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
         <input ref={inputRef} type="file" accept={ACCEPT} capture={undefined} className="hidden" onChange={(e) => void pick(e.target.files?.[0])} />
         {file ? (
           <div className="flex w-full items-center gap-3 text-left">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <FileText className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
@@ -111,7 +111,7 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
           </div>
         ) : (
           <>
-            <span className={cn("flex items-center justify-center rounded-2xl bg-white text-primary shadow-sm transition-transform group-hover:-translate-y-0.5", compact ? "mb-2 size-10" : "mb-3 size-12")}>
+            <span className={cn("flex items-center justify-center rounded-2xl bg-card text-primary shadow-sm transition-transform group-hover:-translate-y-0.5", compact ? "mb-2 size-10" : "mb-3 size-12")}>
               <UploadCloud className="size-6" />
             </span>
             <p className="text-sm font-semibold">Arraste a fatura ou toque para escolher</p>
@@ -187,7 +187,7 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
 
       {error && <p className="rounded-xl bg-attention-soft px-3 py-2 text-sm font-medium text-attention">{error}</p>}
 
-      <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60">
+      <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-60">
         {busy ? (
           <>
             <Loader2 className="size-4 animate-spin" /> Enviando com segurança…

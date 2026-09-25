@@ -36,22 +36,22 @@ export function SiteHeader() {
         </div>
       )}
       <div className={cn("border-b transition-all duration-300", scrolled ? "border-white/10 bg-ink/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl" : "border-transparent bg-ink")}>
-        <div className={cn("mx-auto flex max-w-6xl items-center justify-between px-4 transition-[height] duration-300 sm:px-6", scrolled ? "h-14" : "h-16")}>
+        <div className={cn("mx-auto flex max-w-7xl items-center justify-between px-4 transition-[height] duration-300 sm:px-6 lg:px-10", scrolled ? "h-16" : "h-[72px]")}>
           <Link href="/" aria-label={`${brand.name} — início`} className="flex">
-            <Logo />
+            <Logo className="[&>span>svg:nth-child(2)]:hidden sm:[&>span>svg:nth-child(2)]:block" />
           </Link>
-          <nav className="hidden items-center gap-7 text-sm font-medium text-white/80 md:flex">
+          <nav className="hidden items-center gap-9 text-[15px] font-medium text-white/85 md:flex">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="transition-colors hover:text-white">
+              <Link key={n.href} href={n.href} className="transition-colors hover:text-primary">
                 {n.label}
               </Link>
             ))}
           </nav>
           <Link
             href="/#analisar"
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-ink transition-colors hover:bg-volt focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
+            className="group inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-[12px] font-bold uppercase tracking-[0.08em] text-primary-foreground shadow-[0_0_24px_-6px_rgba(62,224,102,0.6)] transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 sm:h-11 sm:px-6 sm:text-[13px]"
           >
-            Fazer diagnóstico
+            Fazer diagnóstico <ArrowRight className="hidden size-4 transition-transform group-hover:translate-x-0.5 sm:block" />
           </Link>
         </div>
       </div>

@@ -26,7 +26,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-3xl bg-white p-7 shadow-2xl">
+    <form onSubmit={submit} className="space-y-4 rounded-3xl bg-card p-7 shadow-2xl">
       <div>
         <p className="text-lg font-semibold">Painel comercial</p>
         <p className="text-sm text-muted">Acesso restrito à equipe.</p>

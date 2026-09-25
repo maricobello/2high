@@ -19,13 +19,13 @@ export default async function LgpdPage() {
   const open = requests.filter((r) => r.status === "aberta" || r.status === "em_andamento");
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h1 className="font-semibold">Solicitações de titulares (LGPD)</h1>
         <p className="mt-1 text-sm text-muted">
           {open.length} em aberto. Prazo recomendado de resposta: 15 dias. Para exclusão, abra o lead e use “Excluir dados (LGPD)” — remove registros e arquivos de fatura.
         </p>
       </section>
-      <section className="overflow-x-auto rounded-2xl border border-border bg-white">
+      <section className="overflow-x-auto rounded-2xl border border-border bg-card">
         <table className="w-full min-w-[860px] text-sm">
           <thead className="border-b border-border bg-subtle/60 text-left text-xs uppercase tracking-wider text-muted">
             <tr>

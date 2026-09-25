@@ -19,7 +19,7 @@ export function FindingCard({ finding, plainText }: { finding: Finding; plainTex
   const k = KIND[finding.kind];
   const level = CONF[finding.confidence];
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-border bg-white">
+    <article className="relative overflow-hidden rounded-2xl border border-border bg-card">
       <span className={cn("absolute inset-y-0 left-0 w-1", k.bar)} />
       <div className="p-5 pl-6">
         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -40,7 +40,7 @@ export default function GdPage() {
         <GdSimulator />
       </section>
       <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-        <div className="grid gap-6 rounded-3xl border border-border bg-white p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
+        <div className="grid gap-6 rounded-3xl border border-border bg-card p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
           <div className="flex gap-4">
             <FileCheck2 className="mt-1 size-6 shrink-0 text-primary" />
             <div>
@@ -48,7 +48,7 @@ export default function GdPage() {
               <p className="mt-1 text-sm text-muted">Com a fatura, consideramos consumo real, custo de disponibilidade, iluminação pública e créditos existentes.</p>
             </div>
           </div>
-          <Link href="/#analisar" className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-white hover:bg-primary-hover">
+          <Link href="/#analisar" className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
             ENVIAR FATURA
           </Link>
         </div>

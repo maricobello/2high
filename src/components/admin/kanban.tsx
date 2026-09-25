@@ -26,7 +26,7 @@ const SOL_SHORT: Record<SolutionCode, string> = { auditoria: "Auditoria", gd_ass
 
 export function TemperatureBadge({ t, score }: { t: Temperature | null; score?: number | null }) {
   if (!t) return <span className="rounded-md bg-subtle px-1.5 py-0.5 text-[10px] font-bold text-muted">—</span>;
-  const cls = t === "HOT" ? "bg-attention text-white" : t === "WARM" ? "bg-analysis text-white" : "bg-subtle text-muted";
+  const cls = t === "HOT" ? "bg-attention text-white" : t === "WARM" ? "bg-analysis text-primary-foreground" : "bg-subtle text-muted";
   return (
     <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular", cls)}>
       {t}
@@ -82,14 +82,14 @@ export function KanbanBoard({ initial }: { initial: KanbanLead[] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar empresa, nome, protocolo"
-            className="h-9 w-72 rounded-lg border border-border bg-white pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
+            className="h-9 w-72 rounded-lg border border-border bg-card pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
           />
         </div>
         {(["", "HOT", "WARM", "COLD"] as const).map((t) => (
           <button
             key={t || "all"}
             onClick={() => setTemp(t)}
-            className={cn("h-9 rounded-lg border px-3 text-xs font-semibold", temp === t ? "border-foreground bg-foreground text-white" : "border-border bg-white text-muted")}
+            className={cn("h-9 rounded-lg border px-3 text-xs font-semibold", temp === t ? "border-foreground bg-foreground text-background" : "border-border bg-card text-muted")}
           >
             {t || "Todos"}
           </button>
@@ -119,7 +119,7 @@ export function KanbanBoard({ initial }: { initial: KanbanLead[] }) {
               <div className="px-3 pb-2 pt-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">{s.label}</p>
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold tabular text-muted">{col.length}</span>
+                  <span className="rounded-full bg-card px-2 py-0.5 text-[11px] font-semibold tabular text-muted">{col.length}</span>
                 </div>
                 {total > 0 && <p className="mt-0.5 text-[11px] text-muted tabular">{formatBRL(total, { cents: false })}/ano</p>}
               </div>
@@ -132,7 +132,7 @@ export function KanbanBoard({ initial }: { initial: KanbanLead[] }) {
                     onDragStart={() => setDragId(l.id)}
                     onDragEnd={() => setDragId(null)}
                     className={cn(
-                      "block rounded-xl border border-border bg-white p-3 shadow-sm transition-all hover:border-primary/40 hover:shadow-md",
+                      "block rounded-xl border border-border bg-card p-3 shadow-sm transition-all hover:border-primary/40 hover:shadow-md",
                       dragId === l.id && "opacity-50",
                     )}
                   >

@@ -2,7 +2,7 @@ import { cloneElement, forwardRef, isValidElement, useId } from "react";
 import { cn } from "@/lib/utils";
 
 const base =
-  "w-full rounded-xl border bg-white px-3.5 text-[15px] text-foreground placeholder:text-muted/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-60";
+  "w-full rounded-xl border bg-card px-3.5 text-[15px] text-foreground placeholder:text-muted/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-60";
 
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(
   ({ className, invalid, ...props }, ref) => (

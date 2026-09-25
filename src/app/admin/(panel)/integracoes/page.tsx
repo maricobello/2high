@@ -25,7 +25,7 @@ export default function IntegrationsPage() {
   ];
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h1 className="font-semibold">Integrações e automação</h1>
         <p className="mt-1 text-sm text-muted">Motor de regras v{ENGINE_VERSION}. Módulo de antecipação: {env.features.advance ? "ativo" : "desativado (previsto)"}.</p>
         <ul className="mt-5 divide-y divide-border">
@@ -40,7 +40,7 @@ export default function IntegrationsPage() {
           ))}
         </ul>
       </section>
-      <section className="rounded-2xl border border-border bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <RunFollowUps />
       </section>
     </div>
