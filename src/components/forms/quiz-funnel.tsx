@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BorderBeam } from "@/components/magicui/border-beam";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { Field, Input } from "@/components/ui/field";
 import { successFeeText } from "@/lib/brand";
@@ -205,6 +206,9 @@ export function QuizFunnel() {
         highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(62,224,102,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
       )}
     >
+      {/* feixe de luz verde percorrendo a borda do card */}
+      <BorderBeam size={160} duration={8} colorFrom="#3ee066" colorTo="#9cf5b2" borderWidth={2} />
+
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
       <div className="flex items-center gap-3">
         {step > 0 && step <= CONTACT && (
@@ -278,7 +282,7 @@ export function QuizFunnel() {
               </span>
             </div>
             <h2 tabIndex={-1} ref={focusOnMount} className="mt-2 text-lg font-bold leading-snug tracking-tight outline-none sm:text-xl">
-              {result.fronts.length} {result.fronts.length === 1 ? "ponto merece" : "pontos merecem"} auditoria na sua conta
+              {result.fronts.length} {result.fronts.length === 1 ? "ponto" : "pontos"} para revisar na sua conta
             </h2>
 
             {/* Destaque: total já pago no período revisável (o que a pessoa pode rever) */}

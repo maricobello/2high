@@ -1,4 +1,5 @@
-import { ArrowRight, ArrowUpRight, Search, SolarPanel, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Search, SolarPanel, Zap } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
@@ -6,7 +7,8 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
-import { HeroScene } from "@/components/site/hero-scene";
+import { HERO_PHOTO, HeroScene } from "@/components/site/hero-scene";
+import { BorderBeam } from "@/components/magicui/border-beam";
 import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
@@ -62,7 +64,7 @@ const STATS = [
 
 const STEPS = [
   { title: "Auditoria", text: "Lemos as faturas e mostramos o relatório antes do contrato." },
-  { title: "Devolução", text: "Pedimos à distribuidora, em dobro quando o erro é dela." },
+  { title: "Devolução", text: "Pedimos a devolução pela via administrativa, em dobro quando o erro é dela (CDC, art. 42)." },
   { title: "Gestão", text: "Demanda, tarifa e contratos, acompanhados todo mês." },
 ];
 
@@ -169,7 +171,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
             <Eyebrow>Na imprensa</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A conta de luz sobe acima da inflação</h2>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A conta de luz está subindo mais que a inflação</h2>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">Com a tarifa mais alta, cada erro de leitura, demanda ou tarifa custa mais. Vale conferir.</p>
           </BlurFade>
 
@@ -218,8 +220,8 @@ export default function HomePage() {
         <DotPattern className="[mask-image:radial-gradient(600px_circle_at_20%_50%,white,transparent)]" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="mb-12 max-w-2xl">
-            <Eyebrow className="text-cyan">Veja acontecendo</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A fatura entra. O Raio-X sai. Em até 1 minuto.</h2>
+            <Eyebrow className="text-cyan">Exemplo de auditoria</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Envie a fatura e veja o resultado em cerca de 1 minuto</h2>
           </BlurFade>
           <ScanDemo />
           <div className="mt-12 flex flex-wrap items-center gap-4">
@@ -236,7 +238,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
             <Eyebrow>Como funciona</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Três etapas, pela via administrativa</h2>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Como pedimos a devolução à distribuidora</h2>
           </BlurFade>
 
           <ol className="relative mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
@@ -294,18 +296,31 @@ export default function HomePage() {
       {/* ================= CTA FINAL ================= */}
       <section className="bg-background pb-20 sm:pb-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="relative overflow-hidden rounded-[28px] border border-primary/25 bg-ink px-6 py-16 text-center text-white sm:px-12 sm:py-20">
-            <div className="glow absolute inset-0" />
-            <DotPattern className="[mask-image:radial-gradient(500px_circle_at_50%_0%,white,transparent)]" />
-            <div className="relative">
-              <h2 className="mx-auto max-w-3xl text-balance text-[32px] font-bold leading-[1.08] tracking-[-0.035em] sm:text-5xl">
-                Pior cenário: você confirma que <span className="text-volt">está tudo certo.</span>
-              </h2>
-              <p className="mx-auto mt-5 max-w-xl text-lg text-white/75">Cinco perguntas. A fatura pode ficar para depois.</p>
-              <Link href="#analisar" className={`${ctaLight} mt-9`}>
-                Fazer diagnóstico {arrow}
-              </Link>
-              <p className="mt-6 text-[13px] text-white/60">Sem custo · Relatório antes de qualquer contrato · Dados tratados conforme a LGPD</p>
+          <div className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-ink text-white">
+            <Image src={HERO_PHOTO} alt="" fill sizes="(min-width: 1152px) 1152px, 100vw" quality={55} className="object-cover object-[75%_center] opacity-70" />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,#030605_0%,rgba(3,6,5,0.93)_45%,rgba(3,6,5,0.45)_100%)]" />
+            <BorderBeam size={220} duration={10} colorFrom="#3ee066" colorTo="#9cf5b2" borderWidth={2} />
+            <div className="relative grid gap-10 px-6 py-12 sm:px-12 sm:py-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
+              <div>
+                <Eyebrow>Diagnóstico sem custo</Eyebrow>
+                <h2 className="mt-4 max-w-2xl text-balance text-[30px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-[44px]">
+                  Se estiver tudo certo, você fica sabendo. Se não estiver, <span className="text-primary">pedimos de volta.</span>
+                </h2>
+                <p className="mt-5 max-w-lg text-lg text-white/80">Cinco perguntas agora. A fatura pode ficar para depois.</p>
+                <Link href="#analisar" className={`${pill} mt-8`}>
+                  Fazer diagnóstico {arrow}
+                </Link>
+              </div>
+              <ul className="grid gap-3 text-[15px] text-white/90">
+                {["Relatório antes de qualquer contrato", "Remuneração só sobre o valor recuperado", "Até 60 faturas revisadas (5 anos)", "Dados tratados conforme a LGPD"].map((t) => (
+                  <li key={t} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[14px] sm:py-3.5 sm:text-[15px]">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <Check className="size-3.5" strokeWidth={3} />
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

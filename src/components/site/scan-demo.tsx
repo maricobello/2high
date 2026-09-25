@@ -79,7 +79,7 @@ export function ScanDemo() {
 
       {/* Achados */}
       <div className="min-h-[360px] space-y-3">
-        <p className="text-[13px] font-semibold text-cyan">{k < 10 ? "Analisando a fatura…" : "Raio-X pronto"}</p>
+        <p className="text-[13px] font-semibold text-cyan">{k < 10 ? "Lendo a fatura…" : "Pontos encontrados"}</p>
         <AnimatePresence>
           {FINDINGS.filter((f) => k >= f.at).map((f) => (
             <motion.div
@@ -100,7 +100,7 @@ export function ScanDemo() {
         </AnimatePresence>
         {k >= 10 && (
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-1 text-[13px] text-white/70">
-            Cada ponto vira um item do relatório, com a regra e o valor calculados na auditoria.
+            Cada ponto entra no relatório, com a regra aplicada e o valor estimado.
           </motion.p>
         )}
       </div>

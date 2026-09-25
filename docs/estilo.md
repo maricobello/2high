@@ -44,9 +44,9 @@ Tema escuro em todo o site (identidade Aferi: preto esverdeado + verde energia).
 
 ### Topo (hero)
 
-- Fundo `--ink` com cenário em SVG (pôr do sol, torres, placas solares) e traços verdes.
+- Fundo: foto de usina solar e linha de transmissão ao pôr do sol (escurecida à esquerda), com cenário em SVG por baixo como reserva e uma linha verde animada.
 - Esquerda: rótulo "Auditoria e gestão de energia", título, subtítulo, 3 serviços com ícones verdes e 2 botões (só no computador).
-- Direita (abaixo, no celular): **quiz** em card escuro translúcido, borda verde, cantos 28px.
+- Direita (abaixo, no celular): **quiz** em card escuro, borda verde com feixe de luz girando (BorderBeam), cantos 28px.
 - Frase-chave do título em verde.
 - Abaixo do topo: faixa de distribuidoras rolando devagar (Marquee).
 

@@ -27,7 +27,7 @@ async function answerQuiz(page: Page, picks = LONGEST) {
     await expect(group).toBeVisible();
     await group.getByRole("radio").nth(pick).click();
   }
-  await expect(page.getByRole("heading", { name: /merecem? auditoria na sua conta/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /pontos? para revisar na sua conta/ })).toBeVisible();
 }
 
 async function goToContact(page: Page) {

@@ -179,6 +179,23 @@ body {
   .word-in, .rise-in, .draw-line, .float-y, .pulse-ring { animation: none !important; opacity: 1; filter: none; transform: none; stroke-dashoffset: 0; }
 }
 
+/* Border Beam: feixe percorre a borda (offset-path) */
+@keyframes border-beam { to { offset-distance: 100%; } }
+.border-beam { offset-distance: 0%; animation: border-beam 8s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .border-beam { display: none; }
+}
+
+/* Linha de energia do topo: um pulso verde percorre a curva */
+@keyframes energy-run {
+  from { stroke-dashoffset: 1.25; }
+  to { stroke-dashoffset: -0.25; }
+}
+.energy-line { stroke-dasharray: 0.22 1.2; animation: energy-run 5.5s cubic-bezier(0.45, 0, 0.35, 1) infinite; filter: drop-shadow(0 0 6px rgba(62, 224, 102, 0.9)); }
+@media (prefers-reduced-motion: reduce) {
+  .energy-line { animation: none; stroke-dasharray: none; opacity: 0.5; }
+}
+
 /* ---------- Entrada ao rolar (CSS puro, sem JS) ---------- */
 @keyframes reveal-in {
   from { opacity: 0; transform: translateY(12px); filter: blur(4px); }
