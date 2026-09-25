@@ -194,3 +194,21 @@ test("com 'reduzir movimento', o valor aparece direto, sem contagem", async ({ b
   await expect(card(page).getByText("R$ 1.500.000")).toBeVisible({ timeout: 1_000 });
   await context.close();
 });
+
+test("atalho discreto volta ao quiz onde a pessoa parou", async ({ page }) => {
+  await open(page);
+  for (const i of [0, 1]) {
+    const group = page.getByRole("radiogroup", { name: QUESTIONS[i].title });
+    await expect(group).toBeVisible();
+    await group.getByRole("radio").first().click();
+  }
+  await expect(page.getByRole("radiogroup", { name: QUESTIONS[2].title })).toBeVisible();
+  const shortcut = page.getByRole("link", { name: "Continuar diagnóstico · 3/5" }).locator("visible=true");
+  await expect(shortcut).toHaveCount(0);
+
+  await page.locator("#faq").scrollIntoViewIfNeeded();
+  await expect(shortcut).toBeVisible();
+  await shortcut.click();
+  await expect(page.getByRole("radiogroup", { name: QUESTIONS[2].title })).toBeInViewport();
+  await expect(shortcut).toHaveCount(0);
+});
