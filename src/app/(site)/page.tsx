@@ -4,6 +4,7 @@ import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
+import { AudioPitch } from "@/components/site/audio-pitch";
 import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
 import { HeroScene } from "@/components/site/hero-scene";
@@ -138,6 +139,7 @@ export default function HomePage() {
             <p className="rise-in mt-6 hidden max-w-xl text-lg leading-relaxed text-white/80 lg:block" style={{ animationDelay: "0.5s" }}>
               Nós analisamos sua fatura de energia, identificamos oportunidades de economia e estruturamos soluções em GD, Mercado Livre e muito mais.
             </p>
+            <AudioPitch className="rise-in mt-4 self-start lg:mt-6" />
             <ul className="rise-in mt-9 hidden grid-cols-3 lg:grid" style={{ animationDelay: "0.65s" }}>
               {SERVICES.map(({ icon: Icon, title, sub }, i) => (
                 <li key={title} className={i ? "border-l border-white/15 pl-6" : "pr-6"}>

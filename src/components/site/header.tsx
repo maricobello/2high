@@ -38,7 +38,7 @@ export function SiteHeader() {
       <div className={cn("border-b transition-all duration-300", scrolled ? "border-white/10 bg-ink/95 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl" : "border-transparent bg-ink")}>
         <div className={cn("mx-auto flex max-w-7xl items-center justify-between px-4 transition-[height] duration-300 sm:px-6 lg:px-10", scrolled ? "h-16" : "h-[72px]")}>
           <Link href="/" aria-label={`${brand.name} — início`} className="flex">
-            <Logo className="[&>span>svg:nth-child(2)]:hidden sm:[&>span>svg:nth-child(2)]:block" />
+            <Logo tagline={false} />
           </Link>
           <nav className="hidden items-center gap-9 text-[15px] font-medium text-white/85 md:flex">
             {NAV.map((n) => (
