@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 
 const NAV = [
-  { href: "/#verificacao", label: "O que verificamos" },
+  { href: "/#raio-x", label: "Raio-X" },
   { href: "/#como-funciona", label: "Como funciona" },
   { href: "/#faq", label: "Perguntas" },
 ];

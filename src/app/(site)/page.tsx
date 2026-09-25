@@ -6,7 +6,7 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { Marquee } from "@/components/magicui/marquee";
 import { HeroHeadline } from "@/components/site/hero-headline";
-import { ReportPreview } from "@/components/site/report-preview";
+import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
@@ -78,20 +78,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= O QUE VERIFICAMOS (prévia do relatório) ================= */}
-      <section id="verificacao" className="scroll-mt-16 bg-background py-20 sm:py-28">
-        <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-16">
-          <BlurFade>
-            <Eyebrow>O que verificamos</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Cada fatura, conferida item por item</h2>
-            <p className="mt-5 max-w-md text-lg leading-relaxed text-muted">Este é o relatório que você recebe antes de qualquer contrato.</p>
-            <Link href="#analisar" className={`${cta} mt-8`}>
-              Fazer diagnóstico {arrow}
+      {/* ================= RAIO-X (demonstração animada) ================= */}
+      <section id="raio-x" className="relative scroll-mt-16 overflow-hidden border-t border-white/5 bg-ink py-20 text-white sm:py-24">
+        <div className="glow absolute inset-0 opacity-80" />
+        <DotPattern className="[mask-image:radial-gradient(600px_circle_at_20%_50%,white,transparent)]" />
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <BlurFade className="mb-12 max-w-2xl">
+            <Eyebrow className="text-cyan">Veja acontecendo</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A fatura entra. O Raio-X sai. Em até 1 minuto.</h2>
+          </BlurFade>
+          <ScanDemo />
+          <div className="mt-12 flex flex-wrap items-center gap-4">
+            <Link href="#analisar" className={ctaLight}>
+              Quero o Raio-X da minha fatura {arrow}
             </Link>
-          </BlurFade>
-          <BlurFade delay={0.1}>
-            <ReportPreview />
-          </BlurFade>
+            <span className="text-sm text-white/70">Sem custo · relatório antes de qualquer contrato</span>
+          </div>
         </div>
       </section>
 
