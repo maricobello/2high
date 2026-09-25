@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
@@ -6,13 +6,57 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { Marquee } from "@/components/magicui/marquee";
 import { HeroHeadline } from "@/components/site/hero-headline";
-import { ReportPreview } from "@/components/site/report-preview";
+import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
+import { brand } from "@/lib/brand";
 import { DISTRIBUTORS } from "@/modules/invoice/distributors";
 
 const DISTRIBUTOR_NAMES = [...new Set(DISTRIBUTORS.filter((d) => d.states.length).map((d) => d.name))];
+
+/** Manchetes reais (título exato e link). Contexto do setor, não endosso. */
+const NEWS = [
+  {
+    outlet: "CNN Brasil",
+    title: "Contas de luz vão subir até o triplo do IPCA em 2026",
+    fact: "Reajustes de até 13,12% em algumas distribuidoras.",
+    href: "https://www.cnnbrasil.com.br/economia/macroeconomia/contas-de-luz-vao-subir-ate-o-triplo-do-ipca-em-2026/",
+  },
+  {
+    outlet: "CNN Brasil",
+    title: "Aneel aprova reajuste médio de 6,50% nas tarifas da Cemig-D",
+    fact: "Para a alta tensão (empresas e indústria), a alta média foi de 9,43%.",
+    href: "https://www.cnnbrasil.com.br/infra/aneel-aprova-reajuste-medio-de-650-nas-tarifas-da-cemig-d/",
+  },
+  {
+    outlet: "Exame",
+    title: "Aneel prevê aumento de 8,6% na conta de luz em 2026, acima da inflação",
+    fact: "Projeção da ANEEL para a alta média das tarifas no ano.",
+    href: "https://exame.com/economia/aneel-preve-aumento-de-86-na-conta-de-luz-em-2026-acima-da-inflacao/",
+  },
+  {
+    outlet: "Agência Brasil",
+    title: "Conta de luz fica 10% mais cara em São Paulo",
+    fact: "Reajuste médio de 10,18% na área da Enel São Paulo.",
+    href: "https://agenciabrasil.ebc.com.br/economia/noticia/2026-07/conta-de-luz-fica-10-mais-cara-em-sao-paulo",
+  },
+];
+
+const STATS = [
+  {
+    value: "12,31%",
+    label: "foi a alta da energia elétrica residencial em 2025, contra 4,26% da inflação (IPCA).",
+    source: "IBGE",
+    href: "https://agenciadenoticias.ibge.gov.br/agencia-noticias/2012-agencia-de-noticias/noticias/45613-ipca-em-dezembro-vai-a-0-33-e-acumula-4-26-em-2025",
+  },
+  {
+    value: "8,6%",
+    label: "é a alta média das tarifas prevista pela ANEEL para 2026.",
+    source: "CNN Brasil",
+    href: "https://www.cnnbrasil.com.br/infra/conta-de-luz-deve-subir-86-em-2026-diz-aneel/",
+  },
+];
 
 const STEPS = [
   { title: "Auditoria", text: "Lemos as faturas e mostramos o relatório antes do contrato." },
@@ -78,20 +122,69 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= O QUE VERIFICAMOS (prévia do relatório) ================= */}
-      <section id="verificacao" className="scroll-mt-16 bg-background py-20 sm:py-28">
-        <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:gap-16">
-          <BlurFade>
-            <Eyebrow>O que verificamos</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Cada fatura, conferida item por item</h2>
-            <p className="mt-5 max-w-md text-lg leading-relaxed text-muted">Este é o relatório que você recebe antes de qualquer contrato.</p>
-            <Link href="#analisar" className={`${cta} mt-8`}>
-              Fazer diagnóstico {arrow}
+      {/* ================= NA IMPRENSA (contexto: a conta sobe) ================= */}
+      <section id="imprensa" className="scroll-mt-16 bg-background py-20 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <BlurFade className="max-w-2xl">
+            <Eyebrow>Na imprensa</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A conta de luz sobe acima da inflação</h2>
+          </BlurFade>
+
+          <BlurFade delay={0.05}>
+            <dl className="mt-10 grid gap-4 sm:grid-cols-2">
+              {STATS.map((st) => (
+                <div key={st.label} className="rounded-3xl bg-ink px-6 py-6 text-white">
+                  <dd className="text-5xl font-bold tracking-[-0.03em] text-volt tabular">{st.value}</dd>
+                  <dt className="mt-2 text-[15px] leading-snug text-white/80">
+                    {st.label}{" "}
+                    <a href={st.href} target="_blank" rel="noopener noreferrer" className="text-white/55 underline-offset-2 hover:text-white hover:underline">
+                      Fonte: {st.source}
+                    </a>
+                  </dt>
+                </div>
+              ))}
+            </dl>
+          </BlurFade>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {NEWS.map((n, i) => (
+              <BlurFade key={n.href} delay={0.05 * i}>
+                <a
+                  href={n.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex h-full flex-col rounded-3xl border border-border bg-white p-6 transition-shadow hover:shadow-[0_20px_50px_-30px_rgba(7,11,22,0.35)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                >
+                  <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">{n.outlet}</p>
+                  <p className="mt-2 text-lg font-bold leading-snug tracking-tight">“{n.title}”</p>
+                  <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{n.fact}</p>
+                  <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[14px] font-semibold text-primary">
+                    Ler reportagem <ArrowUpRight className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                  </span>
+                </a>
+              </BlurFade>
+            ))}
+          </div>
+          <p className="mt-5 text-xs text-muted">Reportagens de terceiros sobre o setor elétrico. Os veículos citados não têm relação com a {brand.name}.</p>
+        </div>
+      </section>
+
+      {/* ================= RAIO-X (demonstração animada) ================= */}
+      <section id="raio-x" className="relative scroll-mt-16 overflow-hidden border-t border-white/5 bg-ink py-20 text-white sm:py-24">
+        <div className="glow absolute inset-0 opacity-80" />
+        <DotPattern className="[mask-image:radial-gradient(600px_circle_at_20%_50%,white,transparent)]" />
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <BlurFade className="mb-12 max-w-2xl">
+            <Eyebrow className="text-cyan">Veja acontecendo</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A fatura entra. O Raio-X sai. Em até 1 minuto.</h2>
+          </BlurFade>
+          <ScanDemo />
+          <div className="mt-12 flex flex-wrap items-center gap-4">
+            <Link href="#analisar" className={ctaLight}>
+              Quero o Raio-X da minha fatura {arrow}
             </Link>
-          </BlurFade>
-          <BlurFade delay={0.1}>
-            <ReportPreview />
-          </BlurFade>
+            <span className="text-sm text-white/70">Sem custo · relatório antes de qualquer contrato</span>
+          </div>
         </div>
       </section>
 
