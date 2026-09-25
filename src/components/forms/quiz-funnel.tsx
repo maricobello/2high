@@ -202,7 +202,7 @@ export function QuizFunnel() {
       role="region"
       aria-label="Diagnóstico em 5 perguntas"
       className={cn(
-        "relative scroll-mt-20 self-center overflow-hidden rounded-[28px] border border-primary/40 bg-card/90 p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9),0_0_60px_-20px_rgba(62,224,102,0.35)] transition-shadow duration-500 sm:p-7",
+        "relative scroll-mt-20 self-center overflow-hidden rounded-[28px] border border-primary/40 bg-card/80 p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9),0_0_60px_-20px_rgba(62,224,102,0.35)] transition-shadow duration-500 sm:p-7",
         highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(62,224,102,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
       )}
     >
