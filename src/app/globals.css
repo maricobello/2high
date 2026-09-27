@@ -68,6 +68,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Listas nativas (UF, selects): opções no tema escuro, legíveis em qualquer sistema */
+select { color-scheme: dark; }
+select option,
+select optgroup { background-color: var(--card); color: var(--foreground); }
+select option:checked { background-color: var(--primary); color: var(--primary-foreground); }
+
 .tabular {
   font-variant-numeric: tabular-nums;
 }

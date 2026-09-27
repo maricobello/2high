@@ -17,7 +17,7 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
       ref={ref}
       className={cn(
         base,
-        "h-11 appearance-none bg-[url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235b6478' stroke-width='2.5'><path d='m6 9 6 6 6-6'/></svg>\")] bg-[length:12px] bg-[right_14px_center] bg-no-repeat pr-9",
+        "h-11 appearance-none bg-[url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ba7a0' stroke-width='2.5'><path d='m6 9 6 6 6-6'/></svg>\")] bg-[length:12px] bg-[right_14px_center] bg-no-repeat pr-9",
         invalid ? "border-attention" : "border-border",
         className,
       )}

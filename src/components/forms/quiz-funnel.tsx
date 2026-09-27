@@ -292,7 +292,7 @@ export function QuizFunnel() {
                 <NumberTicker value={result.auditableVolume} prefix="R$ " />
               </p>
               <p className="mt-2 border-t border-white/10 pt-2 text-[13px] leading-snug text-white/80">
-                O que foi cobrado errado pode voltar <strong className="font-semibold text-white">em dobro</strong> (CDC, art. 42), pedido direto à distribuidora.
+                O que foi cobrado errado pode voltar <strong className="font-semibold text-white">em dobro</strong> (CDC, art. 42), pedido pela via administrativa.
               </p>
               {result.icmsEmbedded !== null && (
                 <p className="mt-1.5 text-[12.5px] leading-snug text-white/80">

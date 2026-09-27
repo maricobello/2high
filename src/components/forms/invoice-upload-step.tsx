@@ -193,7 +193,7 @@ export function InvoiceUploadStep({ token, onUploaded, compact, initialBillRange
             <Loader2 className="size-4 animate-spin" /> Enviando com segurança…
           </>
         ) : (
-          "Gerar meu Raio-X"
+          "Concluir meu diagnóstico"
         )}
       </button>
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted">

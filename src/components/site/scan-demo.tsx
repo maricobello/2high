@@ -75,6 +75,7 @@ export function ScanDemo() {
         {!reduce && inView && k < 10 && (
           <div className="pointer-events-none absolute inset-x-0 h-10 bg-gradient-to-b from-transparent via-[#3ee066]/40 to-transparent" style={{ animation: "scan-y 5.6s linear infinite", top: 0 }} />
         )}
+        <p className="mt-3 px-2 text-[11px] leading-snug text-[#4a5367]">Fator de potência baixo indica consumo de energia reativa, que pode gerar cobrança extra.</p>
         <span className="absolute -right-2 -top-3 rounded-full bg-ink px-2.5 py-1 text-[10px] font-semibold text-white shadow-lg">Exemplo fictício</span>
       </div>
 
@@ -101,7 +102,7 @@ export function ScanDemo() {
         </AnimatePresence>
         {k >= 10 && (
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-1 text-[13px] text-white/70">
-            Cada ponto entra no relatório, com a regra aplicada e o valor estimado.
+            Cada ponto entra no relatório, com a regra aplicada e uma estimativa de valor.
           </motion.p>
         )}
       </div>

@@ -87,7 +87,7 @@ test.describe("funil do hero", () => {
     await expect(result.getByText("Pago nas últimas 60 faturas (estimativa)")).toBeVisible();
     // R$ 25 mil (ponto médio da faixa) × 60 faturas
     await expect(result.getByText("R$ 1.500.000")).toBeVisible({ timeout: 10_000 });
-    await expect(result.getByText(/pode voltar em dobro \(CDC, art\. 42\), pedido direto à distribuidora/)).toBeVisible();
+    await expect(result.getByText(/pode voltar em dobro \(CDC, art\. 42\), pedido pela via administrativa/)).toBeVisible();
     await expect(result.getByText("+ 2 no relatório completo")).toBeVisible();
     // o resultado entra na tela; o botão principal também, exceto em telas muito baixas (360×640)
     await expect(result.getByText("R$ 1.500.000")).toBeInViewport();
@@ -155,7 +155,7 @@ test.describe("tamanho do card no hero", () => {
     await expectCardFits(page, { fitsViewport });
     await fillContact(page);
     await page.getByRole("button", { name: "Reservar meu diagnóstico" }).click();
-    await expect(page.getByRole("button", { name: "Gerar meu Raio-X" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Concluir meu diagnóstico" })).toBeVisible();
     await expectCardFits(page, { fitsViewport });
   });
 });
