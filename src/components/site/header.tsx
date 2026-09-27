@@ -49,7 +49,7 @@ export function SiteHeader() {
           </nav>
           <Link
             href="/#analisar"
-            className="group inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-[12px] font-bold uppercase tracking-[0.08em] text-primary-foreground shadow-[0_0_24px_-6px_rgba(62,224,102,0.6)] transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 sm:h-11 sm:px-6 sm:text-[13px]"
+            className="group inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-[12px] font-bold uppercase tracking-[0.08em] text-primary-foreground shadow-[0_0_24px_-6px_rgb(var(--primary-rgb)/0.6)] transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 sm:h-11 sm:px-6 sm:text-[13px]"
           >
             Fazer diagnóstico <ArrowRight className="hidden size-4 transition-transform group-hover:translate-x-0.5 sm:block" />
           </Link>

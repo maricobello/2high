@@ -87,12 +87,12 @@ export function HeroScene() {
         </g>
         {/* brilho do sol refletido nas placas */}
         <ellipse cx="1380" cy="700" rx="240" ry="50" fill="#f59e3b" opacity="0.12" />
-        <line x1="820" y1="640" x2="560" y2="900" stroke="#3ee066" strokeWidth="8" opacity="0.15" />
-        <line x1="820" y1="640" x2="560" y2="900" stroke="#3ee066" strokeWidth="2" opacity="0.85" />
+        <line x1="820" y1="640" x2="560" y2="900" className="stroke-primary" strokeWidth="8" opacity="0.15" />
+        <line x1="820" y1="640" x2="560" y2="900" className="stroke-primary" strokeWidth="2" opacity="0.85" />
 
 
         {/* traços verdes da marca */}
-        <g stroke="#3ee066" fill="none">
+        <g className="stroke-primary" fill="none">
           <path d="M-40 640 L260 940" strokeWidth="7" opacity="0.12" />
           <path d="M-40 640 L260 940" strokeWidth="1.6" opacity="0.7" />
           <path d="M-40 720 L180 940" strokeWidth="1" opacity="0.4" />
@@ -104,11 +104,11 @@ export function HeroScene() {
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent" />
       {/* linha verde animada (curva de energia) */}
       <svg viewBox="0 0 1600 900" preserveAspectRatio="xMaxYMid slice" className="absolute inset-0 h-full w-full">
-        <path d="M-40 860 C 420 820, 700 640, 980 470 S 1420 150, 1680 60" fill="none" stroke="#3ee066" strokeOpacity="0.18" strokeWidth="1.5" />
-        <path d="M-40 860 C 420 820, 700 640, 980 470 S 1420 150, 1680 60" fill="none" stroke="#3ee066" strokeWidth="2.5" strokeLinecap="round" pathLength={1} className="energy-line" />
+        <path d="M-40 860 C 420 820, 700 640, 980 470 S 1420 150, 1680 60" fill="none" className="stroke-primary" strokeOpacity="0.18" strokeWidth="1.5" />
+        <path d="M-40 860 C 420 820, 700 640, 980 470 S 1420 150, 1680 60" fill="none" strokeWidth="2.5" strokeLinecap="round" pathLength={1} className="energy-line stroke-primary" />
       </svg>
       {/* brilho verde suave atrás do quiz */}
-      <div className="absolute inset-0 bg-[radial-gradient(700px_circle_at_78%_40%,rgba(62,224,102,0.10),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(700px_circle_at_78%_40%,rgb(var(--primary-rgb)/0.10),transparent_70%)]" />
     </div>
   );
 }

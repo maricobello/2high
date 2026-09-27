@@ -5,32 +5,36 @@
  * Tema escuro: preto esverdeado + verde energia. Laranja e vermelho só para sinais.
  */
 :root {
+  /* TESTE "confiança": paleta original (tinta azul-marinho + azul + amarelo) no design escuro */
   color-scheme: dark;
-  --background: #060a08;
-  --foreground: #eef3f0;
-  --card: #0c1310;
-  /* #9ba7a0 sobre --card ≈ 7.4:1 */
-  --muted: #9ba7a0;
-  --subtle: #121b17;
-  --border: #1f2b26;
-  --ink: #030605;
-  --ink-2: #08100c;
-  --ink-3: #0f1814;
-  --ink-border: #1c2823;
-  --primary: #3ee066;
-  --primary-hover: #6cef8b;
-  --primary-soft: #0f2a1a;
-  --primary-foreground: #03140a;
-  --cyan: #9cf5b2;
+  --background: #060913;
+  --foreground: #f2f4f8;
+  --card: #0d1424;
+  /* #a3adc2 sobre --card ≈ 8:1 */
+  --muted: #a3adc2;
+  --subtle: #121a2d;
+  --border: #1f2940;
+  --ink: #04060c;
+  --ink-2: #0a1020;
+  --ink-3: #121a2d;
+  --ink-border: #1f2940;
+  --primary: #3d5afe;
+  --primary-rgb: 61 90 254;
+  /* azul mais claro para texto: o #3d5afe fica apagado como texto pequeno no escuro */
+  --primary-text: #8da0ff;
+  --primary-hover: #5570ff;
+  --primary-soft: #141f45;
+  --primary-foreground: #ffffff;
+  --cyan: #34d3f0;
   --amber: #f5b53d;
-  /* Destaque: o mesmo verde da marca (≈ 11:1 sobre --ink) */
-  --volt: #3ee066;
+  /* Destaque "volt": amarelo, só sobre fundo escuro */
+  --volt: #ffc83d;
   --attention: #ff7a7a;
   --attention-soft: #2b1315;
   --analysis: #f5a524;
   --analysis-soft: #2a1f0c;
-  --opportunity: #3ee066;
-  --opportunity-soft: #0f2a1a;
+  --opportunity: #3ecf8e;
+  --opportunity-soft: #0f2a1d;
 }
 
 @theme inline {
@@ -68,6 +72,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Texto em cor de destaque usa --primary-text (contraste garantido sobre o fundo escuro) */
+.text-primary { color: var(--primary-text); }
+
 /* Listas nativas (UF, selects): opções no tema escuro, legíveis em qualquer sistema */
 select { color-scheme: dark; }
 select option,
@@ -86,8 +93,8 @@ select option:checked { background-color: var(--primary); color: var(--primary-f
 }
 
 .glow {
-  background: radial-gradient(600px circle at 70% 10%, rgba(62, 224, 102, 0.35), transparent 60%),
-    radial-gradient(500px circle at 10% 90%, rgba(62, 224, 102, 0.08), transparent 60%);
+  background: radial-gradient(600px circle at 70% 10%, rgb(var(--primary-rgb) / 0.35), transparent 60%),
+    radial-gradient(500px circle at 10% 90%, rgb(var(--primary-rgb) / 0.08), transparent 60%);
 }
 
 @keyframes rise {
@@ -169,17 +176,17 @@ select option:checked { background-color: var(--primary); color: var(--primary-f
 }
 
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(62, 224, 102, 0.55); }
-  100% { box-shadow: 0 0 0 14px rgba(62, 224, 102, 0); }
+  0% { box-shadow: 0 0 0 0 rgb(var(--primary-rgb) / 0.55); }
+  100% { box-shadow: 0 0 0 14px rgb(var(--primary-rgb) / 0); }
 }
 .pulse-ring { animation: pulse-ring 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
 
 /* Slider de valor da conta (hero) */
 .range-energy { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--primary) var(--fill, 30%), var(--border) var(--fill, 30%)); outline: none; }
-.range-energy::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(62, 224, 102, 0.45); cursor: grab; transition: transform 0.15s; }
+.range-energy::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgb(var(--primary-rgb) / 0.45); cursor: grab; transition: transform 0.15s; }
 .range-energy::-webkit-slider-thumb:active { transform: scale(1.12); cursor: grabbing; }
-.range-energy::-moz-range-thumb { width: 16px; height: 16px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgba(62, 224, 102, 0.45); cursor: grab; }
-.range-energy:focus-visible { box-shadow: 0 0 0 4px rgba(62, 224, 102, 0.25); }
+.range-energy::-moz-range-thumb { width: 16px; height: 16px; border-radius: 999px; background: #fff; border: 6px solid var(--primary); box-shadow: 0 4px 14px rgb(var(--primary-rgb) / 0.45); cursor: grab; }
+.range-energy:focus-visible { box-shadow: 0 0 0 4px rgb(var(--primary-rgb) / 0.25); }
 
 @media (prefers-reduced-motion: reduce) {
   .word-in, .rise-in, .draw-line, .float-y, .pulse-ring { animation: none !important; opacity: 1; filter: none; transform: none; stroke-dashoffset: 0; }
@@ -197,7 +204,7 @@ select option:checked { background-color: var(--primary); color: var(--primary-f
   from { stroke-dashoffset: 1.25; }
   to { stroke-dashoffset: -0.25; }
 }
-.energy-line { stroke-dasharray: 0.22 1.2; animation: energy-run 5.5s cubic-bezier(0.45, 0, 0.35, 1) infinite; filter: drop-shadow(0 0 6px rgba(62, 224, 102, 0.9)); }
+.energy-line { stroke-dasharray: 0.22 1.2; animation: energy-run 5.5s cubic-bezier(0.45, 0, 0.35, 1) infinite; filter: drop-shadow(0 0 6px rgb(var(--primary-rgb) / 0.9)); }
 @media (prefers-reduced-motion: reduce) {
   .energy-line { animation: none; stroke-dasharray: none; opacity: 0.5; }
 }

@@ -46,7 +46,7 @@ export function ScanDemo() {
   return (
     <div ref={ref} className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-center">
       {/* Fatura */}
-      <div className="relative mx-auto w-full max-w-md rotate-[-1.5deg] rounded-2xl bg-white p-5 text-[#070b16] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9),0_0_0_1px_rgba(62,224,102,0.25)]">
+      <div className="relative mx-auto w-full max-w-md rotate-[-1.5deg] rounded-2xl bg-white p-5 text-[#070b16] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9),0_0_0_1px_rgb(var(--primary-rgb)/0.25)]">
         <div className="mb-4 flex items-center justify-between border-b border-dashed border-[#dde1ea] pb-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#4a5367]">Conta de energia</p>
@@ -62,7 +62,7 @@ export function ScanDemo() {
                 key={l.label}
                 className={cn(
                   "flex items-center justify-between rounded-md px-2 py-1 text-[13px] transition-colors duration-300",
-                  active && l.hl ? "bg-[#ffc83d]/45 font-semibold" : active ? "bg-[#3ee066]/15" : "",
+                  active && l.hl ? "bg-[#ffc83d]/45 font-semibold" : active ? "bg-primary/15" : "",
                 )}
               >
                 <span className="text-[#4a5367]">{l.label}</span>
@@ -73,7 +73,7 @@ export function ScanDemo() {
         </ul>
         {/* Linha de varredura */}
         {!reduce && inView && k < 10 && (
-          <div className="pointer-events-none absolute inset-x-0 h-10 bg-gradient-to-b from-transparent via-[#3ee066]/40 to-transparent" style={{ animation: "scan-y 5.6s linear infinite", top: 0 }} />
+          <div className="pointer-events-none absolute inset-x-0 h-10 bg-gradient-to-b from-transparent via-primary/40 to-transparent" style={{ animation: "scan-y 5.6s linear infinite", top: 0 }} />
         )}
         <p className="mt-3 px-2 text-[11px] leading-snug text-[#4a5367]">Fator de potência baixo indica consumo de energia reativa, que pode gerar cobrança extra.</p>
         <span className="absolute -right-2 -top-3 rounded-full bg-ink px-2.5 py-1 text-[10px] font-semibold text-white shadow-lg">Exemplo fictício</span>

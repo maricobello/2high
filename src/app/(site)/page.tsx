@@ -114,7 +114,7 @@ const cta =
 /** CTA sobre fundo escuro (mesmo estilo). */
 const ctaLight = cta;
 /** Botões do topo (pílula verde e pílula contornada), como na identidade. */
-const pill = `${cta} h-[52px] px-8 shadow-[0_0_32px_-8px_rgba(62,224,102,0.7)]`;
+const pill = `${cta} h-[52px] px-8 shadow-[0_0_32px_-8px_rgb(var(--primary-rgb)/0.7)]`;
 const pillOutline =
   "inline-flex h-[52px] items-center justify-center rounded-full border border-white/30 px-8 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const arrow = <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />;
@@ -299,12 +299,12 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-ink text-white">
             <div className="glow absolute inset-0 opacity-70" />
-            <BorderBeam size={220} duration={10} colorFrom="#3ee066" colorTo="#9cf5b2" borderWidth={2} />
+            <BorderBeam size={220} duration={10} colorFrom="var(--primary)" colorTo="var(--cyan)" borderWidth={2} />
             <div className="relative grid gap-10 px-6 py-12 sm:px-12 sm:py-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
               <div>
                 <Eyebrow>Diagnóstico sem custo</Eyebrow>
                 <h2 className="mt-4 max-w-2xl text-balance text-[30px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-[44px]">
-                  Se estiver tudo certo, você fica sabendo. Se não estiver, <span className="text-primary">pedimos de volta.</span>
+                  Se estiver tudo certo, você fica sabendo. Se não estiver, <span className="text-volt">pedimos de volta.</span>
                 </h2>
                 <p className="mt-5 max-w-lg text-lg text-white/80">Cinco perguntas agora. A fatura pode ficar para depois.</p>
                 <Link href="#analisar" className={`${pill} mt-8`}>

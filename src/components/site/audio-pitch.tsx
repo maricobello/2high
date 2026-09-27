@@ -62,7 +62,7 @@ export function AudioPitch({ className }: { className?: string }) {
         onClick={toggle}
         aria-label={playing ? "Pausar o áudio do especialista" : `Ouvir o especialista explicar o serviço (${fmt(duration)})`}
         className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_-4px_rgba(62,224,102,0.8)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ink",
+          "flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_-4px_rgb(var(--primary-rgb)/0.8)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ink",
           !started && "pulse-ring",
         )}
       >

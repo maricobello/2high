@@ -13,7 +13,7 @@ export function HeroHeadline() {
         // a pergunta-chave ocupa a própria linha (display: block), sem linha vazia antes
         <span key={i} className="word-in" style={{ animationDelay: `${0.06 * i}s`, ...(w === KEY ? { display: "block", width: "fit-content" } : null) }}>
           {w === KEY ? (
-            <span className="relative inline-block text-primary">
+            <span className="relative inline-block text-volt">
               {w}
               <svg aria-hidden viewBox="0 0 200 18" preserveAspectRatio="none" className="absolute -bottom-2 left-0 h-3 w-full sm:-bottom-3 sm:h-4">
                 <path d="M3 13 C 55 3, 120 3, 197 11" pathLength={1} className="draw-line" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
