@@ -31,7 +31,7 @@ export const FAQ: { q: string; a: string; home?: boolean }[] = [
   },
   {
     q: "Como funciona a devolução?",
-    a: "Pedimos à distribuidora, pela via administrativa, a devolução do que foi cobrado indevidamente. Quando o erro é da distribuidora, a regra da ANEEL prevê devolução em dobro, com correção (REN 1.000/2021). O resultado depende de comprovação.",
+    a: "Pedimos à distribuidora, pela via administrativa, a devolução do que foi cobrado indevidamente. Quando o erro é da distribuidora, a regra da ANEEL (REN 1.000/2021) prevê devolução em dobro, com juros e correção monetária. O resultado depende de comprovação.",
   },
   {
     q: "O que é o laudo de ICMS?",

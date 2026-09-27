@@ -137,7 +137,7 @@ export default function HomePage() {
               Analisamos sua fatura e pedimos de volta o que foi cobrado errado. <span className="font-medium text-primary">Sem custo.</span>
             </p>
             <p className="rise-in mt-6 hidden max-w-xl text-lg leading-relaxed text-white/80 lg:block" style={{ animationDelay: "0.5s" }}>
-              Nós analisamos sua fatura de energia, identificamos oportunidades de economia e estruturamos soluções em GD, Mercado Livre e muito mais.
+              Analisamos sua fatura e pedimos de volta o que foi cobrado errado. <span className="font-medium text-primary">Sem custo.</span>
             </p>
             <AudioPitch className="rise-in mt-4 self-start lg:mt-6" />
             <ul className="rise-in mt-9 hidden grid-cols-3 lg:grid" style={{ animationDelay: "0.65s" }}>
@@ -153,7 +153,7 @@ export default function HomePage() {
             </ul>
             <div className="rise-in mt-9 hidden flex-wrap gap-4 lg:flex" style={{ animationDelay: "0.75s" }}>
               <Link href="#analisar" className={pill}>
-                Fazer uma análise gratuita {arrow}
+                Fazer diagnóstico gratuito {arrow}
               </Link>
               <Link href="#como-funciona" className={pillOutline}>
                 Saiba mais
@@ -221,8 +221,8 @@ export default function HomePage() {
         <DotPattern className="[mask-image:radial-gradient(600px_circle_at_20%_50%,white,transparent)]" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="mb-12 max-w-2xl">
-            <Eyebrow className="text-cyan">Exemplo de auditoria</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Envie a fatura e veja o resultado em cerca de 1 minuto</h2>
+            <Eyebrow className="text-cyan">Raio-X da fatura</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Veja o que aparece quando lemos uma fatura</h2>
           </BlurFade>
           <ScanDemo />
           <div className="mt-12 flex flex-wrap items-center gap-4">
@@ -258,7 +258,7 @@ export default function HomePage() {
           <BlurFade>
             <div className="mt-10 flex flex-col gap-5 rounded-3xl border border-primary/25 bg-ink px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
               <p className="text-lg font-semibold tracking-tight sm:text-xl">
-                Diagnóstico e auditoria sem custo. <span className="text-white/65">Remuneração só sobre o valor recuperado. Sem mensalidade.</span>
+                Diagnóstico sem custo. <span className="text-white/65">Remuneração só sobre o valor recuperado. Sem mensalidade.</span>
               </p>
               <Link href="#analisar" className={`${cta} shrink-0`}>
                 Fazer diagnóstico {arrow}
