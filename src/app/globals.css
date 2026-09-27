@@ -226,6 +226,18 @@ select option:checked { background-color: var(--primary); color: var(--primary-f
   .border-beam { display: none; }
 }
 
+/* Fundo animado do bloco final (efeito vídeo) */
+@keyframes energy-grid-move { to { background-position: 0 34px, 0 0; } }
+.energy-grid { animation: energy-grid-move 2.4s linear infinite; }
+@keyframes energy-pulse-run { from { stroke-dashoffset: 1.2; } to { stroke-dashoffset: -0.2; } }
+.energy-pulse { stroke-dasharray: 0.12 1.1; animation: energy-pulse-run 4.8s ease-in-out infinite; filter: drop-shadow(0 0 5px rgb(var(--primary-rgb) / 0.9)); }
+@keyframes energy-breathe { 50% { opacity: 0.45; transform: translate(-50%, -50%) scale(1.12); } }
+.energy-breathe { animation: energy-breathe 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .energy-grid, .energy-pulse, .energy-breathe { animation: none; }
+  .energy-pulse { stroke-dasharray: none; opacity: 0.3; }
+}
+
 /* Linha de energia do topo: um pulso verde percorre a curva */
 @keyframes energy-run {
   from { stroke-dashoffset: 1.25; }

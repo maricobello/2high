@@ -5,6 +5,7 @@ import { QuizFunnel } from "@/components/forms/quiz-funnel";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { AudioPitch } from "@/components/site/audio-pitch";
+import { EnergyBackdrop } from "@/components/site/energy-backdrop";
 import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
 import { HeroScene } from "@/components/site/hero-scene";
@@ -298,7 +299,7 @@ export default function HomePage() {
       <section className="bg-background pb-20 sm:pb-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-ink text-white">
-            <div className="glow absolute inset-0 opacity-70" />
+            <EnergyBackdrop />
             <BorderBeam size={220} duration={10} colorFrom="var(--primary)" colorTo="var(--cyan)" borderWidth={2} />
             <div className="relative grid gap-10 px-6 py-12 sm:px-12 sm:py-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
               <div>
