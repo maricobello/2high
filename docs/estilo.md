@@ -49,8 +49,8 @@ Tema escuro em todo o site, paleta "confiança": azul-marinho + azul + destaque 
 
 ### Topo (hero)
 
-- Fundo: foto de usina solar e linha de transmissão ao pôr do sol (escurecida à esquerda), com cenário em SVG por baixo como reserva e uma linha animada na cor de destaque.
-- Esquerda: rótulo "Auditoria e gestão de energia", título (com sublinhado desenhado à mão em "Alguém confere?"), subtítulo, balão "Escute nosso especialista" (áudio de ~2 min, carrega só no play), 3 serviços com ícones azuis e 2 botões (só no computador).
+- Fundo: foto de usina solar (`public/img/usina-solar.webp`, escurecida e com tom azul-marinho), com cenário em SVG por baixo como reserva e uma linha animada na cor de destaque.
+- Esquerda: rótulo "Auditoria e gestão de energia", título (com sublinhado desenhado à mão em "Alguém confere?"), sem subtítulo, balão "Escute nosso especialista" com foto do especialista (áudio de ~2 min, carrega só no play), 3 serviços com ícones azuis e 2 botões (só no computador).
 - Direita (abaixo, no celular): **quiz** em card escuro translúcido (a foto aparece por trás), borda azul com feixe de luz girando (BorderBeam), cantos 28px.
 - Frase-chave do título em amarelo (`--volt`), com sublinhado desenhado à mão.
 - Abaixo do topo: faixa de distribuidoras rolando devagar (Marquee).

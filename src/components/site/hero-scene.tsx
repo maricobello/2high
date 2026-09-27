@@ -1,7 +1,7 @@
 import Image from "next/image";
 
-/** Foto do topo: usina solar e linha de transmissão ao pôr do sol (gerada no Higgsfield). */
-export const HERO_PHOTO = "https://d8j0ntlcm91z4.cloudfront.net/user_300aA2A2UbIvp6ou5XtUmlVDLTR/hf_20260925_145352_bfe9e274-0a38-452e-884f-1b247bee1f34.png";
+/** Foto do topo: usina solar (arquivo do próprio site, em /public/img). */
+export const HERO_PHOTO = "/img/usina-solar.webp";
 
 /**
  * Cenário do topo: foto de fundo sobre um cenário em SVG (reserva se a foto não carregar),
@@ -98,7 +98,9 @@ export function HeroScene() {
           <path d="M-40 720 L180 940" strokeWidth="1" opacity="0.4" />
         </g>
       </svg>
-      <Image src={HERO_PHOTO} alt="" fill sizes="100vw" quality={70} className="object-cover object-[70%_center]" />
+      <Image src={HERO_PHOTO} alt="" fill preload fetchPriority="high" sizes="100vw" quality={50} className="object-cover object-[60%_center]" />
+      {/* tom azul-marinho sobre a foto (dia nublado) para combinar com o site */}
+      <div className="absolute inset-0 bg-ink/45 mix-blend-multiply" />
       {/* leitura à esquerda e transição para a faixa de baixo */}
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,6,5,0.95)_0%,rgba(3,6,5,0.8)_28%,rgba(3,6,5,0.3)_52%,rgba(3,6,5,0)_75%)] max-lg:bg-[linear-gradient(180deg,rgba(3,6,5,0.85)_0%,rgba(3,6,5,0.55)_45%,rgba(3,6,5,0.75)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent" />
