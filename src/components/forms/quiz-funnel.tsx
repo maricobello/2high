@@ -202,12 +202,12 @@ export function QuizFunnel() {
       role="region"
       aria-label="Diagnóstico em 5 perguntas"
       className={cn(
-        "relative scroll-mt-20 self-center overflow-hidden rounded-[28px] border border-primary/40 bg-card/80 p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9),0_0_60px_-20px_rgba(62,224,102,0.35)] transition-shadow duration-500 sm:p-7",
-        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgba(62,224,102,0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
+        "relative scroll-mt-20 self-center overflow-hidden rounded-[28px] border border-primary/40 bg-card/80 p-5 text-foreground shadow-[0_40px_100px_-30px_rgba(0,0,0,0.9),0_0_60px_-20px_rgb(var(--primary-rgb)/0.35)] transition-shadow duration-500 sm:p-7",
+        highlight && "ring-4 ring-volt shadow-[0_0_0_10px_rgb(var(--primary-rgb)/0.25),0_40px_100px_-30px_rgba(0,0,0,0.8)]",
       )}
     >
       {/* feixe de luz verde percorrendo a borda do card */}
-      <BorderBeam size={160} duration={8} colorFrom="#3ee066" colorTo="#9cf5b2" borderWidth={2} />
+      <BorderBeam size={160} duration={8} colorFrom="var(--primary)" colorTo="var(--cyan)" borderWidth={2} />
 
       {/* Barra de progresso (efeito de progresso dotado: já começa andando) */}
       <div className="flex items-center gap-3">
