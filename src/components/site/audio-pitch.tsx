@@ -1,7 +1,6 @@
 "use client";
 
 import { Pause, Play } from "lucide-react";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +68,6 @@ export function AudioPitch({ className }: { className?: string }) {
       >
         {playing ? <Pause className="size-5" fill="currentColor" /> : <Play className="ml-0.5 size-5" fill="currentColor" />}
       </button>
-      <Image src="/img/especialista.webp" alt="" width={40} height={40} className="-ml-1 size-10 shrink-0 rounded-full object-cover ring-2 ring-primary/50" />
       <span className="min-w-0">
         <span className="block text-[14px] font-semibold leading-tight text-white">Escute nosso especialista</span>
         <span className="mt-1 flex items-center gap-2 text-[12px] leading-none text-white/70">

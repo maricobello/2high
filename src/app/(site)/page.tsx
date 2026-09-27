@@ -1,5 +1,4 @@
 import { ArrowRight, ArrowUpRight, Check, Search, SolarPanel, Zap } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { OpenChatButton } from "@/components/chat/open-chat-button";
 import { QuizFunnel } from "@/components/forms/quiz-funnel";
@@ -135,7 +134,13 @@ export default function HomePage() {
               Auditoria e gestão de energia
             </p>
             <HeroHeadline />
-            <AudioPitch className="rise-in mt-7 self-start lg:mt-9" />
+            <p className="rise-in mt-5 max-w-xl text-base leading-relaxed text-white/80 lg:hidden" style={{ animationDelay: "0.5s" }}>
+              Analisamos sua fatura e pedimos de volta o que foi cobrado errado. <span className="font-medium text-primary">Sem custo.</span>
+            </p>
+            <p className="rise-in mt-6 hidden max-w-xl text-lg leading-relaxed text-white/80 lg:block" style={{ animationDelay: "0.5s" }}>
+              Analisamos sua fatura e pedimos de volta o que foi cobrado errado. <span className="font-medium text-primary">Sem custo.</span>
+            </p>
+            <AudioPitch className="rise-in mt-4 self-start lg:mt-6" />
             <ul className="rise-in mt-9 hidden grid-cols-3 lg:grid" style={{ animationDelay: "0.65s" }}>
               {SERVICES.map(({ icon: Icon, title, sub }, i) => (
                 <li key={title} className={i ? "border-l border-white/15 pl-6" : "pr-6"}>
@@ -233,19 +238,10 @@ export default function HomePage() {
       {/* ================= COMO FUNCIONA ================= */}
       <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-card py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-end">
           <BlurFade className="max-w-2xl">
             <Eyebrow>Como funciona</Eyebrow>
             <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Como pedimos a devolução à distribuidora</h2>
           </BlurFade>
-            <BlurFade delay={0.1}>
-              <div className="relative h-44 overflow-hidden rounded-3xl border border-primary/25 sm:h-56">
-                <Image src="/img/instalacao.webp" alt="Técnico instalando a estrutura de uma usina solar" fill sizes="(min-width: 1024px) 480px, 100vw" className="object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
-                <p className="absolute bottom-3 left-4 font-mono text-[11px] uppercase tracking-[0.2em] text-white/85">Profissionais do setor elétrico</p>
-              </div>
-            </BlurFade>
-          </div>
 
           <ol className="relative mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
             <span aria-hidden className="absolute left-5 right-5 top-5 hidden h-px bg-border md:block" />
