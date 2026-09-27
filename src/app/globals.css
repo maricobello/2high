@@ -5,7 +5,7 @@
  * Tema escuro: preto esverdeado + verde energia. Laranja e vermelho só para sinais.
  */
 :root {
-  /* TESTE "confiança": paleta original (tinta azul-marinho + azul + amarelo) no design escuro */
+  /* Paleta "confiança" (padrão): azul-marinho + azul + destaque amarelo */
   color-scheme: dark;
   --background: #060913;
   --foreground: #f2f4f8;
@@ -35,6 +35,33 @@
   --analysis-soft: #2a1f0c;
   --opportunity: #3ecf8e;
   --opportunity-soft: #0f2a1d;
+}
+
+/*
+ * Estilo guardado: "verde energia" (preto esverdeado + verde #3ee066).
+ * Para usar, basta <html data-theme="verde"> em src/app/layout.tsx.
+ */
+:root[data-theme="verde"] {
+  --background: #060a08;
+  --foreground: #eef3f0;
+  --card: #0c1310;
+  --muted: #9ba7a0;
+  --subtle: #121b17;
+  --border: #1f2b26;
+  --ink: #030605;
+  --ink-2: #08100c;
+  --ink-3: #0f1814;
+  --ink-border: #1c2823;
+  --primary: #3ee066;
+  --primary-rgb: 62 224 102;
+  --primary-text: #3ee066;
+  --primary-hover: #6cef8b;
+  --primary-soft: #0f2a1a;
+  --primary-foreground: #03140a;
+  --cyan: #9cf5b2;
+  --volt: #3ee066;
+  --opportunity: #3ee066;
+  --opportunity-soft: #0f2a1a;
 }
 
 @theme inline {

@@ -14,26 +14,31 @@ página, siga este guia e **mude uma coisa por vez**.
 
 ### Cores
 
-Tema escuro em todo o site (identidade Aferi: preto esverdeado + verde energia).
+Tema escuro em todo o site, paleta "confiança": azul-marinho + azul + destaque amarelo.
 
 | Uso | Token | Valor |
 |---|---|---|
-| Fundo do topo e destaques | `--ink` | `#030605` |
-| Fundo das seções | `--background` | `#060a08` |
-| Cards | `--card` | `#0c1310` |
-| Texto principal | `--foreground` | `#eef3f0` |
-| Texto secundário | `--muted` | `#9ba7a0` |
-| Botões, links e destaque | `--primary` | `#3ee066` |
-| Texto sobre o verde | `--primary-foreground` | `#03140a` |
+| Fundo do topo e destaques | `--ink` | `#04060c` |
+| Fundo das seções | `--background` | `#060913` |
+| Cards | `--card` | `#0d1424` |
+| Texto principal | `--foreground` | `#f2f4f8` |
+| Texto secundário | `--muted` | `#a3adc2` |
+| Botões, bordas e barras | `--primary` | `#3d5afe` |
+| Texto sobre o azul | `--primary-foreground` | `#ffffff` |
+| Links e rótulos (texto azul) | `--primary-text` | `#8da0ff` |
+| Frase de destaque | `--volt` | `#ffc83d` |
 
-- Botão principal: pílula verde, texto escuro, caixa-alta com espaçamento.
-- O verde destaca **uma** frase por bloco (ex.: "Alguém confere?").
-- Laranja e vermelho só para sinais (análise, atenção).
+- Botão principal: pílula azul, texto branco, caixa-alta com espaçamento.
+- O amarelo destaca **uma** frase por bloco (ex.: "Alguém confere?").
+- Verde só para sinais positivos (oportunidade) e para o raio da logo; laranja e vermelho só para sinais (análise, atenção).
+- Nunca usar cor fixa no código: tudo sai dos tokens em `src/app/globals.css`.
+
+**Estilo guardado "verde energia":** preto esverdeado + verde `#3ee066`, pronto em `globals.css` (`:root[data-theme="verde"]`). Para voltar a ele, basta `data-theme="verde"` na tag `<html>` em `src/app/layout.tsx`.
 
 ### Marca
 
 - Logo: "A" em chevron com raio verde + "ΛFERI" + "Gestão inteligente de energia" (`src/components/site/logo.tsx`; favicon em `src/app/icon.svg`).
-- Rótulos (eyebrows): fonte mono, caixa-alta, espaçamento largo, em verde, com traço à esquerda.
+- Rótulos (eyebrows): fonte mono, caixa-alta, espaçamento largo, em azul claro (`--primary-text`), com traço à esquerda.
 
 ### Tipografia
 
@@ -44,17 +49,17 @@ Tema escuro em todo o site (identidade Aferi: preto esverdeado + verde energia).
 
 ### Topo (hero)
 
-- Fundo: foto de usina solar e linha de transmissão ao pôr do sol (escurecida à esquerda), com cenário em SVG por baixo como reserva e uma linha verde animada.
-- Esquerda: rótulo "Auditoria e gestão de energia", título (com sublinhado desenhado à mão em "Alguém confere?"), subtítulo, balão "Escute nosso especialista" (áudio de ~2 min, carrega só no play), 3 serviços com ícones verdes e 2 botões (só no computador).
-- Direita (abaixo, no celular): **quiz** em card escuro translúcido (a foto aparece por trás), borda verde com feixe de luz girando (BorderBeam), cantos 28px.
-- Frase-chave do título em verde.
+- Fundo: foto de usina solar e linha de transmissão ao pôr do sol (escurecida à esquerda), com cenário em SVG por baixo como reserva e uma linha animada na cor de destaque.
+- Esquerda: rótulo "Auditoria e gestão de energia", título (com sublinhado desenhado à mão em "Alguém confere?"), subtítulo, balão "Escute nosso especialista" (áudio de ~2 min, carrega só no play), 3 serviços com ícones azuis e 2 botões (só no computador).
+- Direita (abaixo, no celular): **quiz** em card escuro translúcido (a foto aparece por trás), borda azul com feixe de luz girando (BorderBeam), cantos 28px.
+- Frase-chave do título em amarelo (`--volt`), com sublinhado desenhado à mão.
 - Abaixo do topo: faixa de distribuidoras rolando devagar (Marquee).
 
 ### Componentes
 
-- **Card:** `--card`, borda fina `--border` (ou verde a 25–40% nos destaques), cantos 16–28px.
-- **Botão principal:** pílula verde `--primary`, texto `--primary-foreground`, caixa-alta.
-- **Selos e rótulos pequenos:** mono, caixa-alta, espaçamento largo, em verde, **com moderação**.
+- **Card:** `--card`, borda fina `--border` (ou azul a 25–40% nos destaques), cantos 16–28px.
+- **Botão principal:** pílula azul `--primary`, texto `--primary-foreground`, caixa-alta.
+- **Selos e rótulos pequenos:** mono, caixa-alta, espaçamento largo, em azul claro, **com moderação**.
 - **Seções:** fundos escuros alternando `--ink` e `--background`; uma ideia por seção.
 - **Números:** contam ao aparecer (NumberTicker).
 
