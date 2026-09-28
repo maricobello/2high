@@ -10,6 +10,7 @@ import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
 import { HeroScene } from "@/components/site/hero-scene";
 import { BorderBeam } from "@/components/magicui/border-beam";
+import { RefundExample } from "@/components/site/refund-example";
 import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { Eyebrow } from "@/components/ui/card";
@@ -232,6 +233,30 @@ export default function HomePage() {
             </Link>
             <span className="text-sm text-white/70">5 perguntas, depois a fatura · sem custo</span>
           </div>
+        </div>
+      </section>
+
+      {/* ================= DEVOLUÇÃO (exemplo fictício) ================= */}
+      <section id="devolucao" className="scroll-mt-16 border-t border-border bg-background py-20 sm:py-24">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <BlurFade>
+            <Eyebrow>Devolução em dobro</Eyebrow>
+            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Como fica o valor que volta</h2>
+            <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted">
+              Quando a distribuidora reconhece a cobrança indevida, a diferença volta em dobro, com correção e juros (CDC, art. 42; REN ANEEL 1.000/2021).
+            </p>
+            <ol className="mt-7 space-y-3 text-[15px]">
+              {["Pedimos a revisão à distribuidora, com o cálculo da diferença.", "A distribuidora analisa e confirma o valor cobrado a mais.", "O valor pode ser depositado em conta ou abatido nas próximas faturas."].map((t, i) => (
+                <li key={t} className="flex gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-primary-foreground">{i + 1}</span>
+                  <span className="text-foreground/90">{t}</span>
+                </li>
+              ))}
+            </ol>
+          </BlurFade>
+          <BlurFade delay={0.1}>
+            <RefundExample />
+          </BlurFade>
         </div>
       </section>
 

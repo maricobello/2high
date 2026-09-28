@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils";
 export function NumberTicker({ value, decimalPlaces = 0, className, prefix = "", suffix = "" }: { value: number; decimalPlaces?: number; className?: string; prefix?: string; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const motionValue = useMotionValue(0);
-  const spring = useSpring(motionValue, { damping: 60, stiffness: 100 });
+  // Mola levemente superamortecida (sem passar do valor) e parada proporcional ao número:
+  // conta em ~1 s mesmo para valores grandes (R$ milhões), sem cauda longa.
+  const spring = useSpring(motionValue, { damping: 26, stiffness: 120, restDelta: Math.max(0.01, Math.abs(value) / 2000), restSpeed: Math.max(0.01, Math.abs(value) / 1000) });
   const inView = useInView(ref, { once: true, margin: "0px" });
   const fmt = (n: number) => `${prefix}${Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }).format(n)}${suffix}`;
 
