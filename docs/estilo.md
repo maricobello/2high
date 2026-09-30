@@ -70,6 +70,16 @@ Tema escuro em todo o site, paleta "confiança": azul-marinho + azul + destaque 
 - Blocos: aparecem com leve subida ao rolar a página.
 - Sempre respeitar "reduzir movimento" do sistema.
 
+### Relatório (pós-análise da fatura)
+
+- Página `/diagnostico/[token]` (`src/components/diagnostic/report.tsx`), largura máxima de 1600px, centralizada no ultrawide.
+- Ordem: cabeçalho (título, selo "Preliminar", protocolo, data, "Exportar PDF" e "Compartilhar") → faixa de dados (cliente, perfil, distribuidora, unidade mascarada, período, documento) → resumo com o maior potencial estimado → indicadores e próximos passos → principais achados → histórico de consumo e metodologia → rodapé.
+- No computador (≥1280px) indicadores e próximos passos ficam numa coluna fixa à direita; no celular e tablet vêm logo depois do resumo.
+- Cada achado: número, título, tipo (cor do sinal), dados utilizados, confiança (Alta/Média/Baixa, sem porcentagem inventada) e impacto estimado ("até R$ X" quando a faixa começa em zero).
+- Alternativas (GD, Mercado Livre) não se somam: o destaque mostra a **maior** faixa.
+- **Sem citar IA** em nenhuma página do cliente. O uso da IA fica só no admin (`/admin/ia`).
+- "Exportar PDF" usa a impressão do navegador: papel branco, sem menu, botões ou chamadas.
+
 ## Texto (copy)
 
 - **Título:** uma pergunta que leve o cliente a se avaliar, ou uma promessa clara com condição. Uma frase-chave destacada.

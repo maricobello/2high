@@ -61,7 +61,7 @@ export async function extractInvoiceWithLLM(text: string): Promise<Partial<Invoi
       { role: "system", content: SYSTEM },
       { role: "user", content: `Texto extraído da fatura:\n"""\n${clipped}\n"""` },
     ],
-    { tier: "text", json: true, temperature: 0, maxTokens: 1800 },
+    { tier: "text", json: true, temperature: 0, maxTokens: 1800, task: "leitura_fatura_texto" },
   );
   return parseJsonResponse<Partial<InvoiceData>>(raw);
 }
@@ -80,7 +80,7 @@ export async function extractInvoiceWithVision(dataUrl: string): Promise<Partial
         ],
       },
     ],
-    { tier: "vision", json: true, temperature: 0, maxTokens: 1800 },
+    { tier: "vision", json: true, temperature: 0, maxTokens: 1800, task: "leitura_fatura_imagem" },
   );
   return parseJsonResponse<Partial<InvoiceData>>(raw);
 }

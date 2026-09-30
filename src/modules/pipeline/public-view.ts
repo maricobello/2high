@@ -22,8 +22,16 @@ export interface PublicDiagnostic {
     history: { month: string; kwh: number }[];
     completeness: number | null;
     createdAt: string;
+    /** Dados da fatura para o cabeçalho do relatório (unidade mascarada). */
+    invoice: { consumerUnit: string | null; periodStart: string | null; periodEnd: string | null } | null;
   } | null;
   solutions: SolutionCode[];
+}
+
+/** O link do relatório pode ser encaminhado: mostra só os 4 últimos dígitos da unidade. */
+function maskUnit(unit: string | null): string | null {
+  const digits = unit?.replace(/\D/g, "") ?? "";
+  return digits.length >= 4 ? `•••${digits.slice(-4)}` : null;
 }
 
 export async function getPublicDiagnostic(token: string): Promise<PublicDiagnostic | null> {
@@ -49,6 +57,13 @@ export async function getPublicDiagnostic(token: string): Promise<PublicDiagnost
             history: inv?.extracted?.history ?? [],
             completeness: inv?.validation?.completeness ?? null,
             createdAt: diag.createdAt,
+            invoice: inv?.extracted
+              ? {
+                  consumerUnit: maskUnit(inv.extracted.consumerUnit),
+                  periodStart: inv.extracted.billingPeriodStart,
+                  periodEnd: inv.extracted.billingPeriodEnd,
+                }
+              : null,
           }
         : null,
     solutions: lead.recommendedSolutions,

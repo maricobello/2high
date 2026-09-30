@@ -165,6 +165,23 @@ export interface PrivacyRequestRecord {
   resolvedAt: string | null;
 }
 
+/** Registro de cada chamada ao modelo de IA (painel de uso no admin). */
+export interface AiUsageRecord {
+  id: string;
+  createdAt: string;
+  leadId: string | null;
+  task: string;
+  provider: string;
+  model: string;
+  ok: boolean;
+  latencyMs: number;
+  attempts: number;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  error: string | null;
+}
+
 export interface LeadListFilter {
   stage?: Stage;
   temperature?: Temperature;
@@ -210,6 +227,9 @@ export interface Repository {
   createPrivacyRequest(r: Omit<PrivacyRequestRecord, "id" | "createdAt" | "resolvedAt">): Promise<PrivacyRequestRecord>;
   listPrivacyRequests(): Promise<PrivacyRequestRecord[]>;
   updatePrivacyRequest(id: string, patch: Partial<PrivacyRequestRecord>): Promise<PrivacyRequestRecord>;
+
+  addAiUsage(u: Omit<AiUsageRecord, "id" | "createdAt">): Promise<void>;
+  listAiUsage(sinceIso: string, limit: number): Promise<AiUsageRecord[]>;
 
   listPartners(): Promise<PartnerRecord[]>;
   createPartner(p: Omit<PartnerRecord, "id" | "createdAt">): Promise<PartnerRecord>;

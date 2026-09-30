@@ -93,6 +93,7 @@ export function scoreLead(input: ScoreInput): ScoreResult {
     (s.has("whatsapp_click") ? 3 : 0) +
     (s.has("requested_gd_proposal") ? 3 : 0) +
     (s.has("requested_ml_analysis") ? 3 : 0) +
+    (s.has("requested_full_diagnostic") ? 3 : 0) +
     (s.has("used_gd_simulator") || s.has("used_ml_simulator") ? 1 : 0) +
     (s.has("replied_message") ? 2 : 0) +
     (s.has("positive_reply") ? 3 : 0);

@@ -89,7 +89,7 @@ export async function answer(history: AssistantTurn[], ctx: AssistantContext): P
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const raw = await llm.chat(messages, { tier: "text", json: true, temperature: 0.3, maxTokens: 500 });
+      const raw = await llm.chat(messages, { tier: "text", json: true, temperature: 0.3, maxTokens: 500, task: "assistente_chat" });
       const parsed = parseJsonResponse<{ reply?: string; handoff?: boolean; suggest_upload?: boolean; suggestions?: string[] }>(raw);
       const reply = parsed?.reply?.trim();
       if (!reply) continue;

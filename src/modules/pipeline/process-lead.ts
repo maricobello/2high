@@ -13,6 +13,7 @@ import { runAudit } from "@/modules/rules-engine/engine";
 import { scoreLead } from "@/modules/scoring/score";
 import { storage } from "@/modules/storage";
 import { runPostDiagnosisAutomation } from "@/modules/notifications/automation";
+import { withAiContext } from "@/modules/llm/usage";
 
 /**
  * PIPELINE DE AUDITORIA
@@ -33,7 +34,8 @@ export interface ProcessOptions {
 
 export async function processLead(leadId: string, opts: ProcessOptions = {}): Promise<void> {
   try {
-    await runPipeline(leadId, opts);
+    // chamadas de IA desta análise ficam associadas ao lead no painel de uso
+    await withAiContext(leadId, () => runPipeline(leadId, opts));
   } catch (err) {
     // Nunca deixa o lead preso em "processing": a página do diagnóstico e novos envios dependem disso.
     const message = err instanceof Error ? err.message : String(err);

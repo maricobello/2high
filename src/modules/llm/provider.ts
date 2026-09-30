@@ -1,6 +1,7 @@
 import "server-only";
 import { env } from "@/lib/env";
 import { getSecret } from "@/lib/secrets";
+import { recordAiUsage } from "./usage";
 
 /**
  * Camada de inferência desacoplada. Qualquer provedor compatível com a API
@@ -21,6 +22,8 @@ export interface ChatOptions {
   json?: boolean;
   temperature?: number;
   maxTokens?: number;
+  /** Nome da tarefa para o painel de uso (ex.: "leitura_fatura"). */
+  task?: string;
 }
 
 export interface LLMProvider {
@@ -28,6 +31,8 @@ export interface LLMProvider {
   readonly available: boolean;
   chat(messages: ChatMessage[], opts?: ChatOptions): Promise<string>;
 }
+
+type UsageLike = { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
 
 class OpenAICompatibleProvider implements LLMProvider {
   readonly available = true;
@@ -51,8 +56,15 @@ class OpenAICompatibleProvider implements LLMProvider {
     if (opts.json) body.response_format = { type: "json_object" };
     Object.assign(body, reasoningParams(body.model as string));
 
+    const model = this.models[tier];
+    const started = performance.now();
+    let attempts = 0;
+    const log = (ok: boolean, usage?: UsageLike | null, error?: string) =>
+      recordAiUsage({ task: opts.task ?? "outros", provider: this.name, model, ok, latencyMs: performance.now() - started, attempts, usage, error: error ?? null });
+
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
+      attempts = attempt + 1;
       try {
         const res = await fetch(`${this.baseUrl}/chat/completions`, {
           method: "POST",
@@ -67,9 +79,10 @@ class OpenAICompatibleProvider implements LLMProvider {
           continue;
         }
         if (!res.ok) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 500)}`);
-        const json = (await res.json()) as { choices?: { message?: { content?: string } }[]; usage?: unknown };
+        const json = (await res.json()) as { choices?: { message?: { content?: string } }[]; usage?: UsageLike };
         const content = json.choices?.[0]?.message?.content ?? "";
         if (env.nodeEnv !== "production") console.info(`[llm] ${this.name}/${this.models[tier]} ok`, json.usage ?? "");
+        await log(true, json.usage ?? null);
         return content;
       } catch (err) {
         lastError = err;
@@ -77,7 +90,9 @@ class OpenAICompatibleProvider implements LLMProvider {
         await sleep(600 * 2 ** attempt);
       }
     }
-    throw lastError instanceof Error ? lastError : new Error("Falha no provedor de IA");
+    const failure = lastError instanceof Error ? lastError : new Error("Falha no provedor de IA");
+    await log(false, null, failure.message);
+    throw failure;
   }
 }
 

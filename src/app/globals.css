@@ -103,6 +103,34 @@ body {
 /* Texto em cor de destaque usa --primary-text (contraste garantido sobre o fundo escuro) */
 .text-primary { color: var(--primary-text); }
 
+/* Impressão / "Exportar PDF": papel branco com as mesmas cores de sinal, legível em qualquer impressora */
+@media print {
+  :root,
+  :root[data-theme="verde"] {
+    color-scheme: light;
+    --background: #ffffff;
+    --foreground: #0b1220;
+    --card: #ffffff;
+    --muted: #4a5367;
+    --subtle: #eef1f6;
+    --border: #d5dae3;
+    --ink: #0b1220;
+    --primary: #2f4ae6;
+    --primary-text: #2f4ae6;
+    --primary-soft: #eef1ff;
+    --volt: #b7791f;
+    --opportunity: #137a52;
+    --opportunity-soft: #e7f7ef;
+    --attention: #c62f35;
+    --attention-soft: #fdecec;
+    --analysis: #b45309;
+    --analysis-soft: #fff3e6;
+  }
+  body { background: #fff; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  section, li, footer { break-inside: avoid; }
+}
+
 /* Listas nativas (UF, selects): opções no tema escuro, legíveis em qualquer sistema */
 select { color-scheme: dark; }
 select option,

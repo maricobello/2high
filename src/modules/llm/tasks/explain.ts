@@ -57,7 +57,7 @@ export async function explainAudit(audit: AuditResult, ctx: { company: string | 
         { role: "system", content: SYSTEM },
         { role: "user", content: JSON.stringify(payload) },
       ],
-      { tier: "text", json: true, temperature: 0.3, maxTokens: 1400 },
+      { tier: "text", json: true, temperature: 0.3, maxTokens: 1400, task: "explicacao_relatorio" },
     );
     const parsed = parseJsonResponse<{ summary?: string; findings?: Record<string, string> }>(raw);
     if (!parsed) return fallback;

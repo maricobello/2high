@@ -71,6 +71,7 @@ export const INTENT_SIGNALS = [
   "whatsapp_click",
   "requested_gd_proposal",
   "requested_ml_analysis",
+  "requested_full_diagnostic",
   "used_gd_simulator",
   "used_ml_simulator",
   "replied_message",
