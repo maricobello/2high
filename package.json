@@ -10,6 +10,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "studio": "npm --prefix studio run studio",
+    "studio:render": "npm --prefix studio run render:all",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {

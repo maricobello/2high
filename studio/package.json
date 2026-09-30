@@ -1,0 +1,29 @@
+{
+  "name": "aferi-studio",
+  "private": true,
+  "description": "Estúdio de vídeos e imagens da Aferi (Remotion). Fora do build do site.",
+  "scripts": {
+    "postinstall": "node scripts/copy-fonts.mjs",
+    "studio": "remotion studio",
+    "render:reels": "remotion render Reels out/reels.mp4",
+    "render:feed": "remotion render Feed out/feed.mp4",
+    "render:wide": "remotion render Wide out/wide.mp4",
+    "render:post": "remotion render Post out/post.mp4",
+    "still:post": "remotion still Post out/post.png --frame=149",
+    "still:capa": "remotion still Wide out/capa.png --frame=380",
+    "render:all": "npm run render:reels && npm run render:feed && npm run render:wide && npm run render:post && npm run still:post && npm run still:capa",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.531",
+    "@remotion/fonts": "4.0.531",
+    "geist": "1.7.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.531"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

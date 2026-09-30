@@ -80,6 +80,10 @@ Tema escuro em todo o site, paleta "confiança": azul-marinho + azul + destaque 
 - **Sem citar IA** em nenhuma página do cliente. O uso da IA fica só no admin (`/admin/ia`).
 - "Exportar PDF" usa a impressão do navegador: papel branco, sem menu, botões ou chamadas.
 
+### Vídeos e imagens de divulgação
+
+- Feitos no estúdio `studio/` (Remotion), com as mesmas cores, fonte e logo do site. Como usar: `docs/estudio.md`.
+
 ## Texto (copy)
 
 - **Título:** uma pergunta que leve o cliente a se avaliar, ou uma promessa clara com condição. Uma frase-chave destacada.
