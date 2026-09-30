@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // estúdio de vídeos (Remotion) tem dependências e checagem próprias
+    "studio/**",
   ]),
 ]);
 
