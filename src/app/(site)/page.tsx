@@ -5,6 +5,7 @@ import { QuizFunnel } from "@/components/forms/quiz-funnel";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { DotPattern } from "@/components/magicui/dot-pattern";
 import { AudioPitch } from "@/components/site/audio-pitch";
+import { InvoiceScanIcon, MeterIcon, PowerLineDivider, SolarArrayArt, Sparkline, TowerReturnIcon } from "@/components/site/energy-art";
 import { EnergyBackdrop } from "@/components/site/energy-backdrop";
 import { DistributorStrip } from "@/components/site/distributor-strip";
 import { HeroHeadline } from "@/components/site/hero-headline";
@@ -13,7 +14,6 @@ import { BorderBeam } from "@/components/magicui/border-beam";
 import { RefundExample } from "@/components/site/refund-example";
 import { ScanDemo } from "@/components/site/scan-demo";
 import { StickyCta } from "@/components/site/sticky-cta";
-import { Eyebrow } from "@/components/ui/card";
 import { FAQ } from "@/content/faq";
 import { brand } from "@/lib/brand";
 import { jsonLd, pageMetadata } from "@/lib/seo";
@@ -65,9 +65,9 @@ const STATS = [
 ];
 
 const STEPS = [
-  { title: "Auditoria", text: "Lemos as faturas e mostramos o relatório antes do contrato." },
-  { title: "Devolução", text: "Pedimos a devolução pela via administrativa, em dobro quando o erro é dela (CDC, art. 42)." },
-  { title: "Gestão", text: "Demanda, tarifa e contratos, acompanhados todo mês." },
+  { icon: InvoiceScanIcon, title: "Auditoria", text: "Lemos até 60 faturas. Você vê o relatório antes de qualquer contrato." },
+  { icon: TowerReturnIcon, title: "Devolução", text: "Pedimos à distribuidora, pela via administrativa." },
+  { icon: MeterIcon, title: "Gestão", text: "Demanda, tarifa e contratos acompanhados todo mês." },
 ];
 
 const FAQ_HOME = FAQ.filter((f) => f.home);
@@ -170,19 +170,20 @@ export default function HomePage() {
       </section>
 
       {/* ================= NA IMPRENSA (contexto: a conta sobe) ================= */}
-      <section id="imprensa" className="scroll-mt-16 bg-background py-20 sm:py-24">
+      <section id="imprensa" className="scroll-mt-16 bg-background pt-20 sm:pt-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
-            <Eyebrow>Na imprensa</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A conta de luz está subindo mais que a inflação</h2>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">Com a tarifa mais alta, cada erro de leitura, demanda ou tarifa custa mais. Vale conferir.</p>
+            <h2 className="text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">A conta de luz está subindo mais que a inflação</h2>
           </BlurFade>
 
           <BlurFade delay={0.05}>
             <dl className="mt-10 grid gap-4 sm:grid-cols-2">
               {STATS.map((st) => (
                 <div key={st.label} className="rounded-3xl border border-primary/20 bg-ink px-6 py-6 text-white">
-                  <dd className="text-5xl font-bold tracking-[-0.03em] text-volt tabular">{st.value}</dd>
+                  <dd className="flex items-end justify-between gap-4 text-5xl font-bold tracking-[-0.03em] text-volt tabular">
+                    {st.value}
+                    <Sparkline className="h-10 w-28 shrink-0" />
+                  </dd>
                   <dt className="mt-2 text-[15px] leading-snug text-white/80">
                     {st.label}{" "}
                     <a href={st.href} target="_blank" rel="noopener noreferrer" className="text-white/70 underline underline-offset-2 hover:text-white">
@@ -195,8 +196,8 @@ export default function HomePage() {
           </BlurFade>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {NEWS.map((n, i) => (
-              <BlurFade key={n.href} className={i >= 2 ? "hidden md:block" : undefined}>
+            {NEWS.slice(0, 2).map((n) => (
+              <BlurFade key={n.href}>
                 <a
                   href={n.href}
                   target="_blank"
@@ -205,7 +206,6 @@ export default function HomePage() {
                 >
                   <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">{n.outlet}</p>
                   <p className="mt-2 text-lg font-bold leading-snug tracking-tight">“{n.title}”</p>
-                  <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{n.fact}</p>
                   <span className="mt-auto inline-flex items-center gap-1.5 pt-4 text-[14px] font-semibold text-primary">
                     Ler reportagem <ArrowUpRight className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </span>
@@ -213,8 +213,9 @@ export default function HomePage() {
               </BlurFade>
             ))}
           </div>
-          <p className="mt-5 text-xs text-muted">Reportagens de terceiros sobre o setor elétrico. Os veículos citados não têm relação com a {brand.name}.</p>
+          <p className="mt-5 text-xs text-muted">Reportagens de terceiros. Os veículos não têm relação com a {brand.name}.</p>
         </div>
+        <PowerLineDivider className="mt-14" />
       </section>
 
       {/* ================= RAIO-X (demonstração animada) ================= */}
@@ -223,8 +224,7 @@ export default function HomePage() {
         <DotPattern className="[mask-image:radial-gradient(600px_circle_at_20%_50%,white,transparent)]" />
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="mb-12 max-w-2xl">
-            <Eyebrow className="text-cyan">Raio-X da fatura</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Veja o que aparece quando lemos uma fatura</h2>
+            <h2 className="text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Veja o que aparece quando lemos uma fatura</h2>
           </BlurFade>
           <ScanDemo />
           <div className="mt-12 flex flex-wrap items-center gap-4">
@@ -240,19 +240,10 @@ export default function HomePage() {
       <section id="devolucao" className="scroll-mt-16 border-t border-border bg-background py-20 sm:py-24">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <BlurFade>
-            <Eyebrow>Devolução em dobro</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Como fica o valor que volta</h2>
+            <h2 className="text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Como fica o valor que volta</h2>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted">
-              Quando a distribuidora reconhece a cobrança indevida, a diferença volta em dobro, com correção e juros (CDC, art. 42; REN ANEEL 1.000/2021).
+              Se a distribuidora reconhece o erro, a diferença volta em dobro, com correção e juros (CDC, art. 42). Em conta ou abatida nas próximas faturas.
             </p>
-            <ol className="mt-7 space-y-3 text-[15px]">
-              {["Pedimos a revisão à distribuidora, com o cálculo da diferença.", "A distribuidora analisa e confirma o valor cobrado a mais.", "O valor pode ser depositado em conta ou abatido nas próximas faturas."].map((t, i) => (
-                <li key={t} className="flex gap-3">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[12px] font-bold text-primary-foreground">{i + 1}</span>
-                  <span className="text-foreground/90">{t}</span>
-                </li>
-              ))}
-            </ol>
           </BlurFade>
           <BlurFade delay={0.1}>
             <RefundExample />
@@ -264,16 +255,18 @@ export default function HomePage() {
       <section id="como-funciona" className="scroll-mt-16 border-t border-border bg-card py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <BlurFade className="max-w-2xl">
-            <Eyebrow>Como funciona</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Como pedimos a devolução à distribuidora</h2>
+            <h2 className="text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Do diagnóstico à devolução</h2>
           </BlurFade>
 
           <ol className="relative mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
-            <span aria-hidden className="absolute left-5 right-5 top-5 hidden h-px bg-border md:block" />
+            <span aria-hidden className="absolute left-8 right-8 top-8 hidden h-px bg-border md:block" />
             {STEPS.map((s, i) => (
               <li key={s.title} className="relative">
                 <BlurFade delay={0.08 * i}>
-                  <span className="relative flex size-10 items-center justify-center rounded-full bg-ink text-sm font-bold text-volt ring-8 ring-card border border-primary/40">{i + 1}</span>
+                  <span className="relative flex size-16 items-center justify-center rounded-2xl border border-primary/30 bg-ink text-primary-text ring-8 ring-card">
+                    <s.icon className="size-10" />
+                    <span className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-volt text-[11px] font-bold text-ink">{i + 1}</span>
+                  </span>
                   <h3 className="mt-5 text-xl font-bold tracking-tight">{s.title}</h3>
                   <p className="mt-1.5 max-w-xs text-[15px] leading-relaxed text-muted">{s.text}</p>
                 </BlurFade>
@@ -284,7 +277,7 @@ export default function HomePage() {
           <BlurFade>
             <div className="mt-10 flex flex-col gap-5 rounded-3xl border border-primary/25 bg-ink px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
               <p className="text-lg font-semibold tracking-tight sm:text-xl">
-                Diagnóstico sem custo. <span className="text-white/65">Remuneração só sobre o valor recuperado. Sem mensalidade.</span>
+                Quer saber se a sua conta tem erro? <span className="text-white/65">O diagnóstico é sem custo.</span>
               </p>
               <Link href="#analisar" className={`${cta} shrink-0`}>
                 Fazer diagnóstico {arrow}
@@ -298,11 +291,11 @@ export default function HomePage() {
       <section id="faq" className="scroll-mt-16 border-t border-border bg-background py-20 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
           <div>
-            <Eyebrow>Perguntas frequentes</Eyebrow>
-            <h2 className="mt-3 text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Antes de começar</h2>
+            <h2 className="text-[32px] font-bold leading-[1.08] tracking-[-0.03em] sm:text-5xl">Antes de começar</h2>
             <p className="mt-5 text-[15px] text-muted">
               Outra dúvida? <OpenChatButton className="font-semibold text-primary hover:underline" label="Pergunte ao assistente" />
             </p>
+            <SolarArrayArt className="mt-10 hidden w-full max-w-sm lg:block" />
           </div>
           <div className="space-y-3">
             {FAQ_HOME.map((f) => (
@@ -328,8 +321,7 @@ export default function HomePage() {
             <BorderBeam size={220} duration={10} colorFrom="var(--primary)" colorTo="var(--cyan)" borderWidth={2} />
             <div className="relative grid gap-10 px-6 py-12 sm:px-12 sm:py-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
               <div>
-                <Eyebrow>Diagnóstico sem custo</Eyebrow>
-                <h2 className="mt-4 max-w-2xl text-balance text-[30px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-[44px]">
+                <h2 className="max-w-2xl text-balance text-[30px] font-bold leading-[1.1] tracking-[-0.03em] sm:text-[44px]">
                   Se estiver tudo certo, você fica sabendo. Se não estiver, <span className="text-volt">pedimos de volta.</span>
                 </h2>
                 <p className="mt-5 max-w-lg text-lg text-white/80">Cinco perguntas agora. A fatura pode ficar para depois.</p>
@@ -338,7 +330,7 @@ export default function HomePage() {
                 </Link>
               </div>
               <ul className="grid gap-3 text-[15px] text-white/90">
-                {["Relatório antes de qualquer contrato", "Remuneração só sobre o valor recuperado", "Até 60 faturas revisadas (5 anos)", "Dados tratados conforme a LGPD"].map((t) => (
+                {["Relatório antes de qualquer contrato", "Remuneração só sobre o valor recuperado", "Até 60 faturas revisadas (5 anos)"].map((t) => (
                   <li key={t} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[14px] sm:py-3.5 sm:text-[15px]">
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                       <Check className="size-3.5" strokeWidth={3} />
