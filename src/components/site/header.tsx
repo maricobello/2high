@@ -26,7 +26,7 @@ export function SiteHeader() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40">
+    <header className="sticky top-0 z-40 print:hidden">
       {path === "/" && (
         <div inert={scrolled} className={cn("overflow-hidden border-b border-white/5 bg-ink-2 text-white/80 transition-[max-height] duration-300", scrolled ? "max-h-0" : "max-h-10")}>
           <Link href="/#analisar" className="mx-auto flex h-9 max-w-6xl items-center justify-center gap-2 px-4 text-[13px] font-medium hover:text-white">

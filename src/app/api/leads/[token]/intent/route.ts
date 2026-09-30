@@ -6,9 +6,15 @@ import { notifyAdmins } from "@/modules/notifications/automation";
 
 export const runtime = "nodejs";
 
-const schema = z.object({ signal: z.enum(["requested_gd_proposal", "requested_ml_analysis"]) });
+const schema = z.object({ signal: z.enum(["requested_gd_proposal", "requested_ml_analysis", "requested_full_diagnostic"]) });
 
-/** CTAs do Raio-X ("Quero receber uma proposta" / "Quero uma análise comercial"). */
+const LABELS = {
+  requested_gd_proposal: "proposta de GD por assinatura",
+  requested_ml_analysis: "análise comercial de Mercado Livre",
+  requested_full_diagnostic: "diagnóstico completo",
+} as const;
+
+/** CTAs do relatório (diagnóstico completo, proposta de GD, análise de Mercado Livre). */
 export async function POST(req: Request, ctx: RouteContext<"/api/leads/[token]/intent">) {
   try {
     const { token } = await ctx.params;
@@ -18,7 +24,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/leads/[token]/i
     const already = lead.intentSignals.includes(signal);
     const updated = await addIntentSignal(lead.id, signal);
     if (!already && updated) {
-      const label = signal === "requested_gd_proposal" ? "proposta de GD por assinatura" : "análise comercial de Mercado Livre";
+      const label = LABELS[signal];
       await db().addActivity({ leadId: lead.id, type: "system", channel: "site", content: `Lead solicitou ${label} no Raio-X.`, meta: null, author: "lead" });
       await notifyAdmins(updated, `Lead solicitou ${label} pelo diagnóstico.`);
     }

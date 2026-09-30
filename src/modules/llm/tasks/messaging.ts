@@ -36,7 +36,7 @@ export async function classifyIntent(message: string): Promise<{ intent: Intent;
         },
         { role: "user", content: message.slice(0, 2000) },
       ],
-      { tier: "fast", json: true, temperature: 0, maxTokens: 50 },
+      { tier: "fast", json: true, temperature: 0, maxTokens: 50, task: "classificar_mensagem" },
     );
     const parsed = parseJsonResponse<{ intent?: string }>(raw);
     const intent = INTENTS.find((i) => i === parsed?.intent);
@@ -73,7 +73,7 @@ export async function generateFollowUpMessage(step: number, ctx: FollowUpContext
         },
         { role: "user", content: JSON.stringify(input) },
       ],
-      { tier: "fast", json: true, temperature: 0.5, maxTokens: 300 },
+      { tier: "fast", json: true, temperature: 0.5, maxTokens: 300, task: "mensagem_follow_up" },
     );
     const parsed = parseJsonResponse<{ message?: string }>(raw);
     const text = parsed?.message?.trim();

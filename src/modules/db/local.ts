@@ -5,6 +5,7 @@ import path from "node:path";
 import { samePhone } from "@/modules/leads/phone";
 import type {
   ActivityRecord,
+  AiUsageRecord,
   DiagnosticRecord,
   FollowUpRecord,
   InvoiceRecord,
@@ -31,6 +32,7 @@ interface Store {
   simulations: SimulationRecord[];
   partners: PartnerRecord[];
   privacyRequests: PrivacyRequestRecord[];
+  aiUsage: AiUsageRecord[];
 }
 
 const empty = (): Store => ({
@@ -43,6 +45,7 @@ const empty = (): Store => ({
   simulations: [],
   partners: [],
   privacyRequests: [],
+  aiUsage: [],
 });
 
 export class LocalRepository implements Repository {
@@ -266,6 +269,22 @@ export class LocalRepository implements Repository {
       s.privacyRequests[i] = { ...s.privacyRequests[i], ...patch, id };
       return structuredClone(s.privacyRequests[i]);
     });
+  }
+
+  async addAiUsage(u: Omit<AiUsageRecord, "id" | "createdAt">) {
+    await this.mutate((s) => {
+      s.aiUsage.push({ ...u, id: randomUUID(), createdAt: this.now() });
+      if (s.aiUsage.length > 5000) s.aiUsage.splice(0, s.aiUsage.length - 5000);
+    });
+  }
+  async listAiUsage(sinceIso: string, limit: number) {
+    const s = await this.load();
+    return structuredClone(
+      (s.aiUsage ?? [])
+        .filter((u) => u.createdAt >= sinceIso)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit),
+    );
   }
 
   async listPartners() {

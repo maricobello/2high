@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { nationalNumber, samePhone } from "@/modules/leads/phone";
 import type {
   ActivityRecord,
+  AiUsageRecord,
   DiagnosticRecord,
   FollowUpRecord,
   InvoiceRecord,
@@ -209,6 +210,14 @@ export class PostgresRepository implements Repository {
   }
   updatePrivacyRequest(id: string, patch: Partial<PrivacyRequestRecord>) {
     return this.update<PrivacyRequestRecord>("privacy_requests", id, patch as Record<string, unknown>);
+  }
+
+  /* ---------------- uso da IA ---------------- */
+  async addAiUsage(u: Omit<AiUsageRecord, "id" | "createdAt">) {
+    await this.insert<AiUsageRecord>("ai_usage", u as unknown as Record<string, unknown>);
+  }
+  async listAiUsage(sinceIso: string, limit: number) {
+    return this.many<AiUsageRecord>(await this.sql`select * from ai_usage where created_at >= ${sinceIso} order by created_at desc limit ${limit}`);
   }
 
   /* ---------------- parceiros ---------------- */

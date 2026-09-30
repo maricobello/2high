@@ -1,6 +1,6 @@
 "use client";
 
-import { KanbanSquare, LogOut, PlugZap, Rows3, ShieldCheck, Users } from "lucide-react";
+import { Bot, KanbanSquare, LogOut, PlugZap, Rows3, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/site/logo";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/admin", label: "Pipeline", icon: KanbanSquare, exact: true },
   { href: "/admin/leads", label: "Leads", icon: Rows3 },
+  { href: "/admin/ia", label: "Uso da IA", icon: Bot },
   { href: "/admin/parceiros", label: "Parceiros", icon: Users },
   { href: "/admin/lgpd", label: "LGPD", icon: ShieldCheck },
   { href: "/admin/integracoes", label: "Integrações", icon: PlugZap },
@@ -26,10 +27,10 @@ export function AdminShell({ email, children }: { email: string; children: React
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-white/5 bg-ink text-white">
         <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-4">
-          <Link href="/admin">
+          <Link href="/admin" aria-label="Aferi — painel">
             <Logo className="[&_span]:text-[15px]" />
           </Link>
-          <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {NAV.map(({ href, label, icon: Icon, exact }) => {
               const active = exact ? path === href : path.startsWith(href);
               return (

@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { nationalNumber, samePhone } from "@/modules/leads/phone";
 import type {
   ActivityRecord,
+  AiUsageRecord,
   DiagnosticRecord,
   FollowUpRecord,
   InvoiceRecord,
@@ -183,6 +184,15 @@ export class SupabaseRepository implements Repository {
   }
   updatePrivacyRequest(id: string, patch: Partial<PrivacyRequestRecord>) {
     return this.update<PrivacyRequestRecord>("privacy_requests", id, patch as Record<string, unknown>);
+  }
+
+  async addAiUsage(u: Omit<AiUsageRecord, "id" | "createdAt">) {
+    await this.insert<AiUsageRecord>("ai_usage", u as unknown as Record<string, unknown>);
+  }
+  async listAiUsage(sinceIso: string, limit: number) {
+    const { data, error } = await this.db.from("ai_usage").select("*").gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(limit);
+    if (error) throw new Error(`[db] ai_usage.list: ${error.message}`);
+    return (data ?? []).map((r) => rowToRecord<AiUsageRecord>(r)!);
   }
 
   listPartners() {
