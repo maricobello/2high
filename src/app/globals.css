@@ -79,6 +79,7 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-text: var(--primary-text);
   --color-cyan: var(--cyan);
   --color-volt: var(--volt);
   --color-amber: var(--amber);

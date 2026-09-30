@@ -2,27 +2,27 @@
 export const FAQ: { q: string; a: string; home?: boolean }[] = [
   {
     q: "Quanto custa?",
-    a: "Diagnóstico e auditoria não têm custo. Se houver valor recuperado, a remuneração é um percentual dele, definido em contrato. Sem mensalidade.",
+    a: "Diagnóstico e auditoria são sem custo. Se houver valor recuperado, a remuneração é um percentual dele, definido em contrato.",
     home: true,
   },
   {
     q: "O que preciso enviar?",
-    a: "A fatura mais recente basta para o diagnóstico. Para a auditoria, pedimos as faturas do período; se faltar alguma, indicamos como solicitá-la à distribuidora.",
+    a: "Só a fatura mais recente. Se precisarmos de outras, mostramos como pedir à distribuidora.",
     home: true,
   },
   {
     q: "Isso cria atrito com a distribuidora?",
-    a: "Não. O pedido segue a via administrativa prevista pela ANEEL: distribuidora, ouvidoria e ANEEL, se necessário. O fornecimento não é afetado.",
+    a: "Não. O pedido segue a via administrativa da ANEEL, e o fornecimento não é afetado.",
     home: true,
   },
   {
     q: "Preciso assinar contrato para ver o resultado?",
-    a: "Não. Você recebe o relatório antes. O contrato só é assinado se decidir pedir a devolução, com a remuneração definida nele.",
+    a: "Não. Você vê o relatório antes. O contrato só entra se decidir pedir a devolução.",
     home: true,
   },
   {
     q: "Como meus dados são tratados?",
-    a: "A fatura é enviada com criptografia e usada só para o diagnóstico e o contato autorizado, conforme a LGPD. Você pode pedir a exclusão quando quiser.",
+    a: "A fatura é criptografada e usada só no diagnóstico, conforme a LGPD. Você pode pedir a exclusão quando quiser.",
     home: true,
   },
   {
