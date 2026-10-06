@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Matheus Andrioni Raioxobelli — /m/ · portfólio</title>
+<meta name="description" content="Portfólio de Matheus Andrioni Raioxobelli: software para energia, dados e IA. SIN OS, ΛFERI, MicroBio Academy e outros projetos, de 2023 a 2026." />
+<meta name="theme-color" content="#050506" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Matheus Andrioni Raioxobelli — /m/" />
+<meta property="og:description" content="Software para energia, dados e IA. Role para abrir os olhos." />
+<meta property="og:image" content="https://maricobello.vercel.app/og.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=Zen+Kaku+Gothic+New:wght@300;500;900&family=Cinzel:wght@400;700;900&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="frames/main/001.webp" fetchpriority="high">
+<link rel="stylesheet" href="style.css" />
+<noscript><style>.loader{display:none}[data-reveal]{opacity:1;transform:none}</style></noscript>
+<!--
+  Base visual e motor de animação: "itachi" por Meghamittal0920
+  (github.com/Meghamittal0920/itachi). Adaptado para portfólio.
+-->
+</head>
+<body>
+
+<a class="skip" href="#proj">Pular para os projetos</a>
+
+<!-- ══════════ PRELOADER ══════════ -->
+<div class="loader" id="loader" aria-hidden="true">
+  <div class="loader__inner">
+    <div class="loader__glyph">写輪眼</div>
+    <div class="loader__bar"><span id="loaderFill"></span></div>
+    <div class="loader__meta">
+      <span>起動中 / CARREGANDO /m/</span>
+      <span id="loaderPct">00</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ AMBIENT LAYERS ══════════ -->
+<div class="grain" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<!-- ══════════ AMATERASU — 黒炎 ══════════ -->
+<div class="amaterasu-bed" aria-hidden="true"></div>
+<canvas class="amaterasu" id="amaterasuCanvas" aria-hidden="true"></canvas>
+
+<!-- ══════════ STORM ══════════ -->
+<div class="storm" aria-hidden="true">
+  <div class="storm__flash" id="stormFlash"></div>
+  <svg class="storm__bolt" id="stormBolt" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+    <path id="boltPath" d="" fill="none" stroke="#fff" stroke-width="2"
+          stroke-linejoin="round" stroke-linecap="round"/>
+    <path id="boltGlow" d="" fill="none" stroke="#9fd8ff" stroke-width="9"
+          stroke-linejoin="round" stroke-linecap="round" opacity=".45"/>
+  </svg>
+</div>
+<div class="cursor" id="cursor" aria-hidden="true"><span></span></div>
+
+<!-- ══════════ FIXED CHROME ══════════ -->
+<header class="chrome">
+  <a class="chrome__mark" href="#top" aria-label="Topo">
+    <svg viewBox="0 0 100 100" class="uchiwa" aria-hidden="true">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M50 12 A38 38 0 0 1 50 88 A19 19 0 0 1 50 50 A19 19 0 0 0 50 12Z" fill="currentColor" opacity=".9"/>
+      <circle cx="50" cy="31" r="6" fill="var(--ink)"/>
+      <circle cx="50" cy="69" r="6" fill="currentColor"/>
+    </svg>
+    <span>MATHEUS</span>
+  </a>
+  <nav class="chrome__nav" aria-label="Seções">
+    <span class="chrome__brk" aria-hidden="true">[</span>
+    <a href="#eyes" data-jp="眼" class="chrome__eyes">olhos</a>
+    <span class="chrome__sep" aria-hidden="true">/</span>
+    <a href="#proj" data-jp="術">projetos</a>
+    <span class="chrome__sep" aria-hidden="true">/</span>
+    <a href="#sobre" data-jp="己">sobre</a>
+    <span class="chrome__sep" aria-hidden="true">/</span>
+    <a href="#contato" data-jp="終">contato</a>
+    <span class="chrome__brk" aria-hidden="true">]</span>
+    <button class="chrome__sound" id="soundToggle" type="button"
+            aria-pressed="false" title="雷鳴 / som dos trovões">
+      <span class="chrome__sound-jp">音</span>
+      <span class="chrome__sound-state" id="soundState">OFF</span>
+    </button>
+  </nav>
+</header>
+
+<div class="rail rail--left" aria-hidden="true">
+  <span>暁 · MATHEUS ANDRIONI RAIOXOBELLI · /m/</span>
+</div>
+<div class="rail rail--right" aria-hidden="true">
+  <span id="railScroll">SCROLL 000%</span>
+</div>
+
+<div class="hint" id="hint" aria-hidden="true">
+  <span class="hint__jp">下へ</span>
+  <span class="hint__line"></span>
+  <span class="hint__en">ROLE PARA ABRIR OS OLHOS</span>
+</div>
+
+<main id="top">
+
+<!-- ══════════ ACT I — SCROLL SCRUB ══════════ -->
+<section class="scrub" id="scrub" data-act="静寂" data-act-label="INÍCIO">
+  <div class="scrub__sticky">
+    <canvas id="mainCanvas" aria-hidden="true"></canvas>
+    <div class="scrub__glow" id="scrubGlow"></div>
+
+    <!-- phase captions -->
+    <div class="phase" data-phase="0">
+      <h2 class="phase__jp">静寂</h2>
+      <p class="phase__en">SILÊNCIO</p>
+      <p class="phase__sub">Antes do código, o problema. Observar até entender.</p>
+    </div>
+    <div class="phase" data-phase="1">
+      <h2 class="phase__jp">覚醒</h2>
+      <p class="phase__en">DESPERTAR</p>
+      <p class="phase__sub">Energia, dados e software: o mesmo sistema, visto de perto.</p>
+    </div>
+    <div class="phase" data-phase="2">
+      <h2 class="phase__jp">写輪眼</h2>
+      <p class="phase__en">SHARINGAN</p>
+      <p class="phase__sub">Ler o padrão. Não copiar nada. Construir o próprio.</p>
+    </div>
+    <div class="phase" data-phase="3">
+      <h2 class="phase__jp">烏</h2>
+      <p class="phase__en">MIL CORVOS</p>
+      <p class="phase__sub">Cada projeto, um corvo solto no mundo. Continue descendo.</p>
+    </div>
+
+    <!-- Title lockup, only in the first beat -->
+    <div class="titleblock" id="titleblock">
+      <p class="titleblock__kicker">/m/ · energia · software · ia</p>
+      <h1 class="titleblock__jp">
+        <span class="titleblock__kana" aria-hidden="true">マテ<span>ウス</span></span>
+        <span class="titleblock__name">Matheus Andrioni Raioxobelli</span>
+      </h1>
+      <p class="titleblock__en">P O R T F Ó L I O</p>
+    </div>
+
+    <canvas id="featherCanvas" class="feathers" aria-hidden="true"></canvas>
+  </div>
+</section>
+
+<!-- ══════════ ACT II — MOUSE-TRACKED EYES ══════════ -->
+<section class="eyes" id="eyes" data-act="眼" data-act-label="OLHOS">
+  <div class="eyes__sticky">
+    <canvas id="eyeCanvas" aria-hidden="true"></canvas>
+    <div class="eyes__flare" id="eyeFlare"></div>
+    <div class="eyes__frame" aria-hidden="true">
+      <div class="eyes__label eyes__label--tl">万華鏡写輪眼</div>
+      <div class="eyes__label eyes__label--tr">MANGEKYŌ · LIVE TRACK</div>
+      <div class="eyes__label eyes__label--bl" id="eyeReadout">視線 中 00.0 / FRAME 01</div>
+      <div class="eyes__label eyes__label--br">動かせ · MOVA O CURSOR</div>
+    </div>
+    <div class="eyes__copy">
+      <h2>見つめ<span>返せ</span></h2>
+      <p>Olhe de volta. — Para onde você for, o olhar acompanha.</p>
+      <p class="eyes__note">瞳孔追尾 · nove posições de olhar, da esquerda para a direita</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ ACT III — JUTSU → PROJECT BOARD ══════════ -->
+<section class="jutsu" id="proj" data-act="術" data-act-label="PROJETOS">
+  <!-- background plate revealed under the ghost cursor -->
+  <div class="jutsu__reveal" id="jutsuReveal" aria-hidden="true"></div>
+  <div class="jutsu__rain" aria-hidden="true"></div>
+  <canvas class="ghost" id="ghostCanvas" aria-hidden="true"></canvas>
+
+  <div class="jutsu__inner">
+    <div class="jutsu__head">
+      <span class="eyebrow" data-px="0.10">禁術 · PROJETOS</span>
+      <h2 data-px="0.18">この手で<br>作った術</h2>
+      <p data-px="0.26">Tudo o que construí até aqui, de scripts de madrugada a produtos no ar. Cada post é um projeto; passe o cursor e a tempestade aparece por trás.</p>
+      <div class="jutsu__meta" data-px="0.34">
+        <span><i>七つの術</i>7 PROJETOS</span>
+        <span><i>電 · 影 · 核</i>ENERGIA EM PRIMEIRO</span>
+        <span><i>二〇二三 → 二〇二六</i>2023 → 2026</span>
+      </div>
+      <p class="jutsu__hint" data-px="0.40">動かせ · queime o escuro</p>
+    </div>
+
+    <!-- ── the board: one thread, every reply is a project ── -->
+    <div class="board" id="board">
+      <div class="board__top">
+        <p class="board__title">/m/ - Matheus</p>
+        <p class="board__sub">projetos, energia e software</p>
+        <div class="board__views" role="group" aria-label="Modo de visualização">
+          [<button type="button" data-view="thread" aria-pressed="true">Thread</button>]
+          [<button type="button" data-view="catalog" aria-pressed="false">Catálogo</button>]
+        </div>
+      </div>
+      <hr class="board__rule">
+
+      <div class="thread" id="thread">
+
+        <!-- OP -->
+        <article class="post post--op" id="p47392001">
+          <div class="post__fileinfo">Arquivo: <span>sharingan.webp</span> (1280x720)</div>
+          <button class="post__thumb post__thumb--img" type="button" aria-label="Ampliar imagem">
+            <img src="frames/eyes/030.webp" alt="" width="1280" height="720" loading="lazy" decoding="async">
+          </button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">projetos — o que eu construí</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2023-11-07T08:18">07/11/23(Ter)08:18</time>
+              <span class="post__no"><a href="#p47392001">No.</a><button type="button" class="post__num" data-no="47392001">47392001</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;energia, dados e software</span><br>
+              <span class="gt">&gt;de scripts de madrugada a produtos no ar</span><br>
+              Sete projetos, em ordem: do primeiro app em Python ao terminal do setor elétrico.<br>
+              Destaques: <a class="ql" href="#p47392056">&gt;&gt;47392056</a> <a class="ql" href="#p47392061">&gt;&gt;47392061</a> <a class="ql" href="#p47392079">&gt;&gt;47392079</a>
+            </blockquote>
+          </div>
+        </article>
+
+        <article class="post card" id="p47392014">
+          <div class="post__fileinfo">Arquivo: <span>核.py</span> (Python, 5 versões)</div>
+          <button class="post__thumb" type="button" aria-label="Ampliar"><span class="post__kanji">核</span><span class="post__ext">.py</span></button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">Sala de Comando Nuclear</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2023-11-09T07:18">09/11/23(Qui)07:18</time>
+              <span class="post__no"><a href="#p47392014">No.</a><button type="button" class="post__num" data-no="47392014">47392014</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;o reator está esquentando</span><br>
+              <span class="gt">&gt;você tem até o fim do cronômetro</span><br>
+              Jogo de fuga em Python: cada etapa da sala de comando pede a senha certa para resfriar o reator. Errou ou o tempo acabou, a usina explode. Primeiro projeto próprio, refeito em cinco versões.
+            </blockquote>
+            <p class="post__stack">python · streamlit</p>
+            <p class="post__links">[<a href="https://github.com/maricobello/nuclearapp4" target="_blank" rel="noopener">github</a>]</p>
+          </div>
+        </article>
+
+        <article class="post card" id="p47392027">
+          <div class="post__fileinfo">Arquivo: <span>影.py</span> (Google Solar API)</div>
+          <button class="post__thumb" type="button" aria-label="Ampliar"><span class="post__kanji">影</span><span class="post__ext">.py</span></button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">Sombreamento e potencial solar</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2023-11-17T18:19">17/11/23(Sex)18:19</time>
+              <span class="post__no"><a href="#p47392027">No.</a><button type="button" class="post__num" data-no="47392027">47392027</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;quanto sol cabe no seu telhado?</span><br>
+              Você digita o endereço e o app consulta a Google Solar API: número máximo de painéis, área útil do telhado, segmentos e geração anual estimada, com a economia em reais.
+            </blockquote>
+            <p class="post__stack">python · streamlit · google solar api</p>
+            <p class="post__links">[<a href="https://github.com/maricobello/shadesolmap" target="_blank" rel="noopener">shadesolmap</a>] [<a href="https://github.com/maricobello/appsolarbr" target="_blank" rel="noopener">appsolarbr</a>]</p>
+          </div>
+        </article>
+
+        <article class="post card" id="p47392033">
+          <div class="post__fileinfo">Arquivo: <span>水.py</span> (calculadoras)</div>
+          <button class="post__thumb" type="button" aria-label="Ampliar"><span class="post__kanji">水</span><span class="post__ext">.py</span></button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">Hidroponia</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2024-10-16T17:26">16/10/24(Qua)17:26</time>
+              <span class="post__no"><a href="#p47392033">No.</a><button type="button" class="post__num" data-no="47392033">47392033</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;cultivo sem terra, com conta certa</span><br>
+              Ferramenta de cultivo hidropônico: solução nutritiva por fase (vega e flora) e dimensionamento de iluminação LED, numa tela só.
+            </blockquote>
+            <p class="post__stack">python · streamlit</p>
+            <p class="post__links">[<a href="https://github.com/maricobello/hidroponic" target="_blank" rel="noopener">github</a>]</p>
+          </div>
+        </article>
+
+        <article class="post card" id="p47392048">
+          <div class="post__fileinfo">Arquivo: <span>線.tsx</span> (React)</div>
+          <button class="post__thumb" type="button" aria-label="Ampliar"><span class="post__kanji">線</span><span class="post__ext">.tsx</span></button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">Grid3</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2025-10-23T07:08">23/10/25(Qui)07:08</time>
+              <span class="post__no"><a href="#p47392048">No.</a><button type="button" class="post__num" data-no="47392048">47392048</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;monitoramento inteligente de linhas de transmissão</span><br>
+              Painel web para acompanhar linhas de transmissão. A virada do Streamlit para React, TypeScript e banco de verdade.
+            </blockquote>
+            <p class="post__stack">react · vite · typescript · tailwind · supabase</p>
+            <p class="post__links">[<span class="post__private">privado</span>]</p>
+          </div>
+        </article>
+
+        <article class="post card" id="p47392056">
+          <div class="post__fileinfo">Arquivo: <span>電.ts</span> (Next.js 16)</div>
+          <button class="post__thumb" type="button" aria-label="Ampliar"><span class="post__kanji">電</span><span class="post__ext">.ts</span></button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">SIN OS</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2026-09-27T04:35">27/09/26(Dom)04:35</time>
+              <span class="post__no"><a href="#p47392056">No.</a><button type="button" class="post__num" data-no="47392056">47392056</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;terminal de arbitragem e previsão do setor elétrico</span><br>
+              PLD horário, CMO, reservatórios, carga e mercados globais numa tela só. Despacho ótimo de baterias (BESS), previsão com LEAR, conformal, GARCH, HMM e Monte Carlo, e um agente de IA que audita as próprias APIs. Tem assistente de voz, a Iara.<br>
+              <span class="gt">&gt;fontes: ccee, ons, energy-charts, elexon, bcb, eia</span>
+            </blockquote>
+            <p class="post__stack">next.js 16 · typescript · highs · firebase · claude</p>
+            <p class="post__links">[<a href="https://github.com/maricobello/sinos" target="_blank" rel="noopener">github</a>]</p>
+          </div>
+        </article>
+
+        <article class="post card" id="p47392061">
+          <div class="post__fileinfo">Arquivo: <span>監.tsx</span> (Next.js)</div>
+          <button class="post__thumb" type="button" aria-label="Ampliar"><span class="post__kanji">監</span><span class="post__ext">.tsx</span></button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">ΛFERI</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2026-09-30T20:56">30/09/26(Qua)20:56</time>
+              <span class="post__no"><a href="#p47392061">No.</a><button type="button" class="post__num" data-no="47392061">47392061</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;a conta de luz vira diagnóstico</span><br>
+              Plataforma B2B de auditoria e gestão de energia. Quiz com resultado personalizado, leitura automática de faturas, atendimento com IA e painel de leads, dentro da LGPD.
+            </blockquote>
+            <p class="post__stack">next.js · react · typescript · tailwind · postgresql · ia generativa</p>
+            <p class="post__links">[<a href="https://aferi-energia.vercel.app" target="_blank" rel="noopener">site</a>] [<a href="https://github.com/maricobello/2high" target="_blank" rel="noopener">github</a>]</p>
+          </div>
+        </article>
+
+        <article class="post card" id="p47392079">
+          <div class="post__fileinfo">Arquivo: <span>菌.swift</span> (iOS)</div>
+          <button class="post__thumb" type="button" aria-label="Ampliar"><span class="post__kanji">菌</span><span class="post__ext">.swift</span></button>
+          <div class="post__body">
+            <header class="post__info">
+              <span class="post__subject">MicroBio Academy</span>
+              <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+              <time datetime="2026-10-03T20:45">03/10/26(Sáb)20:45</time>
+              <span class="post__no"><a href="#p47392079">No.</a><button type="button" class="post__num" data-no="47392079">47392079</button></span>
+            </header>
+            <blockquote class="post__msg">
+              <span class="gt">&gt;app ios de um curso de microbiologia</span><br>
+              SwiftUI e StoreKit 2 no iPhone; Supabase com RLS, Storage e Edge Functions no servidor. Compra verificada no servidor, quiz corrigido sem expor o gabarito e 86 testes no backend.
+            </blockquote>
+            <p class="post__stack">swift · swiftui · storekit 2 · supabase · deno</p>
+            <p class="post__links">[<span class="post__private">privado</span>]</p>
+          </div>
+        </article>
+
+      </div>
+
+      <hr class="board__rule">
+      <p class="board__stats">R: 7 · I: 1 · Postadores: 1 (só eu) · <a href="#sobre">quem é o OP? ↓</a></p>
+    </div>
+
+    <div class="jutsu__foot" data-px="0.14">
+      <span>「見ているものが、すべてではない。」</span>
+      <span>O QUE VOCÊ VÊ NÃO É TUDO. O RESTO ESTÁ NO CÓDIGO.</span>
+    </div>
+  </div>
+
+  <!-- bottom-right anchor -->
+  <div class="jutsu__amaterasu" aria-hidden="true">
+    <span class="jutsu__amaterasu-jp">天照</span>
+    <span class="jutsu__amaterasu-ro">AMATERASU</span>
+    <span class="jutsu__amaterasu-sub">黒炎 · 七日七夜 · 消えぬ火</span>
+  </div>
+</section>
+
+<!-- ══════════ ACT IV — SOBRE ══════════ -->
+<section class="quote" id="sobre" data-act="己" data-act-label="SOBRE">
+  <div class="quote__jp">己を<span>知れ</span><span class="dots">…</span></div>
+  <p class="quote__ro">CONHEÇA A SI MESMO · SOBRE MIM</p>
+
+  <article class="post post--about" id="p47392090">
+    <div class="post__body">
+      <header class="post__info">
+        <span class="post__subject">quem é o OP</span>
+        <span class="post__name">Matheus</span> <span class="post__cap">## Admin</span>
+        <time datetime="2026-10-06T03:47">06/10/26(Ter)03:47</time>
+        <span class="post__no"><a href="#p47392090">No.</a><button type="button" class="post__num" data-no="47392090">47392090</button></span>
+      </header>
+      <blockquote class="post__msg">
+        <span class="gt">&gt;be matheus</span><br>
+        <span class="gt">&gt;brasileiro, obcecado por energia</span><br>
+        <span class="gt">&gt;2021: guarda repositórios de biogás, captura de carbono e baterias para estudar</span><br>
+        <span class="gt">&gt;2023: começa a escrever os próprios apps em python</span><br>
+        <span class="gt">&gt;usina nuclear, sombra no telhado</span> <a class="ql" href="#p47392014">&gt;&gt;47392014</a> <a class="ql" href="#p47392027">&gt;&gt;47392027</a><br>
+        <span class="gt">&gt;2025: troca o streamlit por react, typescript e banco de verdade</span> <a class="ql" href="#p47392048">&gt;&gt;47392048</a><br>
+        <span class="gt">&gt;2026: o setor elétrico inteiro numa tela</span> <a class="ql" href="#p47392056">&gt;&gt;47392056</a><br>
+        <span class="gt">&gt;ainda acha que a melhor interface é a que some</span><br>
+        <br>
+        Construo software para energia: da conta de luz ao mercado de curto prazo. Gosto de produto pequeno, rápido e honesto, com dados reais e tela limpa.
+      </blockquote>
+    </div>
+  </article>
+
+  <blockquote class="quote__itachi">
+    <p>“Quem não consegue reconhecer quem realmente é está fadado ao fracasso. As pessoas vivem presas ao que aceitam como certo e verdadeiro. É assim que definem a realidade.”</p>
+    <cite>うちはイタチ · UCHIHA ITACHI</cite>
+  </blockquote>
+</section>
+
+<!-- ══════════ FOOTER — CONTATO ══════════ -->
+<footer id="contato" data-act="終" data-act-label="CONTATO">
+  <span class="eyebrow">連絡 · CONTATO</span>
+  <a class="footer__big" href="https://github.com/maricobello" target="_blank" rel="noopener">maricobello</a>
+  <p class="footer__links">
+    [<a href="https://github.com/maricobello" target="_blank" rel="noopener">github</a>]
+    [<a href="https://aferi-energia.vercel.app" target="_blank" rel="noopener">ΛFERI</a>]
+    [<a href="https://github.com/maricobello/sinos" target="_blank" rel="noopener">SIN OS</a>]
+    [<a href="#top">topo</a>]
+  </p>
+  <div class="footer__row">
+    <span>© 2026 MATHEUS ANDRIONI RAIOXOBELLI</span>
+    <span>base visual: <a href="https://github.com/Meghamittal0920/itachi" target="_blank" rel="noopener">itachi</a> por meghamittal0920</span>
+    <span>「これで最後だ。」</span>
+  </div>
+</footer>
+
+</main>
+
+<!-- quote-link hover preview (4chan style) -->
+<div class="preview" id="preview" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ══════════ STICKY BADGE — current act ══════════ -->
+<a class="sticky-badge" id="stickyBadge" href="#proj" aria-label="Ir para a próxima seção">
+  <span class="sticky-badge__jp" id="badgeJp">写輪眼</span>
+  <span class="sticky-badge__en" id="badgeEn">SHARINGAN</span>
+</a>
+
+<script src="main.js"></script>
+</body>
+</html>
