@@ -1,4 +1,4 @@
-# /m/ — portfólio de Matheus Andrioni Raioxobelli
+# /m/ — portfólio de m.ricobello
 
 Site estático (HTML, CSS e JS puros, sem build). Base visual e motor de animação:
 [itachi](https://github.com/Meghamittal0920/itachi), por Meghamittal0920.

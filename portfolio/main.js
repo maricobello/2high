@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   /m/ — MATHEUS · scroll-scrubbed frames + mouse-tracked eyes
+   /m/ — M.RICOBELLO · scroll-scrubbed frames + mouse-tracked eyes
    Engine: "itachi" by Meghamittal0920. Board layer + progressive
    loading + section badge added for the portfolio.
    ═══════════════════════════════════════════════════════════ */
