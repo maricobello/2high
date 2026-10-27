@@ -1,0 +1,192 @@
+# Prepara o RAJADA para as lojas, sem computador. Rodar à mão em Actions >
+# "Jogo RAJADA · Lojas" > Run workflow. Passo a passo e segredos:
+# rajada/docs/lancamento.md
+name: Jogo RAJADA · Lojas
+
+on:
+  workflow_dispatch:
+    inputs:
+      tarefa:
+        description: O que fazer
+        type: choice
+        options:
+          - android
+          - ios
+          - android-e-ios
+          - gerar-chave-android
+        default: android-e-ios
+
+permissions:
+  contents: read
+
+jobs:
+  # Uma vez só: cria a chave de envio da Google Play. O repositório é público e o
+  # artefato fica protegido pela senha; por isso ela precisa ser longa, e o
+  # artefato expira em 1 dia (apague antes, depois de baixar).
+  gerar-chave-android:
+    if: inputs.tarefa == 'gerar-chave-android'
+    runs-on: ubuntu-latest
+    env:
+      SENHA: ${{ secrets.RAJADA_KEYSTORE_PASSWORD }}
+    steps:
+      - name: Conferir segredo
+        run: |
+          if [ ${#SENHA} -lt 12 ]; then
+            echo "::error::Crie antes o segredo RAJADA_KEYSTORE_PASSWORD com 12 caracteres ou mais."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Criar chave
+        run: |
+          keytool -genkeypair -keystore rajada-upload.jks -storetype PKCS12 -alias rajada \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$SENHA" -keypass "$SENHA" -dname "CN=RAJADA, C=BR"
+          base64 -w0 rajada-upload.jks > RAJADA_KEYSTORE_BASE64.txt
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: chave-android
+          path: |
+            rajada-upload.jks
+            RAJADA_KEYSTORE_BASE64.txt
+          retention-days: 1
+
+  # Gera o .aab assinado para enviar no Play Console.
+  android:
+    if: inputs.tarefa == 'android' || inputs.tarefa == 'android-e-ios'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: rajada
+    env:
+      KEYSTORE_BASE64: ${{ secrets.RAJADA_KEYSTORE_BASE64 }}
+      RAJADA_KEYSTORE_PASSWORD: ${{ secrets.RAJADA_KEYSTORE_PASSWORD }}
+      # a chave criada por "gerar-chave-android" usa o apelido rajada e a mesma senha
+      RAJADA_KEY_ALIAS: ${{ secrets.RAJADA_KEY_ALIAS || 'rajada' }}
+      RAJADA_KEY_PASSWORD: ${{ secrets.RAJADA_KEY_PASSWORD || secrets.RAJADA_KEYSTORE_PASSWORD }}
+      RAJADA_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - name: Conferir segredos
+        working-directory: .
+        run: |
+          for s in KEYSTORE_BASE64 RAJADA_KEYSTORE_PASSWORD; do
+            if [ -z "${!s}" ]; then
+              echo "::error::Falta um segredo do Android. Veja rajada/docs/lancamento.md (chave de envio)."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: rajada/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+
+      - name: Compilar AAB assinado
+        working-directory: rajada/android
+        run: |
+          export RAJADA_KEYSTORE="$RUNNER_TEMP/rajada-upload.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RAJADA_KEYSTORE"
+          ./gradlew bundleRelease --no-daemon
+          rm "$RAJADA_KEYSTORE"
+          keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab | grep -q "Owner:" \
+            || { echo "::error::O AAB saiu sem assinatura."; exit 1; }
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: rajada-aab-${{ github.run_number }}
+          path: rajada/android/app/build/outputs/bundle/release/app-release.aab
+
+  # Compila num Mac do GitHub (Xcode 26) e envia ao App Store Connect, onde o
+  # build aparece no TestFlight. A Apple assina na nuvem usando a chave da API
+  # da App Store Connect com acesso Admin. Os segredos da Apple valem para todos
+  # os apps da conta (os mesmos do PRUMO).
+  ios:
+    if: inputs.tarefa == 'ios' || inputs.tarefa == 'android-e-ios'
+    runs-on: macos-26
+    defaults:
+      run:
+        shell: bash
+        working-directory: rajada
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+    steps:
+      - name: Conferir segredos
+        working-directory: .
+        run: |
+          for s in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+            if [ -z "${!s}" ]; then
+              echo "::error::Falta um segredo da Apple. Veja rajada/docs/lancamento.md (chave da API)."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: rajada/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync ios
+
+      - name: Compilar e enviar ao App Store Connect
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$KEY"
+          AUTH=(-allowProvisioningUpdates
+                -authenticationKeyPath "$KEY"
+                -authenticationKeyID "$ASC_KEY_ID"
+                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/RAJADA.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION="$(node -p "require('./package.json').version")" \
+            CODE_SIGNING_ALLOWED=NO \
+            "${AUTH[@]}" archive
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/RAJADA.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            "${AUTH[@]}"
+          rm "$KEY"

@@ -3,8 +3,7 @@
 # APK de teste, com link direto: página de versões do repositório, tag "rajada-apk"
 # (atualizada pela main e por execuções manuais). Toda execução também deixa o
 # APK em Actions > execução > Artifacts > rajada-android.
-# Versão de loja (AAB e APK assinados): crie os secrets RAJADA_KEYSTORE_BASE64,
-# RAJADA_KEYSTORE_PASSWORD, RAJADA_KEY_ALIAS e RAJADA_KEY_PASSWORD
+# Versões de loja (AAB assinado e envio ao TestFlight): workflow "Jogo RAJADA · Lojas"
 # (passo a passo em rajada/docs/lancamento.md).
 name: Jogo RAJADA
 
@@ -60,7 +59,6 @@ jobs:
     permissions:
       contents: write # publicar o APK de teste na página de versões
     env:
-      HAS_SIGNING: ${{ secrets.RAJADA_KEYSTORE_BASE64 != '' }}
       RAJADA_VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v6
@@ -84,26 +82,22 @@ jobs:
         working-directory: rajada/android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Versão de loja assinada
-        if: env.HAS_SIGNING == 'true'
+      # Mesmo caminho do AAB de loja (workflow "Jogo RAJADA · Lojas"), com uma
+      # chave descartável: garante que a versão de loja sai assinada.
+      - name: Testar AAB assinado
         working-directory: rajada/android
-        env:
-          RAJADA_KEYSTORE_BASE64: ${{ secrets.RAJADA_KEYSTORE_BASE64 }}
-          RAJADA_KEYSTORE_PASSWORD: ${{ secrets.RAJADA_KEYSTORE_PASSWORD }}
-          RAJADA_KEY_ALIAS: ${{ secrets.RAJADA_KEY_ALIAS }}
-          RAJADA_KEY_PASSWORD: ${{ secrets.RAJADA_KEY_PASSWORD }}
         run: |
-          echo "$RAJADA_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/rajada.jks"
-          RAJADA_KEYSTORE="$RUNNER_TEMP/rajada.jks" ./gradlew bundleRelease assembleRelease --no-daemon
+          export RAJADA_KEYSTORE="$RUNNER_TEMP/teste.jks" RAJADA_KEY_ALIAS=rajada
+          export RAJADA_KEYSTORE_PASSWORD=teste123 RAJADA_KEY_PASSWORD=teste123
+          keytool -genkeypair -keystore "$RAJADA_KEYSTORE" -storetype PKCS12 -alias rajada \
+            -keyalg RSA -keysize 2048 -validity 1 -storepass teste123 -keypass teste123 -dname "CN=RAJADA, C=BR"
+          ./gradlew bundleRelease --no-daemon
+          keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab | grep -q "CN=RAJADA"
 
       - name: Juntar os arquivos
         run: |
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk out/rajada.apk
-          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
-            cp android/app/build/outputs/bundle/release/app-release.aab out/rajada-loja.aab
-            cp android/app/build/outputs/apk/release/app-release.apk out/rajada-assinado.apk
-          fi
           ls -la out
 
       - uses: actions/upload-artifact@v6
@@ -127,7 +121,7 @@ jobs:
 
           Como instalar: abra este link no celular, baixe rajada.apk e toque no arquivo. O Android pede para permitir apps desta fonte.
           É assinado com chave de teste: se o Android recusar a atualização, desinstale a versão anterior antes.
-          Para a Google Play, use o AAB assinado (ver rajada/docs/lancamento.md)."
+          Para a Google Play, use o workflow Jogo RAJADA · Lojas (ver rajada/docs/lancamento.md)."
 
   ios:
     name: App iPhone (compila)

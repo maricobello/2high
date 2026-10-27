@@ -1,111 +1,236 @@
 # RAJADA: lançamento (site, Google Play e App Store)
 
-O jogo está pronto para os três lugares. O que falta depende de contas e chaves
-que só o dono pode criar. Este guia lista cada passo, na ordem.
+Tudo o que dá para preparar sem as suas contas já está pronto: jogo, ícones,
+capturas, textos, site com privacidade e suporte, e workflows que geram os
+pacotes das lojas. Dá para fazer o resto pelo celular, sem computador e sem Mac.
+Este guia cobre o que só você pode fazer.
 
-## 0. Antes do primeiro envio
+**Links do jogo**
 
-- **Identificador do app:** `com.maricobello.rajada` (em `capacitor.config.json`,
-  no Android em `android/app/build.gradle` e no iPhone em
-  `ios/App/App.xcodeproj`). Para trocar, troque nos três antes do primeiro envio:
-  depois de publicado ele não muda mais.
-- **Versão:** `1.0.0`. No Android o `versionCode` sobe sozinho no CI (número da
-  execução). No iPhone, suba o *Build* no Xcode a cada envio.
-- **Política de privacidade:** já está no site, em `/privacidade.html`. As duas
-  lojas pedem esse link.
+- Site: https://rajada-jogo.vercel.app
+- Privacidade: https://rajada-jogo.vercel.app/privacidade.html
+- Suporte: https://rajada-jogo.vercel.app/suporte.html
+- APK de teste para Android: https://github.com/maricobello/2high/releases/tag/rajada-apk
 
-## 1. Site
+**Onde está cada coisa**
 
-Qualquer hospedagem de arquivos estáticos serve (o build é `dist/`).
+- Textos da ficha: no fim deste guia
+- Imagens: `rajada/store/` e `rajada/icons/icon-512.png`
+- E-mail de contato das páginas: `rajada/store/config.json`
 
-Vercel (recomendado, é onde os outros sites já estão):
+**Custos:** Apple US$ 99 por ano; Google US$ 25 uma vez. Se você já tem as contas
+do PRUMO, elas valem para o RAJADA.
 
-1. *Add New > Project*, escolha este repositório.
-2. *Root Directory*: `rajada`. *Build Command*: `npm run build`. *Output Directory*: `dist`.
-3. Domínio próprio é opcional (ex.: `rajada.seudominio.com.br`).
+---
 
-No celular, "Adicionar à Tela de Início" instala como app, com tela cheia e
-modo offline.
+## Passo 0: preparar (uma vez)
 
-## 2. Google Play (Android)
+1. **E-mail de contato.** As lojas pedem um contato na página de suporte. No
+   GitHub, abra `rajada/store/config.json`, toque no lápis, preencha `"email"`
+   (pode ser o mesmo do PRUMO) e salve. O site se atualiza sozinho quando a
+   mudança chega no `main`.
+2. **Levar o jogo para o `main`.** O GitHub só mostra o botão "Run workflow" de
+   workflows que estão no branch principal. Junte o branch `claude/jogo-rajada`
+   no `main` pelo Pull Request.
 
-1. **Conta de desenvolvedor:** taxa única de US$ 25 no Play Console. Contas
-   pessoais criadas depois de novembro de 2023 precisam rodar um **teste fechado
-   com pelo menos 12 testadores por 14 dias seguidos** antes de liberar a
-   produção. Comece por aqui, porque é o passo mais demorado.
-2. **Chave de upload** (uma vez; guarde a chave e as senhas, sem elas não dá para
-   atualizar o app):
+### Como criar um segredo no GitHub
 
-   ```bash
-   keytool -genkeypair -v -keystore rajada-upload.jks -alias rajada \
-     -keyalg RSA -keysize 2048 -validity 10000
-   base64 -w0 rajada-upload.jks > rajada-upload.txt   # no Mac: base64 -i rajada-upload.jks
-   ```
+Repositório › **Settings** › **Secrets and variables** › **Actions** ›
+**New repository secret**. O nome tem que ser exatamente o indicado.
 
-3. **Secrets no GitHub** (*Settings > Secrets and variables > Actions*):
+### Como rodar um workflow
 
-   | Secret | Valor |
-   |---|---|
-   | `RAJADA_KEYSTORE_BASE64` | conteúdo de `rajada-upload.txt` |
-   | `RAJADA_KEYSTORE_PASSWORD` | senha da keystore |
-   | `RAJADA_KEY_ALIAS` | `rajada` |
-   | `RAJADA_KEY_PASSWORD` | senha da chave |
+Repositório › **Actions** › **Jogo RAJADA · Lojas** › **Run workflow** › escolha
+a tarefa › **Run workflow**. Quando terminar (bolinha verde), abra a execução e
+baixe o arquivo em **Artifacts**.
 
-   A partir daí, cada execução do workflow `Jogo RAJADA` gera `rajada-loja.aab`
-   (para a loja) e `rajada-assinado.apk` em *Artifacts > rajada-android*.
-4. **Criar o app** no Play Console, ativar a *Assinatura de apps do Google Play*
-   e enviar o `rajada-loja.aab` no teste fechado.
-5. **Ficha da loja** (textos prontos no fim deste guia):
-   - Ícone 512x512: `icons/icon-512.png`
-   - Imagem de destaque 1024x500: `store/destaque.png`
-   - Capturas do celular: `store/android-*.png` (1080x1920)
-6. **Formulários:**
-   - *Segurança dos dados*: nenhum dado coletado nem compartilhado (vale enquanto
-     as estatísticas anônimas estiverem desligadas no build; ver seção 4).
-   - *Classificação do conteúdo (IARC)*: violência de fantasia leve (naves
-     atirando em naves, sem sangue). Responda com sinceridade; a nota sai do
-     questionário.
-   - *Público-alvo*: escolha 13 anos ou mais para não entrar nas regras do
-     programa Famílias, ou inclua crianças se quiser (o jogo não tem anúncios,
-     compras nem coleta de dados).
-   - *Anúncios*: não. *Preço*: gratuito.
+---
 
-## 3. App Store (iPhone)
+## Google Play
 
-1. **Conta:** Apple Developer Program (US$ 99 por ano) e um Mac com Xcode 26.
-2. **App Store Connect:** *Apps > +*, plataforma iOS, nome "RAJADA", idioma
-   principal Português (Brasil), Bundle ID `com.maricobello.rajada`.
-3. **Gerar e enviar:**
+### 1. Conta
 
-   ```bash
-   cd rajada
-   npm install
-   npm run cap:ios      # build do jogo + sincroniza + abre o Xcode
-   ```
+Crie a conta em https://play.google.com/console (US$ 25, verificação de
+identidade com documento). Pode levar alguns dias.
 
-   No Xcode: alvo *App* > *Signing & Capabilities* > escolha o *Team*.
-   Suba o *Build* (ex.: 2, 3...). *Product > Archive* > *Distribute App* >
-   *App Store Connect*. O build aparece no TestFlight em alguns minutos.
-4. **Ficha:**
-   - Capturas de 6,9": `store/ios-*.png` (1290x2796, tamanho aceito pela Apple).
-   - Ícone: já vai dentro do app (1024x1024, sem transparência).
-   - *Privacidade do app*: "Dados não coletados".
-   - *Classificação etária*: violência de desenho/fantasia, pouco frequente e
-     leve; o questionário calcula a idade.
-   - *Criptografia*: o app declara que não usa criptografia própria
-     (`ITSAppUsesNonExemptEncryption = NO` no Info.plist), então a pergunta de
-     exportação não aparece.
-   - URL de suporte e de privacidade: o endereço do site.
-5. **Revisão:** a Apple recusa apps que são só um site embrulhado (diretriz 4.2).
-   O RAJADA roda offline, tem vibração nativa e não carrega nada da internet;
-   se pedirem mais detalhes, explique isso nas notas de revisão.
+> Contas **pessoais** novas precisam fazer um **teste fechado com pelo menos 12
+> pessoas por 14 dias** antes de publicar para todos. Comece o passo 5 cedo e
+> chame amigos para testar.
 
-O workflow do GitHub compila o app de iPhone a cada mudança, para avisar cedo
-se algo quebrar. Para enviar automaticamente ao TestFlight seria preciso guardar
-certificado e chave da App Store Connect como secrets; isso fica para quando a
-conta da Apple existir.
+### 2. Chave de envio (uma vez, só do RAJADA)
 
-## 4. Estatísticas anônimas (opcional)
+1. Crie o segredo `RAJADA_KEYSTORE_PASSWORD` com uma senha longa (12 caracteres
+   ou mais). **Anote a senha.**
+2. Rode o workflow com a tarefa **gerar-chave-android**.
+3. Baixe o artefato `chave-android`. Ele fica disponível por 1 dia e traz dois
+   arquivos:
+   - `rajada-upload.jks`: guarde junto com a senha num lugar seguro, como o
+     Google Drive. Sem ela você não atualiza o app.
+   - `RAJADA_KEYSTORE_BASE64.txt`: abra, copie todo o texto e crie o segredo
+     `RAJADA_KEYSTORE_BASE64` com ele.
+4. Apague o artefato na página da execução (ícone de lixeira). O repositório é
+   público; a senha longa protege a chave, mas não precisa deixar o arquivo lá.
+
+Já tem uma chave criada no computador? Use-a no lugar: `RAJADA_KEYSTORE_BASE64`
+com o arquivo em base64, `RAJADA_KEYSTORE_PASSWORD`, `RAJADA_KEY_ALIAS` com o
+apelido e, se a senha da chave for outra, `RAJADA_KEY_PASSWORD`.
+
+### 3. Gerar o pacote
+
+Rode o workflow com a tarefa **android**. Baixe `rajada-aab-N` e descompacte
+para obter o `app-release.aab`.
+
+### 4. Criar o app no Play Console
+
+**Criar app:**
+
+| Campo | Valor |
+|---|---|
+| Nome | RAJADA: Nave Retrô |
+| Idioma padrão | Português (Brasil) |
+| Tipo | Jogo |
+| Preço | Gratuito |
+
+Aceite as declarações.
+
+No **Painel**, complete "Configurar o app":
+
+| Item | Resposta |
+|---|---|
+| Política de privacidade | link de privacidade acima |
+| Acesso ao app | todas as funções disponíveis sem restrição |
+| Anúncios | não contém |
+| Classificação do conteúdo | questionário: categoria Jogo; violência de fantasia leve (naves atirando em naves, sem sangue nem pessoas); "Não" para o resto |
+| Público-alvo | 13 a 15, 16 a 17, 18+ |
+| Segurança dos dados | não coleta nem compartilha dados |
+| Apps governamentais, financeiros, de saúde | não |
+
+**Ficha principal da loja:** textos no fim deste guia; categoria **Arcade**. As
+imagens:
+
+| Campo | Arquivo |
+|---|---|
+| Ícone | `icons/icon-512.png` |
+| Recurso gráfico | `store/destaque.png` |
+| Capturas de tela do celular | `store/android-1-armas.png` a `store/android-5-missoes.png` |
+
+### 5. Teste fechado
+
+1. **Testar › Teste fechado › Criar faixa** (ou use a faixa "Alpha").
+2. **Criar versão.** Aceite a **Assinatura de apps do Google Play** e envie o
+   `app-release.aab`. Notas da versão: "Primeira versão."
+3. Em **Testadores**, crie uma lista com os e-mails (Gmail) de 12 pessoas ou
+   mais e envie o link de participação para elas.
+4. Revise e publique a faixa. Os testadores instalam pela Play Store.
+
+Antes disso, quem quiser já pode testar com o APK de teste (link no topo): no
+Android, abra o link, baixe `rajada.apk` e permita instalar apps desta fonte.
+
+### 6. Produção
+
+Depois de 14 dias de teste, vá ao **Painel**, clique em **Solicitar acesso à
+produção** e responda o formulário. Com o acesso liberado:
+
+1. **Produção › Criar versão**: use o mesmo AAB ou um novo.
+2. **Enviar para revisão.** A revisão leva de algumas horas a alguns dias.
+
+---
+
+## App Store (Apple), sem Mac
+
+### 1. Conta
+
+Inscreva-se em https://developer.apple.com/programs (US$ 99 por ano). Você
+precisa de um Apple ID com verificação em duas etapas. A aprovação leva de 1 a 2
+dias.
+
+### 2. Registrar o identificador do app
+
+https://developer.apple.com/account › **Certificates, IDs & Profiles** ›
+**Identifiers** › **+** › **App IDs** › **App**:
+
+- Description: `RAJADA`
+- Bundle ID: **Explicit**, `com.maricobello.rajada`
+- **Continue › Register**
+
+### 3. Criar o app no App Store Connect
+
+https://appstoreconnect.apple.com › **Apps** › **+** › **Novo app**:
+
+| Campo | Valor |
+|---|---|
+| Plataforma | iOS |
+| Nome | RAJADA: Nave Retrô |
+| Idioma | Português (Brasil) |
+| Bundle ID | com.maricobello.rajada |
+| SKU | rajada |
+
+### 4. Segredos da Apple no GitHub (uma vez por conta)
+
+Se você já criou estes segredos para o PRUMO, pule: eles valem para os dois.
+
+1. **Team ID:** em developer.apple.com/account › **Membership details**, copie
+   o Team ID e crie o segredo `APPLE_TEAM_ID`.
+2. **Chave da API:** no App Store Connect, vá em **Usuários e acesso** ›
+   **Integrações** › **App Store Connect API** › **Chaves da equipe** › **+**.
+   - Nome: `GitHub`
+   - Acesso: **Admin**. É necessário para a Apple assinar o app na nuvem.
+3. Baixe o arquivo `.p8`. Isso só é possível uma vez; guarde-o.
+4. Crie os segredos:
+   - `APPSTORE_API_KEY_ID`: o "ID da chave" mostrado na lista.
+   - `APPSTORE_API_ISSUER_ID`: o "ID do emissor", no topo da página.
+   - `APPSTORE_API_PRIVATE_KEY`: abra o `.p8` num editor de texto e cole todo o
+     conteúdo, incluindo as linhas `-----BEGIN PRIVATE KEY-----` e
+     `-----END PRIVATE KEY-----`.
+
+### 5. Compilar e enviar
+
+1. Rode o workflow com a tarefa **ios**. Leva cerca de 15 minutos.
+2. Entre 10 e 30 minutos depois, o build aparece em **App Store Connect › seu
+   app › TestFlight**.
+3. Para testar no seu iPhone: em TestFlight › **Testes internos**, adicione o
+   seu e-mail e instale o app **TestFlight** no celular.
+
+### 6. Ficha e envio para revisão
+
+No App Store Connect › seu app › versão **1.0.0**:
+
+1. **Capturas de tela iPhone 6,9"**: envie `store/ios-1-armas.png` a
+   `store/ios-5-missoes.png` (1290x2796).
+2. **Textos** (fim deste guia): subtítulo, texto promocional, descrição,
+   palavras-chave, URL de suporte e URL de marketing (o site).
+3. **Build**: selecione o build que apareceu no TestFlight.
+4. **Informações gerais do app**:
+   - Categoria: Jogos (Ação e Casual).
+   - Classificação etária: no questionário, marque violência de desenho ou
+     fantasia como pouco frequente ou leve e "Não" para o resto. O resultado
+     deve ficar em 9+.
+   - Copyright: 2026 seu nome.
+5. **Privacidade do app**:
+   - URL da política: o link de privacidade acima.
+   - Coleta de dados: **"Não, não coletamos dados deste app"**.
+6. **Preço e disponibilidade**: gratuito, em todos os países.
+7. **Informações para a revisão**: seu nome, telefone e e-mail. Nas notas, cole
+   o texto "Notas para a revisão da Apple" do fim deste guia. Não precisa de
+   conta de demonstração.
+8. **Adicionar para revisão › Enviar.** A revisão costuma levar de 24 a 48
+   horas.
+
+---
+
+## Atualizações futuras
+
+1. Mude a versão em `rajada/package.json`, por exemplo `"version": "1.0.1"`. Ela
+   vale para o site, o Android e o iPhone.
+2. Rode o workflow com a tarefa **android-e-ios**. O número do build sobe
+   sozinho.
+3. Na Play: crie uma nova versão com o novo AAB. Na Apple: crie a versão 1.0.1 e
+   selecione o novo build.
+
+O site se atualiza sozinho a cada mudança no `main` (projeto `rajada-jogo` na
+Vercel). O APK de teste também.
+
+## Estatísticas anônimas (opcional)
 
 Por padrão o jogo não faz nenhuma chamada de rede. Para medir retenção (quantas
 partidas, até onde as pessoas chegam), gere o build com um endereço que receba
@@ -122,9 +247,33 @@ identificador aleatório criado só quando a opção é ligada. Se usar, atualiz
 política de privacidade, o formulário de Segurança dos dados (Google) e a
 Privacidade do app (Apple).
 
-## 5. Checklist final
+## Com computador (opcional)
 
-- [ ] Site publicado e `/privacidade.html` abrindo
+Quem tiver Android Studio ou um Mac com Xcode pode abrir os projetos nativos:
+
+```bash
+cd rajada
+npm install
+npm run cap:android  # build do jogo + sincroniza + abre o Android Studio
+npm run cap:ios      # o mesmo para o Xcode
+```
+
+## Se algo der errado
+
+Workflow com bolinha vermelha: abra a execução, toque no passo com erro e copie
+o texto. Mande para o Claude junto com a pergunta.
+
+| Mensagem | O que fazer |
+|---|---|
+| "Falta um segredo..." | o nome do segredo está diferente ou vazio |
+| "Crie antes o segredo RAJADA_KEYSTORE_PASSWORD..." | a senha precisa ter 12 caracteres ou mais |
+| "No profiles for 'com.maricobello.rajada' were found" ou erro de certificado | a chave da API precisa de acesso **Admin**, e o Bundle ID do passo 2 precisa existir |
+| Upload recusado por versão repetida | rode o workflow de novo (o número do build sobe a cada execução) |
+| Android recusa instalar o APK de teste por cima | desinstale a versão anterior: cada APK de teste sai com uma chave de teste nova |
+
+## Checklist final
+
+- [ ] E-mail em `store/config.json`; site, privacidade e suporte abrindo
 - [ ] Teste fechado da Google Play com 12 testadores por 14 dias
 - [ ] AAB assinado enviado; ficha, capturas e formulários preenchidos
 - [ ] App criado no App Store Connect; build no TestFlight
@@ -136,6 +285,10 @@ Privacidade do app (Apple).
 **Nome:** RAJADA: Nave Retrô
 
 **Subtítulo (App Store, até 30 caracteres):** Atire, desvie e evolua
+
+**Texto promocional (App Store, até 170 caracteres):**
+Nave retrô de um dedo: pegue cápsulas, turbine as armas e derrube chefes. Sem
+anúncios, sem compras e funciona offline.
 
 **Descrição curta (Google Play, até 80 caracteres):**
 Nave retrô de um dedo: pegue cápsulas, turbine as armas e derrube chefes.
@@ -161,3 +314,11 @@ Nave retrô de um dedo: pegue cápsulas, turbine as armas e derrube chefes.
 
 **Palavras-chave (App Store, até 100 caracteres):**
 nave,tiro,arcade,retrô,espacial,pixel,chefe,offline,shooter,shmup
+
+**Notas para a revisão da Apple:**
+
+> RAJADA é um jogo completo que roda dentro do app, sem internet: o código, as
+> imagens e os sons vão no pacote e nada é carregado de um site. Usa vibração
+> nativa, pausa sozinho ao sair do app e salva o progresso no aparelho. Não tem
+> login, compras nem anúncios. Para jogar, arraste o dedo na tela; a nave atira
+> sozinha.

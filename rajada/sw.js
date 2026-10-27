@@ -1,7 +1,7 @@
 // Guarda o jogo para abrir sem internet. O build troca __CACHE__ por um nome
 // novo a cada versão, e a versão antiga é apagada ao ativar.
 const CACHE = "__CACHE__";
-const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icons/icon-192.png", "icons/icon-512.png", "privacidade.html"];
+const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icons/icon-192.png", "icons/icon-512.png", "privacidade.html", "suporte.html", "paginas.css"];
 
 self.addEventListener("install", (e) => {
   // cache: "reload" ignora o cache HTTP: a versão nova nunca guarda o jogo antigo

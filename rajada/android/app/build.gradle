@@ -9,7 +9,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // no CI o número sobe a cada execução (a Google Play exige versionCode novo)
         versionCode((System.getenv("RAJADA_VERSION_CODE") ?: "1").toInteger())
-        versionName "1.0.0"
+        // o nome da versão vem de rajada/package.json, o mesmo do site e do iPhone
+        versionName new groovy.json.JsonSlurper().parse(file("../../package.json")).version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

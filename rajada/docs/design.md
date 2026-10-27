@@ -245,7 +245,7 @@ O que isso mostra:
 | Acessibilidade | Botões de 44 px ou mais, foco visível no teclado, textos de leitor de tela no casco e nas missões, "reduzir movimento" desliga tremores e clarões, sem pisca-pisca rápido em áreas grandes, cápsulas com letra além da cor. |
 | Legibilidade | Na fonte pixel o 5 parecia S e o 2 parecia Z: os números vêm de outra fonte (Jersey 10). |
 | Privacidade | Nenhuma chamada de rede no build padrão; progresso e estatísticas só no aparelho. |
-| Lojas | Ícone sem transparência para o iPhone, ícone adaptativo e abertura para o Android, só retrato, tela cheia, voltar do Android pausa o jogo, iPhone adia o gesto da borda de baixo. |
+| Lojas | Ícone sem transparência para o iPhone, ícone adaptativo e abertura para o Android, só retrato, tela cheia, voltar do Android pausa o jogo, iPhone adia o gesto da borda de baixo. Páginas de privacidade e suporte com contato. Envio às lojas pelo GitHub, sem computador: chave de envio, AAB assinado (testado a cada push com chave descartável) e TestFlight. |
 | Dependências | Nenhuma vulnerabilidade nas dependências do app. As ferramentas de linha de comando do Capacitor (só usadas no computador e no CI) têm alertas do `npm audit` sem correção disponível na versão 8; não entram no app. |
 
 ## Fora da v1

@@ -1,6 +1,7 @@
 // Junta o jogo num HTML único (JS, CSS e fonte embutidos).
 // dist/                site e app nativo (com modo offline no site)
 // dist/artifact.html   prévia jogável, sem o esqueleto <html>/<head>
+// dist/privacidade.html e suporte.html: páginas que as lojas pedem (contato em store/config.json)
 // RAJADA_ANALYTICS_URL (opcional): endereço para estatísticas anônimas.
 import { build } from "esbuild";
 import { readFile, writeFile, mkdir, cp, rm, access } from "node:fs/promises";
@@ -13,6 +14,7 @@ const dist = join(root, "dist");
 const read = (p, enc = "utf8") => readFile(join(root, p), enc);
 const exists = (p) => access(join(root, p)).then(() => true, () => false);
 const analyticsUrl = process.env.RAJADA_ANALYTICS_URL ?? "";
+const { version } = JSON.parse(await read("package.json")); // vale para site, Android e iOS
 
 async function bundle(pwa) {
   const out = await build({
@@ -21,7 +23,7 @@ async function bundle(pwa) {
     minify: true,
     format: "iife",
     target: ["es2020", "safari14"],
-    define: { __PWA__: String(pwa), __ANALYTICS_URL__: JSON.stringify(analyticsUrl) },
+    define: { __PWA__: String(pwa), __ANALYTICS_URL__: JSON.stringify(analyticsUrl), __VERSION__: JSON.stringify(version) },
     legalComments: "none",
     write: false,
   });
@@ -35,7 +37,7 @@ for (const file of fonts) {
   const data = (await read(file, null)).toString("base64");
   css = css.replace(`url("${file}")`, () => `url(data:font/woff2;base64,${data})`);
 }
-const html = await read("index.html");
+const html = (await read("index.html")).replaceAll("{{VERSAO}}", version);
 const STYLE_TAG = '<link rel="stylesheet" href="style.css">';
 const SCRIPT_TAG = '<script type="module" src="src/main.js"></script>';
 for (const tag of [STYLE_TAG, SCRIPT_TAG]) {
@@ -59,9 +61,26 @@ const artifact = inline(
 );
 await writeFile(join(dist, "artifact.html"), artifact);
 
-const hash = createHash("sha256").update(site).digest("hex").slice(0, 10);
+// Privacidade e suporte com o contato e a data de store/config.json.
+const config = JSON.parse(await read("store/config.json"));
+const email = String(config.email ?? "").trim();
+if (email && !/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(email)) throw new Error(`store/config.json: e-mail inválido (${email})`);
+const contato = email
+  ? `Escreva para <a href="mailto:${email}">${email}</a>.`
+  : "O e-mail de contato será publicado aqui em breve.";
+const pages = {};
+for (const page of ["privacidade.html", "suporte.html"]) {
+  pages[page] = (await read(page)).replaceAll("{{CONTATO}}", () => contato).replaceAll("{{ATUALIZADO}}", () => config.atualizado);
+  await writeFile(join(dist, page), pages[page]);
+}
+if (!email) console.warn("aviso: store/config.json sem e-mail. Preencha antes de enviar às lojas.");
+
+// O nome do cache muda quando qualquer página muda: o modo offline nunca fica com a versão velha.
+const pagesCss = await read("paginas.css");
+const hash = createHash("sha256").update(site).update(pagesCss).update(Object.values(pages).join("")).digest("hex").slice(0, 10);
 await writeFile(join(dist, "sw.js"), (await read("sw.js")).replace("__CACHE__", `rajada-${hash}`));
-for (const file of ["manifest.webmanifest", "icon.svg", "privacidade.html", "og.png"]) {
+await writeFile(join(dist, "paginas.css"), pagesCss);
+for (const file of ["manifest.webmanifest", "icon.svg", "og.png"]) {
   if (await exists(file)) await cp(join(root, file), join(dist, file));
 }
 if (await exists("icons")) await cp(join(root, "icons"), join(dist, "icons"), { recursive: true });

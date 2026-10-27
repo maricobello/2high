@@ -38,15 +38,17 @@ npm run smoke        # joga no navegador, no computador e no celular; prints em 
 |---|---|
 | `dist/index.html` | o jogo inteiro num arquivo só (JS, CSS e fontes embutidos) |
 | `dist/sw.js`, `manifest.webmanifest`, `icons/` | instalar como app e jogar sem internet |
-| `dist/privacidade.html` | política de privacidade (as lojas pedem o link) |
+| `dist/privacidade.html`, `suporte.html` | páginas que as lojas pedem (contato em `store/config.json`) |
 | `dist/og.png` | imagem de compartilhamento |
 | `dist/artifact.html` | prévia jogável publicada no claude.ai |
 
+A versão do jogo fica só em `package.json` e vale para o site, o Android e o iPhone.
+
 ## Site
 
-Qualquer hospedagem de arquivos estáticos serve: suba o conteúdo de `dist/`.
-Na Vercel: projeto novo com *Root Directory* `rajada`, *Build Command*
-`npm run build` e *Output Directory* `dist`.
+https://rajada-jogo.vercel.app (projeto `rajada-jogo` na Vercel, configurado em
+`vercel.json`). Atualiza sozinho a cada mudança no `main`. Qualquer hospedagem
+de arquivos estáticos também serve: suba o conteúdo de `dist/`.
 
 ## Android
 
@@ -54,21 +56,17 @@ Na Vercel: projeto novo com *Root Directory* `rajada`, *Build Command*
   push que mexe em `rajada/`. Em *Actions*, abra a execução e baixe
   `rajada-android`. A main (ou *Run workflow*) também publica o APK com link
   direto na página de versões, tag `rajada-apk`.
-- **Google Play:** o mesmo workflow gera o `rajada-loja.aab` assinado quando os
-  secrets de assinatura existem. Passo a passo em [docs/lancamento.md](docs/lancamento.md).
+- **Google Play:** o workflow manual `Jogo RAJADA · Lojas` cria a chave de envio
+  e gera o AAB assinado. Passo a passo em [docs/lancamento.md](docs/lancamento.md).
 - **No Android Studio:** `npm run cap:android`.
 
 ## iPhone
 
-O workflow confere que o app compila num Mac do GitHub (Xcode 26). Para
-publicar, é preciso um Mac com Xcode e conta Apple Developer:
-
-```bash
-npm run cap:ios      # build + sincroniza + abre no Xcode
-```
-
-No Xcode: *Signing & Capabilities* > *Team*, depois *Product > Archive* e
-*Distribute App*. Detalhes em [docs/lancamento.md](docs/lancamento.md).
+O workflow `Jogo RAJADA` confere que o app compila num Mac do GitHub (Xcode 26).
+O `Jogo RAJADA · Lojas` compila e envia ao TestFlight, também num Mac do GitHub:
+basta a conta Apple Developer e os segredos descritos em
+[docs/lancamento.md](docs/lancamento.md). Com um Mac, `npm run cap:ios` abre o
+projeto no Xcode.
 
 ## Arte e imagens
 
@@ -91,5 +89,5 @@ Depois de mudar o jogo: `npm run build && npx cap sync`.
 | `tests/` | testes das regras, simulador de balanceamento e teste no navegador |
 | `android/`, `ios/` | projetos nativos (Capacitor) |
 | `assets/` | origem dos ícones e da abertura nativos |
-| `store/` | capturas e imagem de destaque para as lojas |
+| `store/` | capturas, imagem de destaque e contato das páginas (`config.json`) |
 | `fonts/` | Pixelify Sans e dígitos da Jersey 10 (SIL Open Font License) |
