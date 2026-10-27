@@ -26,7 +26,7 @@ import {
   localDay,
   struggling,
 } from "./progress.js";
-import { $, fmt, installIcons, missionItem, upgradesPanel, shipsPanel, statsPanel, causeName } from "./ui.js";
+import { $, fmt, installIcons, missionItem, upgradesPanel, shipsPanel, statsPanel, causeName, collectionData, collectionPanel } from "./ui.js";
 
 const TAP_GUARD_MS = 700;
 const TOUCH_SENS = 1.1;
@@ -88,15 +88,15 @@ function layout() {
 
 // ---------- telas ----------
 
-const OVERLAYS = ["missions", "hangar", "settings", "pause", "result"];
+const OVERLAYS = ["missions", "hangar", "settings", "collection", "pause", "result"];
 
 function setScreen(name) {
   screen = name;
   const playing = name === "game" || name === "pause" || name === "result";
-  $("home").hidden = playing || !["home", "hangar", "missions", "settings"].includes(name);
+  $("home").hidden = playing || !["home", "hangar", "missions", "settings", "collection"].includes(name);
   $("hud").hidden = !(name === "game" || name === "pause");
   for (const id of OVERLAYS) $(id).hidden = name !== id;
-  if (name === "home" || name === "hangar" || name === "missions" || name === "settings") $("home").hidden = false;
+  if (["home", "hangar", "missions", "settings", "collection"].includes(name)) $("home").hidden = false;
   if (name !== "game") $("hint").hidden = true;
   if (name === "home") renderHome();
 }
@@ -127,6 +127,8 @@ function renderHome() {
       : "Tudo no máximo";
   $("hangar-badge").hidden = n === 0;
   $("missions-sub").textContent = `${rank.progress} de 3 para subir`;
+  const col = collectionData(profile);
+  $("collection-sub").textContent = `${col.bosses.filter((b) => b.kills).length} de ${col.bosses.length} chefes derrotados`;
   fitDemo();
 }
 
@@ -557,6 +559,7 @@ function openOverlay(name) {
   if (name === "hangar") renderHangar();
   if (name === "missions") renderMissions();
   if (name === "settings") renderSettings();
+  if (name === "collection") renderCollection();
   setScreen(name);
 }
 
@@ -579,6 +582,13 @@ function renderHangar() {
     tab.setAttribute("aria-selected", String(on));
     $(`tab-${tab.dataset.tab}`).hidden = !on;
   }
+}
+
+function renderCollection() {
+  const data = collectionData(profile);
+  const forms = [...data.forms.gun, ...data.forms.rockets, ...data.forms.drones];
+  $("collection-count").textContent = `${data.bosses.filter((b) => b.seen).length} de ${data.bosses.length} chefes vistos · ${forms.filter((f) => f.unlocked).length} de ${forms.length} formas`;
+  $("collection-list").innerHTML = collectionPanel(data, iconUrl);
 }
 
 function renderMissions() {
@@ -777,6 +787,8 @@ document.addEventListener("visibilitychange", () => {
 $("btn-play").addEventListener("click", () => act(startRun));
 $("btn-hangar").addEventListener("click", () => act(() => openOverlay("hangar")));
 $("btn-missions").addEventListener("click", () => act(() => openOverlay("missions")));
+$("btn-collection").addEventListener("click", () => act(() => openOverlay("collection")));
+$("btn-collection-close").addEventListener("click", () => act(closeOverlay));
 $("rank-chip").addEventListener("click", () => act(() => openOverlay("missions")));
 $("btn-settings").addEventListener("click", () => act(() => openOverlay("settings")));
 $("btn-hangar-close").addEventListener("click", () => act(closeOverlay));

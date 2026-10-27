@@ -87,6 +87,9 @@
             <span>Missões</span><small id="missions-sub">0 de 3</small>
           </button>
         </div>
+        <button id="btn-collection" class="secondary slim" type="button">
+          <span>Coleção</span><small id="collection-sub">Chefes e formas</small>
+        </button>
       </div>
     </section>
 
@@ -119,6 +122,17 @@
         <div id="tab-registro" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-registro" hidden></div>
         <div class="actions">
           <button id="btn-hangar-close" class="secondary" type="button">Fechar</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="collection" class="screen overlay" aria-label="Coleção" hidden>
+      <div class="card">
+        <h2 class="card-title">Coleção</h2>
+        <p id="collection-count" class="card-sub"></p>
+        <div id="collection-list" class="collection"></div>
+        <div class="actions">
+          <button id="btn-collection-close" class="secondary" type="button">Fechar</button>
         </div>
       </div>
     </section>

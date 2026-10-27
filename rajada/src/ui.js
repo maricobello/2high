@@ -1,6 +1,6 @@
-// Pedaços de interface montados em HTML: missões, hangar, naves e registro.
+// Pedaços de interface montados em HTML: missões, hangar, naves, registro e coleção.
 // Só gera marcação; quem decide quando mostrar é main.js.
-import { UPGRADES, UPGRADE_ORDER, SHIPS, SHIP_ORDER } from "./config.js";
+import { UPGRADES, UPGRADE_ORDER, SHIPS, SHIP_ORDER, BOSSES, GUN_FORMS, ROCKET_MARKS, DRONE_MARKS } from "./config.js";
 import { missionText, liveProgress } from "./missions.js";
 import { upgradeCost, shipUnlockProgress } from "./progress.js";
 import { favoriteWeapon } from "./stats.js";
@@ -124,4 +124,40 @@ export function causeName(cause) {
       laser: "o laser do Olho",
     }[cause] ?? "tiro inimigo"
   );
+}
+
+// ---------- coleção ----------
+
+// Chefes vistos e derrotados e as formas de cada arma, liberadas quando o
+// recorde de nível da arma chega ao nível delas (a Rajada sempre aparece).
+export function collectionData(profile) {
+  const st = profile.stats;
+  const marks = (table, level) => Object.entries(table).map(([at, name]) => ({ name, at: Number(at), unlocked: level >= Number(at) }));
+  return {
+    bosses: BOSSES.map((b) => ({ id: b.id, name: b.name, sprite: b.sprite, seen: !!st.bossSeen?.[b.id], kills: st.bossKills?.[b.id] ?? 0 })),
+    forms: {
+      gun: GUN_FORMS.map((f) => ({ name: f.name, at: f.at, unlocked: Math.max(1, st.best.gun ?? 0) >= f.at })),
+      rockets: marks(ROCKET_MARKS, st.best.rockets ?? 0),
+      drones: marks(DRONE_MARKS, st.best.drones ?? 0),
+    },
+  };
+}
+
+// Chefe nunca visto: silhueta e "???". Forma bloqueada: só o nível.
+export function collectionPanel(data, iconUrl) {
+  const bosses = data.bosses
+    .map((b) => {
+      const sub = !b.seen ? "Nunca visto" : b.kills ? `Derrotado ${b.kills}×` : "Ainda não derrotado";
+      return `<li class="col-boss${b.seen ? "" : " unseen"}">
+        <span class="pic" style="--img:url(${iconUrl(b.sprite)})" aria-hidden="true"></span>
+        <b>${b.seen ? b.name : "???"}</b><small>${sub}</small>
+      </li>`;
+    })
+    .join("");
+  const forms = (title, list) => `<h3 class="col-title">${title}</h3>
+    <ul class="col-forms">${list
+      .map((f) => `<li class="${f.unlocked ? "on" : "off"}"><b>${f.unlocked ? f.name : `Nível ${f.at}`}</b>${f.unlocked ? `<small>Nível ${f.at}</small>` : ""}</li>`)
+      .join("")}</ul>`;
+  return `<h3 class="col-title">Chefes</h3><ul class="col-bosses">${bosses}</ul>
+    ${forms("Metralhadora", data.forms.gun)}${forms("Foguetes", data.forms.rockets)}${forms("Drones", data.forms.drones)}`;
 }

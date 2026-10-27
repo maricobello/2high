@@ -16,7 +16,7 @@ import {
   shipUnlockMet,
   upgradeCost,
 } from "../src/progress.js";
-import { upgradesPanel } from "../src/ui.js";
+import { upgradesPanel, collectionData, collectionPanel } from "../src/ui.js";
 
 const run = (over = {}) => ({
   score: 3000,
@@ -277,4 +277,25 @@ test("hangar: Canhão, Foguetes e Sorte nunca ficam no máximo", () => {
   assert.ok(!card("canhao").includes("MÁX"));
   assert.ok(card("sorte").includes("mais chance de raras"));
   assert.ok(card("casco").includes("MÁX"));
+});
+
+test("coleção: chefe não visto é silhueta; forma liberada pelo recorde", () => {
+  const base = defaultProfile();
+  const stats = { ...base.stats, bossSeen: { colosso: true }, bossKills: { colosso: 2 }, best: { ...base.stats.best, gun: 16, rockets: 5, drones: 0 } };
+  const data = collectionData({ ...base, stats });
+  const boss = (id) => data.bosses.find((b) => b.id === id);
+  assert.equal(data.bosses.length, 6);
+  assert.deepEqual([boss("colosso").seen, boss("colosso").kills], [true, 2]);
+  assert.equal(boss("aranha").seen, false);
+  const form = (name) => data.forms.gun.find((f) => f.name === name);
+  assert.equal(form("Perfurante").unlocked, true);
+  assert.equal(form("Caçadora").unlocked, false);
+  assert.equal(form("Rajada").unlocked, true, "a forma inicial sempre aparece");
+  assert.equal(data.forms.rockets.find((f) => f.at === 5).unlocked, true);
+  assert.equal(data.forms.drones.find((f) => f.at === 4).unlocked, false);
+  const html = collectionPanel(data, () => "x");
+  assert.ok(html.includes("???"), "chefe nunca visto sem nome");
+  assert.ok(html.includes("Nível 20"), "forma bloqueada mostra só o nível");
+  assert.ok(!html.includes("Caçadora"), "nome da forma bloqueada fica escondido");
+  assert.ok(html.includes("Derrotado 2×"));
 });

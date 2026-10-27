@@ -192,6 +192,21 @@ async function run(label, context) {
   await page.click("#btn-settings-close");
   await screenIs(page, "home");
 
+  // coleção de chefes e formas, aberta pela tela inicial
+  await page.click("#btn-collection");
+  await screenIs(page, "collection");
+  const small = await page.evaluate(() =>
+    [...document.querySelectorAll("#collection button, #btn-collection")]
+      .map((b) => b.getBoundingClientRect())
+      .filter((r) => r.width < 44 || r.height < 44).length,
+  );
+  assert.equal(small, 0, "botões com pelo menos 44 px");
+  assert.equal(await page.locator("#collection .col-boss").count(), 6);
+  await page.waitForTimeout(300);
+  await snap("colecao");
+  await page.click("#btn-collection-close");
+  await screenIs(page, "home");
+
   // progresso sobrevive ao recarregar
   await page.reload();
   await page.waitForTimeout(800);
