@@ -49,7 +49,7 @@ Todos os caminhos abaixo são relativos a `rajada/`. Comandos rodam dentro de
 
 ## Fase 1: armas sem teto e loot com raridade
 
-### Tarefa 1: matemática do poder (`src/power.js`)
+### Task 1: matemática do poder (`src/power.js`)
 
 **Files:**
 - Create: `src/power.js`, `tests/power.test.js`
@@ -113,7 +113,7 @@ test("arco-íris troca de rampa com o tempo; faixas normais não", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS.
 - [ ] **Step 5: commit** — `git add src/power.js src/config.js tests/power.test.js && git commit` ("RAJADA: progressão das armas (faixas, estrelas, formas)").
 
-### Tarefa 2: armas sem teto (`src/weapons.js`) e fim dos máximos
+### Task 2: armas sem teto (`src/weapons.js`) e fim dos máximos
 
 **Files:**
 - Modify: `src/weapons.js` (inteiro), `src/config.js` (`GUN`, `ROCKETS`, `DRONES`, linhas 74–98), `src/drops.js:1-85`, `src/progress.js:16,112-126`, `src/game.js:279-306` (`firePlayer`)
@@ -187,7 +187,7 @@ test("ao levar dano perde a arma de maior nível (empate: metralhadora)", () => 
 - [ ] **Step 4: rodar** — `npm test` → PASS.
 - [ ] **Step 5: commit** ("RAJADA: armas sem nível máximo").
 
-### Tarefa 3: perfurar, teleguiar, raio e fragmentação na partida
+### Task 3: perfurar, teleguiar, raio e fragmentação na partida
 
 **Files:**
 - Modify: `src/game.js` (`firePlayer` 279–306, `moveWorld` 366–390, `collide` 445–486, `cleanup` 845–856), `src/config.js` (`PERF = { enemies: 60, shots: 220, bullets: 260 }`)
@@ -265,7 +265,7 @@ test("nível 200 em tudo: 30 s sem erro e no máximo 260 tiros da nave", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS.
 - [ ] **Step 5: commit** ("RAJADA: tiros perfurantes, teleguiados, raio e fragmentação").
 
-### Tarefa 4: raridade do loot (`src/loot.js`)
+### Task 4: raridade do loot (`src/loot.js`)
 
 **Files:**
 - Create: `src/loot.js`, `tests/loot.test.js`
@@ -332,7 +332,7 @@ test("comum de metralhadora no 4 vira Leque e avisa a forma", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS.
 - [ ] **Step 5: commit** ("RAJADA: loot com raridade e garantias").
 
-### Tarefa 5: raridade dentro da partida
+### Task 5: raridade dentro da partida
 
 **Files:**
 - Modify: `src/game.js` (`g.pity`, `dropCapsule`, `killEnemy`, `bossDefeated`, `collectCapsule`)
@@ -353,7 +353,7 @@ test("comum de metralhadora no 4 vira Leque e avisa a forma", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS.
 - [ ] **Step 5: commit** ("RAJADA: raridade nas cápsulas da partida").
 
-### Tarefa 6: cor dos tiros, cápsulas com raridade e barra da próxima forma
+### Task 6: cor dos tiros, cápsulas com raridade e barra da próxima forma
 
 **Files:**
 - Modify: `src/render.js` (`drawPlayerShots`, `drawItems`, eventos `cap`, `cap_spawn`, `form`), `src/main.js` (placar, eventos, QA), `src/audio.js` (`rarity(r)`, `form()`), `index.html` (placar: `<div id="hud-next" class="hud-next">`), `style.css`
@@ -374,7 +374,7 @@ test("comum de metralhadora no 4 vira Leque e avisa a forma", () => {
 
 ## Fase 2: dificuldade
 
-### Tarefa 7: começo cheio e vida +35% por setor
+### Task 7: começo cheio e vida +35% por setor
 
 **Files:**
 - Modify: `src/config.js` (`sectorScale`, `SECTORS`, `WAVES`), `src/waves.js` (`buildWave`), `src/game.js` (setor no `buildWave`, calma da primeira partida, contadores do setor 1), `tests/balance.mjs`
@@ -428,7 +428,7 @@ test("primeira partida: 3 s sem ondas", () => {
 - [ ] **Step 5: rodar** — `npm test` → PASS; `npm run balance -- 20` → inimigos/min no setor 1 pelo menos 1,8× a base do Step 1 (critério S4).
 - [ ] **Step 6: commit** ("RAJADA: começo com o dobro de inimigos e vida +35% por setor").
 
-### Tarefa 8: elites, voltas e tetos de desempenho
+### Task 8: elites, voltas e tetos de desempenho
 
 **Files:**
 - Modify: `src/config.js` (`ELITE`, `LAPS`, `lapOf`, `DIRECTOR.strongRatio`), `src/enemies.js` (`makeEnemy`, ataques das voltas), `src/game.js` (sorteio de elite, origem `elite`, cristais ×2, tetos `PERF.enemies` e `PERF.shots`, `strong` por `estimateDps`), `src/sprites.js` (variações `nome@elite`, `nome@1`…`@3`), `src/render.js` (escolha da variação; volta acima de 3 com brilho 0,15)
@@ -457,7 +457,7 @@ test("primeira partida: 3 s sem ondas", () => {
 
 ## Fase 3: alta definição
 
-### Tarefa 9: canvas 2× e base para sprites em alta definição
+### Task 9: canvas 2× e base para sprites em alta definição
 
 **Files:**
 - Create: `src/pixel.js` (editor que sai de `sprites.js`: `grid`, `set`, `rect`, `poly`, `ellipse`, `line`, `stamp`, `mirrorGrid`, `shade`, `outline`, `finish`, `toRows`, `LIGHT`, `DARK`), `src/pixel-hd.js`, `tests/sprites.test.js` (se ainda não existir)
@@ -476,7 +476,7 @@ test("primeira partida: 3 s sem ondas", () => {
 - [ ] **Step 5: rodar** — `npm test && npm run build && npm run smoke` → PASS; print da partida igual ao de antes a olho.
 - [ ] **Step 6: commit** ("RAJADA: canvas em dobro e base para alta definição").
 
-### Tarefa 10: Couraçado, Portador e pedra grande em alta definição
+### Task 10: Couraçado, Portador e pedra grande em alta definição
 
 **Files:**
 - Create: `src/art-grandes.js` (`couracadoHD(frame)`, `portadorHD(frame)`, `pedraHD(rot)`)
@@ -495,7 +495,7 @@ test("primeira partida: 3 s sem ondas", () => {
 
 ## Fase 4: chefes
 
-### Tarefa 11: seis chefes: rodízio, voltas e armadura que quebra
+### Task 11: seis chefes: rodízio, voltas e armadura que quebra
 
 **Files:**
 - Modify: `src/bosses.js` (`makeBoss`, `updateBoss`, `bossSprite`), `src/sprites.js` (`broken(rows)` e variações `_quebrado` e de volta para todo chefe), `src/render.js` (`drawBoss` usa `bossSprite`; `boss_phase` solta pedaços), `src/config.js`
@@ -518,7 +518,7 @@ test("primeira partida: 3 s sem ondas", () => {
 - [ ] **Step 4: rodar** — `npm test && npm run build && npm run smoke` → PASS.
 - [ ] **Step 5: commit** ("RAJADA: rodízio de chefes, voltas e armadura que quebra").
 
-### Tarefa 12: Colosso, Aranha e Olho em alta definição
+### Task 12: Colosso, Aranha e Olho em alta definição
 
 **Files:**
 - Create: `src/art-chefes.js` (`colossoHD(frame)`, `aranhaHD(frame)`, `olhoHD(lid)`, `irisHD()`)
@@ -535,7 +535,7 @@ test("primeira partida: 3 s sem ondas", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS; `npm run sprites` e conferir `tests/prints/chefes.png`.
 - [ ] **Step 5: commit** ("RAJADA: Colosso, Aranha e Olho em alta definição").
 
-### Tarefa 13: Serpente
+### Task 13: Serpente
 
 **Files:**
 - Modify: `src/config.js` (`BOSSES` + `{ id: "serpente", name: "Serpente", sprite: "serpente", hp: 480, score: 8000, y: 0.25, box: [22, 18], segments: 10, spacing: 9 }`), `src/bosses.js` (gomos, movimento, `bossBlocks`, ataques e roteiro), `src/game.js` (`collide`: tiro em gomo é bloqueado), `src/art-chefes.js` (`serpenteHD(frame)` cabeça 2 quadros, `serpenteGomoHD(frame)` 2 quadros, `serpenteCaudaHD()`), `src/render.js` (gomos da cauda para a cabeça)
@@ -559,7 +559,7 @@ test("primeira partida: 3 s sem ondas", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS; `npm run sprites` e conferir a Serpente em `tests/prints/chefes.png`.
 - [ ] **Step 5: commit** ("RAJADA: chefe Serpente").
 
-### Tarefa 14: Forja
+### Task 14: Forja
 
 **Files:**
 - Modify: `src/config.js` (`BOSSES` + `{ id: "forja", name: "Forja", sprite: "forja", hp: 520, score: 9000, y: 0.18, box: [60, 26] }`), `src/bosses.js`, `src/art-chefes.js` (`forjaHD(frame)`, 70×40 no mundo, grade 140×80, 4 quadros de pistões e fornalhas)
@@ -582,7 +582,7 @@ test("primeira partida: 3 s sem ondas", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS; conferir a Forja em `tests/prints/chefes.png`.
 - [ ] **Step 5: commit** ("RAJADA: chefe Forja").
 
-### Tarefa 15: Rainha
+### Task 15: Rainha
 
 **Files:**
 - Modify: `src/config.js` (`BOSSES` + `{ id: "rainha", name: "Rainha", sprite: "rainha", hp: 560, score: 10000, y: 0.22, box: [36, 30] }`), `src/bosses.js`, `src/art-chefes.js` (`rainhaHD(frame)`, 64×44 no mundo, grade 128×88, 4 quadros de asas)
@@ -608,7 +608,7 @@ test("primeira partida: 3 s sem ondas", () => {
 
 ## Fase 5: efeitos, metas e coleção
 
-### Tarefa 16: efeitos, sons e câmera lenta
+### Task 16: efeitos, sons e câmera lenta
 
 **Files:**
 - Modify: `src/game.js` (`g.slowT`, opção `reducedMotion`), `src/main.js` (passa `reducedMotion` ao jogo), `src/render.js` (rastro da faixa 6 em diante, clarão nos canos, cápsula rara com 4 pontos girando, faíscas da lendária, pedaços da armadura com partículas de meio pixel, explosões em cadeia), `src/sprites.js` (`drone` com 3 quadros girando), `src/audio.js` (ajustes de volume dos sons novos)
@@ -626,7 +626,7 @@ test("primeira partida: 3 s sem ondas", () => {
 - [ ] **Step 4: rodar** — `npm test && npm run build && npm run smoke` → PASS; conferir `tests/prints/efeitos.png` (rastro, anel, faíscas) e que nenhum clarão grande pisca mais de 3 vezes por segundo.
 - [ ] **Step 5: commit** ("RAJADA: rastros, faíscas, câmera lenta e sons de raridade").
 
-### Tarefa 17: recordes, hangar sem fim e missões novas
+### Task 17: recordes, hangar sem fim e missões novas
 
 **Files:**
 - Modify: `src/stats.js` (`emptyStats`, `sanitizeStats`, `recordRun`), `src/game.js` (`summary`: `maxDrones`, `bestRarity` 0..3, `bossesBy`, `bossesSeen`), `src/config.js` (`UPGRADES` com `infinite: true` em canhao, foguetes e sorte; `text(n)` para qualquer `n`), `src/progress.js` (`upgradeCost`, `loadoutFor` com `luckLevel`), `src/missions.js`, `src/main.js` (aviso de recorde na hora), `src/ui.js` (`upgradesPanel` sem "MÁX" nas infinitas)
@@ -686,7 +686,7 @@ test("recordes de arma, raridade e chefes entram nas estatísticas", () => {
 - [ ] **Step 4: rodar** — `npm test` → PASS.
 - [ ] **Step 5: commit** ("RAJADA: recordes de arma, hangar sem fim e missões novas").
 
-### Tarefa 18: Coleção
+### Task 18: Coleção
 
 **Files:**
 - Modify: `index.html` (botão `#btn-collection` "Coleção" na tela inicial e overlay `#collection`), `src/ui.js` (`collectionData(profile)` e `collectionPanel(data, iconUrl)`), `src/main.js` (abrir, fechar, desenhar), `style.css`
@@ -707,7 +707,7 @@ test("recordes de arma, raridade e chefes entram nas estatísticas", () => {
 
 ## Fase 6: balanceamento, desempenho e publicação
 
-### Tarefa 19: balanceamento com bots
+### Task 19: balanceamento com bots
 
 **Files:**
 - Modify: `tests/balance.mjs` (colunas novas: nível de metralhadora mediano e máximo; inimigos/min no setor 1; modo `-- longo`: piloto 0.9, 20 partidas, limite de 60 min, mostra a porcentagem que acabou antes do setor 30), valores de ajuste em `src/config.js`
@@ -718,7 +718,7 @@ test("recordes de arma, raridade e chefes entram nas estatísticas", () => {
 - [ ] **Step 3: ajustar e repetir** até os 4 critérios passarem; `npm test` → PASS.
 - [ ] **Step 4: commit** com a tabela final no corpo da mensagem ("RAJADA: balanceamento da evolução infinita").
 
-### Tarefa 20: desempenho
+### Task 20: desempenho
 
 **Files:**
 - Create: `tests/perf.mjs` (Playwright: CPU 4× mais lenta via `Emulation.setCPUThrottlingRate`; pior caso pelos ganchos de QA: `jumpTo(12)`, chefe na fase 2, metralhadora 40, foguetes 20, drones 12; mede quadros por segundo por 10 s)
@@ -729,7 +729,7 @@ test("recordes de arma, raridade e chefes entram nas estatísticas", () => {
 - [ ] **Step 3: se falhar**, cortar custo (menos partículas, rampas dos tiros em cache como canvas pequenos, gomos e variações pré-desenhados) e repetir até passar.
 - [ ] **Step 4: commit** ("RAJADA: medição de desempenho no pior caso").
 
-### Tarefa 21: documentação, versão 1.1.0 e publicação
+### Task 21: documentação, versão 1.1.0 e publicação
 
 **Files:**
 - Modify: `docs/design.md` (armas, loot, dificuldade, chefes, tabela de balanceamento da Tarefa 19, auditoria técnica com testes e desempenho), `README.md`, `docs/lancamento.md` (descrição das lojas: 6 chefes, armas sem limite), `package.json` (`"version": "1.1.0"`), `store/` (`npm run store` refaz as capturas)
