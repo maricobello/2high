@@ -97,6 +97,42 @@ export const ROCKETS = {
 
 export const DRONES = { max: 2, every: 0.18, dmg: 0.8, offset: [[-18, 6], [18, 6]] };
 
+// Poder sem teto: dano cresce a cada nível; a cor do tiro troca a cada 5 níveis
+// (faixa) e vira arco-íris na faixa 10; do 35 em diante, uma ★ a cada 5 níveis.
+// ramps: [claro, médio, escuro] de cada faixa, do branco (0) ao dourado (9).
+export const POWER = {
+  perLevel: 0.1,
+  starFrom: 35,
+  starEvery: 5,
+  starBonus: 0.15,
+  band: 5,
+  rainbowBand: 10,
+  ramps: [
+    ["#ffffff", "#f4f7ff", "#b9c3dc"],
+    ["#fff4b0", "#ffd23f", "#ff8a2a"],
+    ["#ffd9a8", "#ff8a2a", "#b4501a"],
+    ["#ffb3b3", "#ff3d55", "#9c1a33"],
+    ["#ffb3dc", "#ff5fb4", "#a01f72"],
+    ["#d6bcff", "#a46bff", "#5a2fae"],
+    ["#7cb4ff", "#3d6bff", "#2c3f86"],
+    ["#c4fcff", "#48e4f0", "#3d6bff"],
+    ["#b6ffc4", "#4ee36a", "#1d8f45"],
+    ["#ffffff", "#ffd23f", "#c8902a"],
+  ],
+};
+
+// Formas da metralhadora: a partir do nível `at`.
+export const GUN_FORMS = [
+  { at: 1, id: "rajada", name: "Rajada" },
+  { at: 5, id: "leque", name: "Leque" },
+  { at: 10, id: "pesada", name: "Pesada" },
+  { at: 15, id: "perfurante", name: "Perfurante" },
+  { at: 20, id: "cacadora", name: "Caçadora" },
+  { at: 25, id: "raio", name: "Raio" },
+  { at: 30, id: "tempestade", name: "Tempestade" },
+  { at: 35, id: "estelar", name: "Estelar" },
+];
+
 export const TURBO = { full: 50, dur: 6, perGraze: 0.7, fireMult: 0.5, scoreMult: 2 };
 export const COMBO = { window: 1.6, perStep: 6, max: 8 };
 
