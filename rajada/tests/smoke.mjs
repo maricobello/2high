@@ -42,6 +42,13 @@ async function run(label, context) {
   await page.click("#btn-play");
   await screenIs(page, "game");
   assert.equal(await page.isVisible("#hint"), true, "dica de arrastar na primeira partida");
+  // canvas com o dobro de pixels por dentro e sem borrar
+  const canvasState = () =>
+    page.evaluate(() => {
+      const c = document.getElementById("stage");
+      return { w: c.width, smooth: c.getContext("2d").imageSmoothingEnabled };
+    });
+  assert.deepEqual(await canvasState(), { w: 448, smooth: false });
   const before = await game(page, (g) => g.player.x);
   if (label === "celular") {
     // arrastar com o dedo move a nave na mesma direção
@@ -62,6 +69,13 @@ async function run(label, context) {
   await page.evaluate(() => window.__rajada.autopilot(true, 0.9));
   await page.waitForTimeout(6000);
   await snap("2-partida");
+  // girar a tela no meio da partida não muda a resolução nem borra
+  const vp = page.viewportSize();
+  await page.setViewportSize({ width: vp.height, height: vp.width });
+  await page.waitForTimeout(400);
+  assert.deepEqual(await canvasState(), { w: 448, smooth: false }, "depois de girar a tela");
+  await page.setViewportSize(vp);
+  await page.waitForTimeout(400);
   await page.evaluate(() => {
     const r = window.__rajada;
     r.capsule("M");

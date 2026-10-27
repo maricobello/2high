@@ -7,6 +7,10 @@ import { drawText, textWidth } from "./font.js";
 import { W, SHIPS, SHOTS, sectorInfo } from "./config.js";
 import { CAP_NAMES } from "./drops.js";
 
+// Pixels de canvas por unidade do mundo: o mundo continua com 224 de largura,
+// mas o canvas tem o dobro por dentro para os sprites em alta definição.
+export const RES = 2;
+
 const BAYER = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -61,8 +65,8 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
 
   function resize(height) {
     H = height;
-    canvas.width = W;
-    canvas.height = H;
+    canvas.width = W * RES;
+    canvas.height = H * RES;
     ctx.imageSmoothingEnabled = false;
     stars = [];
     const layers = [
@@ -231,10 +235,13 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     const left = Math.round(x - s.w / 2);
     const top = Math.round(y - s.h / 2);
     if (alpha !== 1) ctx.globalAlpha = alpha;
-    ctx.drawImage(set[i], left, top);
+    // alta definição: a grade dobrada ocupa o mesmo espaço no mundo
+    if (s.hd) ctx.drawImage(set[i], left, top, s.w, s.h);
+    else ctx.drawImage(set[i], left, top);
     if (glow > 0) {
       ctx.globalAlpha = glow * alpha;
-      ctx.drawImage(s.flash[i % s.flash.length], left, top);
+      if (s.hd) ctx.drawImage(s.flash[i % s.flash.length], left, top, s.w, s.h);
+      else ctx.drawImage(s.flash[i % s.flash.length], left, top);
     }
     if (alpha !== 1 || glow > 0) ctx.globalAlpha = 1;
   }
@@ -593,7 +600,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     const scroll = g.status !== "playing" ? 0.4 : g.phase === "after" ? 4 : g.turboT > 0 ? 2.6 : 1;
     const sx = fx.shake ? Math.round((Math.random() - 0.5) * fx.shake) : 0;
     const sy = fx.shake ? Math.round((Math.random() - 0.5) * fx.shake) : 0;
-    ctx.setTransform(1, 0, 0, 1, sx, sy);
+    ctx.setTransform(RES, 0, 0, RES, sx * RES, sy * RES);
     drawBackground(g, dt, scroll);
     drawItems(g);
     drawEnemies(g);
@@ -603,7 +610,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     drawShots(g);
     drawLasers(g);
     drawFx();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(RES, 0, 0, RES, 0, 0);
 
     // casco em 1: borda vermelha pulsando; dano: borda forte
     const low = g.status === "playing" && p.hp === 1 && g.mode === "run" ? 0.25 + 0.15 * Math.sin(t * 6) : 0;

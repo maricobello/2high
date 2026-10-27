@@ -3,6 +3,7 @@
 // As peças grandes (chefes, couraçado, pedras, explosão) são desenhadas por um
 // mini editor de pixels: formas simples, depois espelho, sombra e contorno.
 import { createRng } from "./rng.js";
+import { DARK, grid, toRows, set, rect, poly, ellipse, line, stamp, shade, outline, finish } from "./pixel.js";
 
 export const PALETTE = {
   k: "#090c18", // contorno
@@ -57,97 +58,7 @@ const rotate = (rows) => {
 };
 const spin4 = (rows) => [rows, rotate(rows), rotate(rotate(rows)), rotate(rotate(rotate(rows)))];
 
-// ---------- mini editor de pixels ----------
-
-const LIGHT = { l: "w", g: "l", d: "g", n: "N", N: "b", b: "B", B: "C", c: "C", R: "r", P: "p", p: "q", V: "v", v: "u", U: "V", E: "e", e: "m", S: "a", a: "s", s: "z", Z: "S", O: "o", o: "y", y: "Y" };
-const DARK = { w: "l", l: "g", g: "d", d: "n", N: "n", B: "b", b: "N", C: "c", c: "b", r: "R", q: "p", p: "P", u: "v", v: "V", V: "U", m: "e", e: "E", z: "s", s: "a", a: "S", S: "Z", Y: "y", y: "o", o: "O" };
-
-const grid = (w, h) => Array.from({ length: h }, () => Array(w).fill("."));
-const toRows = (G) => G.map((r) => r.join(""));
-const inside = (G, x, y) => y >= 0 && y < G.length && x >= 0 && x < G[0].length;
-
-function set(G, x, y, ch) {
-  x = Math.round(x);
-  y = Math.round(y);
-  if (inside(G, x, y)) G[y][x] = ch;
-}
-
-function rect(G, x, y, w, h, ch) {
-  for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) set(G, i, j, ch);
-}
-
-// Preenche o polígono pelos centros dos pixels.
-function poly(G, pts, ch) {
-  const ys = pts.map((p) => p[1]);
-  for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y++) {
-    const cy = y + 0.5;
-    const xs = [];
-    for (let i = 0; i < pts.length; i++) {
-      const [x1, y1] = pts[i];
-      const [x2, y2] = pts[(i + 1) % pts.length];
-      if ((y1 <= cy && y2 > cy) || (y2 <= cy && y1 > cy)) xs.push(x1 + ((cy - y1) / (y2 - y1)) * (x2 - x1));
-    }
-    xs.sort((a, b) => a - b);
-    for (let k = 0; k + 1 < xs.length; k += 2) {
-      for (let x = Math.ceil(xs[k] - 0.5); x <= Math.floor(xs[k + 1] - 0.5); x++) set(G, x, y, ch);
-    }
-  }
-}
-
-function ellipse(G, cx, cy, rx, ry, ch) {
-  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
-    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
-      const dx = (x + 0.5 - cx) / rx;
-      const dy = (y + 0.5 - cy) / ry;
-      if (dx * dx + dy * dy <= 1) set(G, x, y, ch);
-    }
-  }
-}
-
-function line(G, x0, y0, x1, y1, ch, width = 1) {
-  const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
-  for (let i = 0; i <= n; i++) {
-    const x = x0 + ((x1 - x0) * i) / n;
-    const y = y0 + ((y1 - y0) * i) / n;
-    if (width === 1) set(G, x, y, ch);
-    else rect(G, Math.round(x - (width - 1) / 2), Math.round(y - (width - 1) / 2), width, width, ch);
-  }
-}
-
-function stamp(G, rows, x, y) {
-  rows.forEach((r, j) => [...r].forEach((ch, i) => ch !== "." && set(G, x + i, y + j, ch)));
-}
-
-// Copia a metade esquerda para a direita (largura ímpar: coluna central é o eixo).
-function mirrorGrid(G) {
-  const w = G[0].length;
-  for (const row of G) for (let x = 0; x < Math.floor(w / 2); x++) row[w - 1 - x] = row[x];
-}
-
-// Luz de cima: borda de cima clareia, borda de baixo escurece.
-function shade(G) {
-  const src = G.map((r) => [...r]);
-  const filled = (x, y) => inside(G, x, y) && src[y][x] !== ".";
-  for (let y = 0; y < G.length; y++) {
-    for (let x = 0; x < G[0].length; x++) {
-      const c = src[y][x];
-      if (c === ".") continue;
-      if (!filled(x, y - 1) && LIGHT[c]) G[y][x] = LIGHT[c];
-      else if (!filled(x, y + 1) && DARK[c]) G[y][x] = DARK[c];
-    }
-  }
-}
-
-function outline(G, ch = "k") {
-  const src = G.map((r) => [...r]);
-  const filled = (x, y) => inside(G, x, y) && src[y][x] !== "." && src[y][x] !== ch;
-  for (let y = 0; y < G.length; y++) {
-    for (let x = 0; x < G[0].length; x++) {
-      if (src[y][x] !== ".") continue;
-      if (filled(x - 1, y) || filled(x + 1, y) || filled(x, y - 1) || filled(x, y + 1)) G[y][x] = ch;
-    }
-  }
-}
+// ---------- nave inclinada ----------
 
 // Inclinação na curva: a asa do lado da curva encolhe 1 px e escurece.
 function bank(rows) {
@@ -159,13 +70,6 @@ function bank(rows) {
     return narrow.join("") + r.slice(mid - 1);
   });
 }
-
-const finish = (G, { sym = true } = {}) => {
-  if (sym) mirrorGrid(G);
-  shade(G);
-  outline(G);
-  return toRows(G);
-};
 
 // ---------- naves do jogador (bico para cima) ----------
 
@@ -701,25 +605,38 @@ export const SPRITES = {
   coracao_vazio: [[".dd.dd.", "d..d..d", "d.....d", ".d...d.", "..d.d..", "...d..."]],
 };
 
-// Tamanho do primeiro quadro (colisão e desenho usam o mesmo número).
+// Sprites em alta definição: grade com o dobro de pixels (cada unidade do
+// mundo vale 2×2 pixels). A arte entra aqui pelos arquivos art-*.js.
+export const HD_SPRITES = {};
+
+export const isHd = (name) => Object.hasOwn(HD_SPRITES, name);
+
+// Tamanho no mundo de um quadro (alta definição: metade da grade).
+export const worldSize = (rows, hd) => (hd ? { w: rows[0].length / 2, h: rows.length / 2 } : { w: rows[0].length, h: rows.length });
+
+// Tamanho do primeiro quadro no mundo (colisão e desenho usam o mesmo número).
 export function sizeOf(name) {
-  const rows = SPRITES[name][0];
-  return { w: rows[0].length, h: rows.length };
+  const hd = isHd(name);
+  return worldSize((hd ? HD_SPRITES : SPRITES)[name][0], hd);
 }
 
 // Cria os canvas de cada quadro, mais uma versão branca (piscada de dano).
 // makeCanvas(w, h) devolve um canvas; no navegador é document.createElement.
+// Sprites em alta definição saem com hd: true e w/h no mundo; o desenho usa
+// esses números para encaixar a grade dobrada no mesmo espaço.
 export function buildSprites(makeCanvas) {
   const out = {};
-  for (const [name, frames] of Object.entries(SPRITES)) {
+  const add = (name, frames, hd) => {
     out[name] = {
       frames: frames.map((rows) => paint(makeCanvas, rows, null)),
       flash: frames.map((rows) => paint(makeCanvas, rows, "#ffffff")),
       flipped: name.endsWith("_bank") ? frames.map((rows) => paint(makeCanvas, flipX(rows), null)) : null,
-      w: frames[0][0].length,
-      h: frames[0].length,
+      ...worldSize(frames[0], hd),
+      hd,
     };
-  }
+  };
+  for (const [name, frames] of Object.entries(SPRITES)) add(name, frames, false);
+  for (const [name, frames] of Object.entries(HD_SPRITES)) add(name, frames, true);
   return out;
 }
 
@@ -739,12 +656,14 @@ function paint(makeCanvas, rows, solid) {
   return canvas;
 }
 
-// Usado pelos testes: todo quadro de um sprite tem o mesmo tamanho e só cores da paleta.
+// Usado pelos testes: todo quadro de um sprite tem o mesmo tamanho e só cores
+// da paleta; em alta definição, largura e altura pares (cabem no mundo).
 export function validateSprites() {
   const problems = [];
-  for (const [name, frames] of Object.entries(SPRITES)) {
+  for (const [name, frames] of [...Object.entries(SPRITES), ...Object.entries(HD_SPRITES)]) {
     const w = frames[0][0].length;
     const h = frames[0].length;
+    if (isHd(name) && (w % 2 || h % 2)) problems.push(`${name} em alta definição com tamanho ímpar ${w}×${h}`);
     frames.forEach((rows, i) => {
       if (rows.length !== h) problems.push(`${name}[${i}] altura ${rows.length} ≠ ${h}`);
       rows.forEach((r, y) => {
