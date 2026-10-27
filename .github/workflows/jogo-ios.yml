@@ -1,0 +1,44 @@
+# Confere se o projeto iOS do jogo PRUMO compila num Mac do GitHub (sem assinar).
+# Roda só quando o projeto iOS ou as dependências mudam. O envio à App Store fica
+# no workflow manual "Jogo PRUMO · Lojas".
+name: Jogo PRUMO · iOS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "jogo/ios/**"
+      - "jogo/package-lock.json"
+      - "jogo/capacitor.config.json"
+      - ".github/workflows/jogo-ios.yml"
+
+jobs:
+  compilar:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: jogo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: jogo/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+
+      - name: Compilar para iPhone
+        run: |
+          xcodebuild -version
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/PRUMO.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO archive
+          ls "$RUNNER_TEMP/PRUMO.xcarchive/Products/Applications/App.app"
