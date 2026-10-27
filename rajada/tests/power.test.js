@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { bandOf, starsOf, damageMult, gunForm, nextMilestone, weaponLabel, rampOf } from "../src/power.js";
+import { POWER } from "../src/config.js";
 
 test("faixa de cor muda nos marcos e vira arco-íris no 50", () => {
   assert.deepEqual([1, 4, 5, 9, 10, 45, 49, 50, 51, 500].map(bandOf), [0, 0, 1, 1, 2, 9, 9, 10, 10, 10]);
@@ -12,7 +13,7 @@ test("estrelas a partir do 35, uma a cada 5 níveis", () => {
 
 test("dano cresce a cada nível, sem teto", () => {
   assert.equal(damageMult(1), 1);
-  assert.ok(Math.abs(damageMult(11) - 2) < 1e-9);
+  assert.ok(Math.abs(damageMult(11) - (1 + 10 * POWER.perLevel)) < 1e-9);
   for (let lv = 2; lv <= 300; lv++) assert.ok(damageMult(lv) > damageMult(lv - 1));
 });
 

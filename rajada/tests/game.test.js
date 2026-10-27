@@ -202,7 +202,7 @@ test("acima de 260 tiros da nave, os mais antigos somem primeiro", () => {
   assert.equal(g.bullets.at(-1).id, 299);
 });
 
-test("chefe solta uma cápsula épica ou melhor", () => {
+test("chefe solta duas cápsulas, a primeira rara ou melhor", () => {
   const { g, events } = play({ loadout: { ...DEFAULT_LOADOUT, gun: 6, hp: 99 } });
   g.sectorT = g.sectorLen;
   const bot = createBot({ skill: 0.9, seed: 3 });
@@ -216,7 +216,7 @@ test("chefe solta uma cápsula épica ou melhor", () => {
   assert.ok(kill > 0, "chefe derrotado");
   const caps = events.slice(0, kill).filter((e) => e.type === "cap_spawn").slice(-2);
   assert.equal(caps.length, 2);
-  assert.ok(caps.some((e) => ["epica", "lendaria"].includes(e.data.rarity)), caps.map((e) => e.data.rarity).join(","));
+  assert.ok(["rara", "epica", "lendaria"].includes(caps[0].data.rarity), caps.map((e) => e.data.rarity).join(","));
 });
 
 test("Couraçado nunca solta cápsula comum", () => {

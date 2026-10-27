@@ -25,7 +25,8 @@ test("depois de 6 comuns seguidas, a próxima é rara ou melhor", () => {
 test("pelo menos uma lendária a cada 3 chefes", () => {
   const pity = newPity();
   const got = Array.from({ length: 9 }, () => rollRarity(zero, "chefe1", pity));
-  assert.deepEqual(got, ["epica", "epica", "lendaria", "epica", "epica", "lendaria", "epica", "epica", "lendaria"]);
+  for (let i = 0; i < 9; i += 3) assert.ok(got.slice(i, i + 3).includes("lendaria"), got.join(","));
+  assert.ok(got.every((r) => r !== "comum"), "a 1ª cápsula do chefe nunca é comum");
 });
 
 test("Sorte tira 2 pontos da comum por nível, até 40%", () => {

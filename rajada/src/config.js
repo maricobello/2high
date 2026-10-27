@@ -85,7 +85,7 @@ export const GUN = {
   homingLife: 1.2, // s de vida do tiro teleguiado
   homingTurn: 6, // rad/s
   homingRetarget: 0.25, // s entre uma escolha de alvo e outra
-  beam: { width: 4, tick: 0.1, mult: 1.2 }, // Raio: dano 1,2 × nível a cada tique
+  beam: { width: 4, tick: 0.1, mult: 2.4 }, // Raio: dano 2,4 × nível a cada tique (a forma nova nunca bate menos que a anterior)
   // homing: os 2 canos de fora (os últimos da lista) curvam atrás do alvo;
   // sway: graus que o leque balança, para um lado nas rajadas pares e para o outro nas ímpares
   patterns: {
@@ -145,7 +145,7 @@ export const DRONES = {
 // (faixa) e vira arco-íris na faixa 10; do 35 em diante, uma ★ a cada 5 níveis.
 // ramps: [claro, médio, escuro] de cada faixa, do branco (0) ao dourado (9).
 export const POWER = {
-  perLevel: 0.1,
+  perLevel: 0.02, // ajustado pelos bots (npm run balance): 0,1 deixava a nave forte demais para sempre
   starFrom: 35,
   starEvery: 5,
   starBonus: 0.15,
@@ -225,9 +225,9 @@ export const LAPS = { glowAfter: 3, glow: 0.15 };
 export const lapOf = (sector) => Math.floor((sector - 1) / SECTORS.length);
 export const lapSkin = (lap) => (lap > 0 ? ((lap - 1) % 3) + 1 : 0);
 
-// Elites: a partir do setor 4, 8% dos inimigos (+2 pontos por setor, até
-// 30%), com vida ×3, cristais ×2, contorno dourado e loot de elite.
-export const ELITE = { from: 4, base: 0.08, perSector: 0.02, max: 0.3, hp: 3, crystals: 2 };
+// Elites: a partir do setor 4, 8% dos inimigos (+4 pontos por setor, até
+// 50%, ajustado pelos bots), com vida ×3, cristais ×2, contorno dourado e loot de elite.
+export const ELITE = { from: 4, base: 0.08, perSector: 0.04, max: 0.5, hp: 3, crystals: 2 };
 export const eliteChance = (sector) =>
   sector < ELITE.from ? 0 : Math.min(ELITE.max, ELITE.base + ELITE.perSector * (sector - ELITE.from));
 
@@ -272,13 +272,13 @@ export const WAVES = [
 ];
 
 export const BOSSES = [
-  { id: "colosso", name: "Colosso", sprite: "colosso", hp: 300, score: 5000, y: 0.2, box: [55, 30] },
-  { id: "aranha", name: "Aranha", sprite: "aranha", hp: 380, score: 6000, y: 0.22, box: [30, 30] },
+  { id: "colosso", name: "Colosso", sprite: "colosso", hp: 260, score: 5000, y: 0.2, box: [55, 30] },
+  { id: "aranha", name: "Aranha", sprite: "aranha", hp: 360, score: 6000, y: 0.22, box: [30, 30] },
   { id: "olho", name: "Olho", sprite: "olho", hp: 440, score: 7000, y: 0.23, box: [34, 32] },
   // segments gomos seguem o rastro da cabeça a cada `spacing`; só a cabeça leva dano
-  { id: "serpente", name: "Serpente", sprite: "serpente", hp: 480, score: 8000, y: 0.25, box: [22, 18], segments: 10, spacing: 9 },
-  { id: "forja", name: "Forja", sprite: "forja", hp: 520, score: 9000, y: 0.18, box: [60, 26] },
-  { id: "rainha", name: "Rainha", sprite: "rainha", hp: 560, score: 10000, y: 0.22, box: [36, 30] },
+  { id: "serpente", name: "Serpente", sprite: "serpente", hp: 560, score: 8000, y: 0.25, box: [22, 18], segments: 10, spacing: 9 },
+  { id: "forja", name: "Forja", sprite: "forja", hp: 700, score: 9000, y: 0.18, box: [60, 26] },
+  { id: "rainha", name: "Rainha", sprite: "rainha", hp: 820, score: 10000, y: 0.22, box: [36, 30] },
 ];
 
 export const DIRECTOR = {
@@ -299,7 +299,7 @@ export const DROPS = {
   carrierAfter: 18, // s sem cápsula: aparece um Portador
   coolH: 45, // s sem outro Reparo depois de um
   coolE: 30, // s sem outro Escudo depois de um
-  perSector: 0.12, // cada setor deixa as cápsulas comuns 12% mais raras
+  perSector: 0.4, // cada setor deixa as cápsulas comuns 40% mais raras (o chefe ainda solta 2)
   recoverBoost: 6, // s de vantagem na garantia depois de perder arma
   recoverFor: 12, // s em que a arma perdida tem peso triplo
 };
@@ -327,7 +327,7 @@ export const LOOT = {
     portador: [0.6, 0.35, 0.05, 0],
     elite: [0.3, 0.5, 0.18, 0.02],
     couracado: [0, 0.7, 0.27, 0.03],
-    chefe1: [0, 0, 0.85, 0.15],
+    chefe1: [0, 0.3, 0.6, 0.1],
     chefe2: [0.3, 0.5, 0.2, 0],
   },
   pityCommons: 6,

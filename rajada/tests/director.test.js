@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { tension, cycleLength, skillAdjust, threatCap, pickWave, waveGap, isStrong } from "../src/director.js";
 import { killDropChance, capsuleWeights, pickCapsule, applyCapsule, weaponToLose, loseWeapon } from "../src/drops.js";
 import { createRng } from "../src/rng.js";
-import { DIRECTOR, DROPS, sectorScale, sectorInfo, eliteChance, lapOf, lapSkin } from "../src/config.js";
+import { DIRECTOR, DROPS, ELITE, sectorScale, sectorInfo, eliteChance, lapOf, lapSkin } from "../src/config.js";
 import { buildWave } from "../src/waves.js";
 
 const ship = (over = {}) => ({ gun: 1, rockets: 0, drones: 0, shield: false, hp: 3, maxHp: 3, ...over });
@@ -126,10 +126,11 @@ test("ondas do começo: fila de 8, V de 9, enxame de 8 a 12", () => {
   }
 });
 
-test("elites só a partir do setor 4, até 30%", () => {
+test("elites só a partir do setor 4, crescendo até o máximo", () => {
   assert.equal(eliteChance(3), 0);
-  assert.equal(eliteChance(4), 0.08);
-  assert.equal(eliteChance(30), 0.3);
+  assert.equal(eliteChance(4), ELITE.base);
+  assert.ok(eliteChance(6) > eliteChance(5));
+  assert.equal(eliteChance(200), ELITE.max);
 });
 
 test("voltas de 6 setores; paletas 1, 2, 3 e repete", () => {
