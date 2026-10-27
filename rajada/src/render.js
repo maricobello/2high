@@ -4,7 +4,7 @@
 // Os efeitos (partículas, explosões, textos) nascem dos eventos da partida.
 import { buildSprites } from "./sprites.js";
 import { drawText, textWidth } from "./font.js";
-import { W, SHIPS, SHOTS, POWER, RARITY, sectorInfo } from "./config.js";
+import { W, SHIPS, SHOTS, POWER, RARITY, LAPS, sectorInfo, lapOf, lapSkin } from "./config.js";
 import { CAP_NAMES } from "./drops.js";
 import { bandOf, rampOf } from "./power.js";
 
@@ -245,7 +245,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
   // glow: em vez de pintar tudo de branco, sobrepõe o branco translúcido
   // (usado nos chefes e inimigos grandes).
   function spr(name, frame, x, y, { flash = false, flip = false, alpha = 1, glow = 0 } = {}) {
-    const s = sprites[name];
+    const s = sprites[name] ?? sprites.make(name);
     const set = flash ? s.flash : flip && s.flipped ? s.flipped : s.frames;
     const i = ((frame % set.length) + set.length) % set.length;
     const left = Math.round(x - s.w / 2);
@@ -292,11 +292,16 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
   }
 
   function drawEnemies(g) {
+    // paleta da volta (1 carmesim, 2 dourado, 3 sombra) e, depois da 3ª, mais brilho
+    const lap = lapOf(g.sector);
+    const skin = lapSkin(lap);
+    const lapGlow = lap > LAPS.glowAfter ? LAPS.glow : 0;
     for (const e of g.enemies) {
       let frame = anim(e.type === "mina" && near(e, g.player, 46) ? 10 : 4, e.x0 * 0.13);
       if (e.rot !== undefined) frame = Math.floor(((e.rot % (Math.PI * 2)) + Math.PI * 2) / (Math.PI / 2));
       const hit = e.flash > 0;
-      spr(e.def.sprite, frame, e.x, e.y, e.w >= 20 ? { glow: hit ? 0.45 : 0 } : { flash: hit });
+      const name = `${e.def.sprite}${skin ? `@${skin}` : ""}${e.elite ? "@elite" : ""}`;
+      spr(name, frame, e.x, e.y, e.w >= 20 ? { glow: hit ? 0.45 : lapGlow } : { flash: hit, glow: lapGlow });
       if (e.type === "portador" && Math.random() < 0.25) {
         spark(e.x + (Math.random() - 0.5) * e.w, e.y + (Math.random() - 0.5) * e.h, "#fff4b0", 0.35, 6);
       }

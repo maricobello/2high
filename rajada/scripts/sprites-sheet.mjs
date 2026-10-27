@@ -3,6 +3,7 @@
 // Uso: npm run sprites  → tests/prints/sprites.png
 // Só alguns, maiores: node scripts/sprites-sheet.mjs 10 couracado,portador → tests/prints/sprites-filtro.png
 // Chefes: node scripts/sprites-sheet.mjs chefes → tests/prints/chefes.png
+// Voltas e elites dos inimigos: node scripts/sprites-sheet.mjs voltas → tests/prints/voltas.png
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -14,17 +15,21 @@ const { chromium } = require("playwright");
 const root = fileURLToPath(new URL("..", import.meta.url));
 const BOSSES = ["colosso", "aranha", "olho", "iris", "serpente", "serpente_gomo", "serpente_cauda", "forja", "rainha"];
 const bossMode = process.argv[2] === "chefes";
-const scale = bossMode ? 4 : Number(process.argv[2] ?? 6);
-const only = bossMode ? BOSSES : process.argv[3] ? process.argv[3].split(",") : null;
+const lapMode = process.argv[2] === "voltas";
+const scale = bossMode ? 4 : lapMode ? 5 : Number(process.argv[2] ?? 6);
+const only = bossMode ? BOSSES : lapMode ? null : process.argv[3] ? process.argv[3].split(",") : null;
 
 const entry = `
-import { buildSprites, SPRITES, HD_SPRITES } from "./src/sprites.js";
+import { buildSprites, SPRITES, HD_SPRITES, spriteNames } from "./src/sprites.js";
 const sprites = buildSprites((w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h }));
 const S = ${scale};
 const sheet = document.getElementById("sheet");
 const only = ${JSON.stringify(only)};
-for (const name of [...Object.keys(SPRITES), ...Object.keys(HD_SPRITES)].filter((n) => !only || only.includes(n))) {
-  const s = sprites[name];
+const names = ${lapMode}
+  ? spriteNames().filter((n) => n.includes("@") && !n.startsWith("tiro")).sort()
+  : [...Object.keys(SPRITES), ...Object.keys(HD_SPRITES)].filter((n) => !only || only.includes(n));
+for (const name of names) {
+  const s = sprites[name] ?? sprites.make(name);
   const cell = document.createElement("figure");
   for (const set of [s.frames, s.flipped].filter(Boolean)) {
     for (const f of set) {
@@ -63,7 +68,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.setContent(html);
 await page.waitForTimeout(200);
-const out = join(root, bossMode ? "tests/prints/chefes.png" : only ? "tests/prints/sprites-filtro.png" : "tests/prints/sprites.png");
+const out = join(root, bossMode ? "tests/prints/chefes.png" : lapMode ? "tests/prints/voltas.png" : only ? "tests/prints/sprites-filtro.png" : "tests/prints/sprites.png");
 await page.locator("#sheet").screenshot({ path: out });
 await browser.close();
 if (errors.length) throw new Error(errors.join("\n"));

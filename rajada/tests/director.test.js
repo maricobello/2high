@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tension, cycleLength, skillAdjust, threatCap, pickWave, waveGap } from "../src/director.js";
+import { tension, cycleLength, skillAdjust, threatCap, pickWave, waveGap, isStrong } from "../src/director.js";
 import { killDropChance, capsuleWeights, pickCapsule, applyCapsule, weaponToLose, loseWeapon } from "../src/drops.js";
 import { createRng } from "../src/rng.js";
-import { DIRECTOR, DROPS, sectorScale, sectorInfo } from "../src/config.js";
+import { DIRECTOR, DROPS, sectorScale, sectorInfo, eliteChance, lapOf, lapSkin } from "../src/config.js";
 import { buildWave } from "../src/waves.js";
 
 const ship = (over = {}) => ({ gun: 1, rockets: 0, drones: 0, shield: false, hp: 3, maxHp: 3, ...over });
@@ -124,4 +124,25 @@ test("ondas do começo: fila de 8, V de 9, enxame de 8 a 12", () => {
     assert.ok(w.length >= 8 && w.length <= 12);
     assert.ok(w.every((en) => en.type === "zangao"));
   }
+});
+
+test("elites só a partir do setor 4, até 30%", () => {
+  assert.equal(eliteChance(3), 0);
+  assert.equal(eliteChance(4), 0.08);
+  assert.equal(eliteChance(30), 0.3);
+});
+
+test("voltas de 6 setores; paletas 1, 2, 3 e repete", () => {
+  assert.deepEqual([1, 6, 7, 12, 13, 19, 25, 31].map(lapOf), [0, 0, 1, 1, 2, 3, 4, 5]);
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(lapSkin), [0, 1, 2, 3, 1, 2, 3]);
+  assert.ok(lapSkin(lapOf(200)) >= 1 && lapSkin(lapOf(200)) <= 3);
+  assert.ok(Number.isFinite(sectorScale(200).hp));
+});
+
+test("arma forte: dano por segundo 3× a vida média do setor", () => {
+  const weak = { gun: 1, rockets: 0, drones: 0 };
+  const big = { gun: 30, rockets: 10, drones: 4 };
+  assert.equal(isStrong(weak, 1), false);
+  assert.equal(isStrong(big, 1), true);
+  assert.equal(isStrong(big, 400), false, "setores muito altos pedem mais");
 });

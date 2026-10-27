@@ -6,6 +6,10 @@ import { gunForm, starsOf } from "./power.js";
 
 export const newPity = () => ({ commons: 0, bossesNoLegend: 0 });
 
+// Origem do loot de um inimigo abatido: Portador e Couraçado têm tabela
+// própria (melhor que a de elite); os demais elites usam a de elite.
+export const lootSource = (e) => (e.type === "portador" || e.type === "couracado" ? e.type : e.elite ? "elite" : "inimigo");
+
 // Pesos [comum, rara, épica, lendária] da origem com a Sorte do hangar.
 export function rarityWeights(source, luckLevel = 0) {
   const w = [...LOOT.sources[source]];

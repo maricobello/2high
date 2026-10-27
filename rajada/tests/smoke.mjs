@@ -113,6 +113,16 @@ async function run(label, context) {
   assert.equal(await page.textContent("#hud-next"), "faltam 5 para ★3");
   await snap("armas");
 
+  // volta 2 (paleta dourada) com elites: as variações nascem na hora e desenham sem erro
+  await page.evaluate(() => {
+    const r = window.__rajada;
+    r.jumpTo(16);
+    for (const id of ["enxame", "couracado", "pedras", "atiradores"]) r.wave(id);
+  });
+  await page.waitForTimeout(1800);
+  assert.ok(await game(page, (g) => g.enemies.some((e) => e.elite) || g.stats.kills > 0), "inimigos da volta 2 em jogo");
+  await snap("voltas");
+
   // derrota: casco a zero
   await page.evaluate(() => window.__rajada.autopilot(false));
   for (let i = 0; i < 10 && (await page.evaluate(() => window.__rajada.screen())) === "game"; i++) {

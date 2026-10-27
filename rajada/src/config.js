@@ -214,9 +214,22 @@ export const SECTORS = [
   { name: "Núcleo", bg: ["#2a1a06", "#070402"], star: "#ffe0a8", nebula: ["#b4501a", "#ffd23f"] },
 ];
 
+// Voltas: a cada 6 setores (um por cenário) os inimigos trocam de paleta
+// (1 carmesim, 2 dourado, 3 sombra; depois repete com mais brilho) e um tipo
+// ganha um ataque novo (volta 1 Atirador, 2 Couraçado, 3 Mina).
+export const LAPS = { glowAfter: 3, glow: 0.15 };
+export const lapOf = (sector) => Math.floor((sector - 1) / SECTORS.length);
+export const lapSkin = (lap) => (lap > 0 ? ((lap - 1) % 3) + 1 : 0);
+
+// Elites: a partir do setor 4, 8% dos inimigos (+2 pontos por setor, até
+// 30%), com vida ×3, cristais ×2, contorno dourado e loot de elite.
+export const ELITE = { from: 4, base: 0.08, perSector: 0.02, max: 0.3, hp: 3, crystals: 2 };
+export const eliteChance = (sector) =>
+  sector < ELITE.from ? 0 : Math.min(ELITE.max, ELITE.base + ELITE.perSector * (sector - ELITE.from));
+
 export function sectorInfo(n) {
   const base = SECTORS[(n - 1) % SECTORS.length];
-  const lap = Math.floor((n - 1) / SECTORS.length);
+  const lap = lapOf(n);
   return { ...base, name: lap ? `${base.name} ${["", "II", "III", "IV", "V"][Math.min(lap, 4)]}` : base.name, lap };
 }
 
@@ -268,6 +281,7 @@ export const DIRECTOR = {
   lowHpCap: 0.8, // ameaça máxima com casco em 1
   pressureAfter: 45, // s sem dano, casco cheio e armas fortes: mais pressão
   pressureCap: 1.15,
+  strongRatio: 3, // arma forte: dano por segundo ≥ 3× a vida média do setor (6 × vida do setor)
 };
 
 export const DROPS = {

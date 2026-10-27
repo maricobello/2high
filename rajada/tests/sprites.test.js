@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { SPRITES, HD_SPRITES, worldSize, validateSprites, sizeOf, isHd } from "../src/sprites.js";
+import { SPRITES, HD_SPRITES, PALETTE, worldSize, validateSprites, sizeOf, isHd, lapVariant, eliteVariant, spriteNames } from "../src/sprites.js";
 import { hdGrid, shade3, rim, dither, finishHD } from "../src/pixel-hd.js";
 import { toRows } from "../src/pixel.js";
 
@@ -86,4 +86,31 @@ test("chefes atuais em alta definição mantêm tamanho e caixas", () => {
 
 test("arte dos chefes novos: Serpente, Forja e Rainha", () => {
   checkHd({ serpente: [26, 22, 2], serpente_gomo: [16, 14, 2], serpente_cauda: [12, 12, 1], forja: [70, 40, 4], rainha: [64, 44, 4] });
+});
+
+test("paletas das voltas e contorno de elite só usam cores da paleta", () => {
+  const all = [...Object.values(SPRITES), ...Object.values(HD_SPRITES)].flat();
+  for (const skin of [1, 2, 3]) {
+    for (const rows of all) {
+      for (const ch of lapVariant(rows, skin).join("")) assert.ok(ch === "." || PALETTE[ch], `volta ${skin}: cor ${ch}`);
+      for (const ch of eliteVariant(rows, skin).join("")) assert.ok(ch === "." || PALETTE[ch], `elite ${skin}: cor ${ch}`);
+    }
+  }
+  const zangao = SPRITES.zangao[0];
+  for (const skin of [1, 2, 3]) assert.notDeepEqual(lapVariant(zangao, skin), zangao, `volta ${skin} muda o Zangão`);
+  const count = (rows, ch) => rows.join("").split(ch).length - 1;
+  const elite = eliteVariant(zangao, 0);
+  assert.equal(elite.length, zangao.length + 2, "peça sem contorno ganha um por fora");
+  assert.ok(count(elite, "y") > count(zangao, "y") + 10, "contorno dourado na primeira volta");
+  const big = HD_SPRITES.couracado[0];
+  const bigElite = eliteVariant(big, 0);
+  assert.equal(bigElite.length, big.length, "peça com contorno troca a cor dele");
+  assert.ok(count(bigElite, "k") < count(big, "k") && count(bigElite, "y") > count(big, "y"));
+});
+
+test("cada inimigo tem as variações de volta e de elite", () => {
+  const names = spriteNames();
+  for (const name of ["zangao", "couracado", "pedra_g", "mina"]) {
+    for (const v of ["@1", "@2", "@3", "@elite", "@1@elite", "@3@elite"]) assert.ok(names.includes(name + v), name + v);
+  }
 });

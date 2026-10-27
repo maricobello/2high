@@ -1,18 +1,19 @@
 // Inimigos: criação, movimento e tiros. Cada um tem um "move" (como anda) e
 // pode atirar. Os tiros saem por g.fire(), que aplica a velocidade do setor.
-import { ENEMIES } from "./config.js";
+import { ENEMIES, ELITE, lapOf } from "./config.js";
 import { sizeOf } from "./sprites.js";
 
 const sizes = {};
 for (const [type, def] of Object.entries(ENEMIES)) sizes[type] = sizeOf(def.sprite);
 
 // params: posição e o que a onda definir (vx, vy, amp, freq, path...).
-export function makeEnemy(type, params, hpScale = 1) {
+export function makeEnemy(type, params, hpScale = 1, elite = false) {
   const def = ENEMIES[type];
-  const hp = params.hp ?? def.hp * (type === "portador" ? 1 : hpScale);
+  const hp = (params.hp ?? def.hp * (type === "portador" ? 1 : hpScale)) * (elite ? ELITE.hp : 1);
   return {
     type,
     def,
+    elite,
     w: sizes[type].w,
     h: sizes[type].h,
     hp,
@@ -127,6 +128,15 @@ export function enemyFire(e, dt, g) {
         const n = g.sector >= 5 ? 5 : g.sector >= 3 ? 3 : 1;
         for (let i = 0; i < n; i++) g.fire(e.x, e.y + 5, a + (i - (n - 1) / 2) * 0.2, 78, "bala", { src: e.type });
       }
+      // volta 1 em diante: leque de 3 agulhas entre uma rajada e outra
+      if (lapOf(g.sector) >= 1) {
+        e.lapT = (e.lapT ?? 0.85) - dt * rate;
+        if (e.lapT <= 0) {
+          e.lapT = 1.7;
+          const a = g.aimAngle(e.x, e.y + 5);
+          for (const da of [-0.25, 0, 0.25]) g.fire(e.x, e.y + 5, a + da, 96, "agulha", { src: e.type });
+        }
+      }
       break;
     }
     case "couracado": {
@@ -136,6 +146,14 @@ export function enemyFire(e, dt, g) {
         e.fireT = 2.2;
         const a = g.aimAngle(e.x, e.y + 10);
         for (let i = -2; i <= 2; i++) g.fire(e.x, e.y + 10, a + i * 0.2, 72, "bolha", { src: e.type });
+      }
+      // volta 2 em diante: anel de 12 bolhas a cada 3,2 s
+      if (lapOf(g.sector) >= 2) {
+        e.ringT = (e.ringT ?? 1.6) - dt * rate;
+        if (e.ringT <= 0) {
+          e.ringT = 3.2;
+          for (let i = 0; i < 12; i++) g.fire(e.x, e.y, (i / 12) * Math.PI * 2 + e.t, 58, "bolha", { src: e.type });
+        }
       }
       break;
     }
@@ -150,10 +168,12 @@ export function enemyFire(e, dt, g) {
   }
 }
 
-// Mina destruída solta um anel de tiros lentos (a partir do setor 2).
+// Mina destruída solta um anel de tiros lentos (a partir do setor 2); da
+// volta 3 em diante, mais 8 agulhas rápidas entre eles.
 export function onEnemyDeath(e, g) {
   if (e.type === "mina" && g.sector >= 2) {
     const n = 8;
     for (let i = 0; i < n; i++) g.fire(e.x, e.y, (i / n) * Math.PI * 2 + e.t, 52, "bala", { src: e.type });
+    if (lapOf(g.sector) >= 3) for (let i = 0; i < n; i++) g.fire(e.x, e.y, ((i + 0.5) / n) * Math.PI * 2 + e.t, 84, "agulha", { src: e.type });
   }
 }

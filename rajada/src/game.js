@@ -16,6 +16,8 @@ import {
   ROCKETS,
   DRONES,
   PERF,
+  ELITE,
+  eliteChance,
   BOSS_DROPS,
   SECTOR_BONUS,
   BOSSES,
@@ -26,9 +28,9 @@ import {
 import { createRng, clamp } from "./rng.js";
 import { gunVolley, gunInterval, gunBeam, rocketSpec, rocketLaunch, steerRocket, pickTarget, droneSpec, droneVolley } from "./weapons.js";
 import { killDropChance, pickCapsule, applyCapsule, weaponToLose, loseWeapon } from "./drops.js";
-import { newPity, rollRarity } from "./loot.js";
+import { newPity, rollRarity, lootSource } from "./loot.js";
 import { bandOf } from "./power.js";
-import { skillAdjust, threatCap, pickWave, waveGap } from "./director.js";
+import { skillAdjust, threatCap, pickWave, waveGap, isStrong } from "./director.js";
 import { makeEnemy, moveEnemy, enemyFire, onEnemyDeath } from "./enemies.js";
 import { buildWave, carrierEntry } from "./waves.js";
 import { makeBoss, updateBoss, bossHit } from "./bosses.js";
@@ -194,6 +196,7 @@ export function createGame(opts = {}) {
   // ---------- utilidades para inimigos e chefes ----------
 
   g.fire = (x, y, angle, speed, kind, extra) => {
+    if (g.shots.length >= PERF.shots) return; // teto de desempenho: o tiro novo não sai
     const sp = speed * g.scale.shotSpeed * adjust.shotSpeed;
     g.shots.push({ x, y, vx: Math.cos(angle) * sp, vy: Math.sin(angle) * sp, kind, r: SHOTS[kind].r, grazed: false, t: 0, src: "chefe", ...extra });
   };
@@ -404,7 +407,7 @@ export function createGame(opts = {}) {
           adjust,
           hp: p.hp,
           sinceHit: g.sinceHit,
-          strong: p.gun >= 4 || p.rockets >= 3,
+          strong: isStrong(p, g.sector),
         });
         const id = pickWave(rng, { sector: g.sector, t: g.sectorT, room: cap - aliveThreat(), last: g.lastWave });
         if (id) {
@@ -426,7 +429,10 @@ export function createGame(opts = {}) {
 
     for (const q of g.queue) {
       if (q.at > g.t) continue;
-      const e = makeEnemy(q.type, q.params, g.scale.hp);
+      if (g.enemies.length >= PERF.enemies) break; // teto: o resto espera na fila
+      // elites: a partir do setor 4 (nunca o Portador nem os do roteiro)
+      const elite = g.sector >= ELITE.from && q.type !== "portador" && !q.cap && rng.chance(eliteChance(g.sector));
+      const e = makeEnemy(q.type, q.params, g.scale.hp, elite);
       if (q.cap) e.cap = q.cap;
       g.enemies.push(e);
       if (g.sector === 1) g.stats.s1Spawns += 1;
@@ -682,14 +688,14 @@ export function createGame(opts = {}) {
     addTurbo(e.def.turbo);
 
     const [chance, min, max] = e.def.cristal;
-    if (rng.chance(chance)) spawnCrystals(e.x, e.y, rng.int(min, max));
-    const source = e.type === "portador" || e.type === "couracado" ? e.type : "inimigo";
+    if (rng.chance(chance)) spawnCrystals(e.x, e.y, rng.int(min, max) * (e.elite ? ELITE.crystals : 1));
+    const source = lootSource(e);
     if (e.def.cap || e.cap) dropCapsule(e.x, e.y, e.cap, source);
     else if (rng.chance(killDropChance(g.sinceCap, loadout.luck, g.t < 60 ? adjust.earlyDrops : 1) / (1 + DROPS.perSector * (g.sector - 1)))) {
       dropCapsule(e.x, e.y, undefined, source);
     }
 
-    if (e.def.split) {
+    if (e.def.split && g.enemies.length < PERF.enemies - 1) {
       for (const side of [-1, 1]) {
         g.enemies.push(
           makeEnemy(

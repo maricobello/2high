@@ -3,6 +3,7 @@
 // Funções puras, testadas em tests/director.test.js.
 import { DIRECTOR, WAVES, sectorScale, sectorInfo } from "./config.js";
 import { clamp } from "./rng.js";
+import { estimateDps } from "./weapons.js";
 
 export function cycleLength() {
   return DIRECTOR.cycle.reduce((a, b) => a + b, 0);
@@ -27,6 +28,10 @@ export function skillAdjust(skill, struggling = false) {
     earlyDrops: struggling ? 1.6 : 1 + (1 - s) * 0.5,
   };
 }
+
+// Armas fortes para o setor: o dano por segundo estimado da nave contra a
+// vida média dos inimigos dele (6 × o multiplicador de vida do setor).
+export const isStrong = (p, sector) => estimateDps(p) / (sectorScale(sector).hp * 6) >= DIRECTOR.strongRatio;
 
 // Ameaça máxima que pode estar viva agora.
 // strong: armas fortes; sinceHit: segundos sem levar dano.

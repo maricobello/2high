@@ -3,7 +3,7 @@
 // As peças grandes (chefes, couraçado, pedras, explosão) são desenhadas por um
 // mini editor de pixels: formas simples, depois espelho, sombra e contorno.
 import { createRng } from "./rng.js";
-import { POWER } from "./config.js";
+import { POWER, ENEMIES } from "./config.js";
 import { couracadoHD, portadorHD, pedraHD } from "./art-grandes.js";
 import { colossoHD, aranhaHD, olhoHD, irisHD, serpenteHD, serpenteGomoHD, serpenteCaudaHD, forjaHD, rainhaHD } from "./art-chefes.js";
 import { DARK, grid, toRows, set, rect, poly, ellipse, line, stamp, shade, outline, finish, spin4 } from "./pixel.js";
@@ -471,12 +471,41 @@ export function sizeOf(name) {
 const BULLETS = ["tiro", "tiro_max", "tiro_drone"];
 const RAMP_SLOT = { w: 0, Y: 0, C: 0, y: 1, c: 1, o: 2, b: 2 };
 
+// Paletas das voltas (troca de cor por cor da paleta): 1 carmesim,
+// 2 dourado, 3 sombra. O que não está na tabela fica igual.
+const LAP_SWAPS = [
+  null,
+  { m: "q", e: "r", E: "R", B: "q", b: "p", N: "P", C: "q", c: "p", u: "q", v: "r", V: "R", Y: "q", y: "p", o: "r", O: "R", l: "q", g: "p", d: "P", z: "q", s: "p", a: "P", S: "R" },
+  { m: "Y", e: "y", E: "o", B: "Y", b: "y", N: "O", n: "O", C: "Y", c: "y", u: "Y", v: "y", V: "o", U: "O", r: "o", R: "O", q: "Y", p: "o", P: "O", l: "Y", g: "y", d: "O", z: "Y", s: "y", a: "o", S: "O" },
+  { m: "u", e: "v", E: "V", B: "u", b: "v", N: "V", C: "u", c: "v", r: "v", R: "V", q: "u", p: "v", P: "V", Y: "l", y: "g", o: "d", O: "n", w: "l", l: "g", g: "d", d: "n", u: "l", v: "g", V: "d", z: "l", s: "g", a: "d", S: "n" },
+];
+// Contorno de elite: dourado na primeira volta, na cor da volta depois.
+const ELITE_OUTLINE = ["y", "r", "Y", "u"];
+
+export const lapVariant = (rows, skin) => rows.map((r) => [...r].map((ch) => LAP_SWAPS[skin]?.[ch] ?? ch).join(""));
+
+// Elite: a peça que já tem contorno (alta definição) troca a cor dele; a
+// pequena, sem contorno, ganha um de 1 pixel por fora.
+export function eliteVariant(rows, skin = 0) {
+  const color = ELITE_OUTLINE[skin];
+  const at = (G, x, y) => G[y]?.[x] ?? ".";
+  const edge = (G, x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => at(G, x + dx, y + dy) === ".");
+  const G = rows.map((r) => [...r]);
+  const outlined = G.some((r, y) => r.some((ch, x) => ch === "k" && edge(G, x, y)));
+  if (outlined) return G.map((r, y) => r.map((ch, x) => (ch === "k" && edge(G, x, y) ? color : ch)).join(""));
+  const P = [Array(G[0].length + 2).fill("."), ...G.map((r) => [".", ...r, "."]), Array(G[0].length + 2).fill(".")];
+  return P.map((r, y) => r.map((ch, x) => (ch === "." && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => at(P, x + dx, y + dy) !== ".") ? color : ch)).join(""));
+}
+
+const ENEMY_SPRITES = [...new Set(Object.values(ENEMIES).map((d) => d.sprite))];
+
 export function buildSprites(makeCanvas) {
   const out = {};
-  const add = (name, frames, hd, palette) => {
+  // flashFrom: variação só de cor usa o mesmo branco de acerto da original
+  const add = (name, frames, hd, palette, flashFrom) => {
     out[name] = {
       frames: frames.map((rows) => paint(makeCanvas, rows, null, palette)),
-      flash: frames.map((rows) => paint(makeCanvas, rows, "#ffffff")),
+      flash: flashFrom ? flashFrom.flash : frames.map((rows) => paint(makeCanvas, rows, "#ffffff")),
       flipped: name.endsWith("_bank") ? frames.map((rows) => paint(makeCanvas, flipX(rows), null, palette)) : null,
       ...worldSize(frames[0], hd),
       hd,
@@ -486,24 +515,70 @@ export function buildSprites(makeCanvas) {
   for (const [name, frames] of Object.entries(HD_SPRITES)) add(name, frames, true);
   POWER.ramps.forEach((ramp, i) => {
     const palette = Object.fromEntries(Object.entries(RAMP_SLOT).map(([ch, slot]) => [ch, ramp[slot]]));
-    for (const name of BULLETS) add(`${name}@${i}`, SPRITES[name], false, palette);
+    for (const name of BULLETS) add(`${name}@${i}`, SPRITES[name], false, palette, out[name]);
+  });
+  // variações dos inimigos (voltas e elites): geradas na primeira vez que
+  // aparecem, para não pesar na abertura do jogo
+  Object.defineProperty(out, "make", {
+    value(name) {
+      const v = enemyVariant(name);
+      if (!v) return null;
+      add(name, v.frames, v.hd, undefined, v.elite ? null : out[v.base]);
+      return out[name];
+    },
   });
   return out;
 }
+
+// Variações dos inimigos: `nome@1`…`@3` (voltas), `nome@elite` e `nome@2@elite`.
+const ENEMY_VARIANTS = ENEMY_SPRITES.flatMap((name) => ["@1", "@2", "@3", "@elite", "@1@elite", "@2@elite", "@3@elite"].map((v) => name + v));
+
+function enemyVariant(name) {
+  if (!ENEMY_VARIANTS.includes(name)) return null;
+  const [base, ...tags] = name.split("@");
+  const skin = Number(tags[0]) || 0;
+  const elite = tags.includes("elite");
+  const hd = isHd(base);
+  let frames = hd ? HD_SPRITES[base] : SPRITES[base];
+  if (skin) frames = frames.map((rows) => lapVariant(rows, skin));
+  if (elite) frames = frames.map((rows) => eliteVariant(rows, skin));
+  return { base, frames, hd, elite };
+}
+
+// Todos os nomes que buildSprites gera ou sabe gerar (para os testes, sem canvas).
+export const spriteNames = () => [
+  ...Object.keys(SPRITES),
+  ...Object.keys(HD_SPRITES),
+  ...POWER.ramps.flatMap((_, i) => BULLETS.map((n) => `${n}@${i}`)),
+  ...ENEMY_VARIANTS,
+];
+
+// Pinta as linhas num canvas de uma vez (ImageData): bem mais rápido que um
+// fillRect por pixel, o que importa com os sprites grandes e as variações.
+const rgbCache = {};
+const rgbOf = (hex) => (rgbCache[hex] ??= [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)));
 
 function paint(makeCanvas, rows, solid, palette = PALETTE) {
   const h = rows.length;
   const w = rows[0].length;
   const canvas = makeCanvas(w, h);
   const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(w, h);
+  const data = img.data;
   for (let y = 0; y < h; y++) {
+    const row = rows[y];
     for (let x = 0; x < w; x++) {
-      const ch = rows[y][x];
+      const ch = row[x];
       if (ch === ".") continue;
-      ctx.fillStyle = solid ?? palette[ch] ?? PALETTE[ch];
-      ctx.fillRect(x, y, 1, 1);
+      const [r, g, b] = rgbOf(solid ?? palette[ch] ?? PALETTE[ch]);
+      const i = (y * w + x) * 4;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
     }
   }
+  ctx.putImageData(img, 0, 0);
   return canvas;
 }
 

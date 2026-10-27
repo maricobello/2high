@@ -6,8 +6,9 @@ import { makeBoss, updateBoss, SCRIPTS, ATTACKS } from "../src/bosses.js";
 import { buildWave } from "../src/waves.js";
 import { createRng } from "../src/rng.js";
 import { WAVES, BOSSES } from "../src/config.js";
-import { makeEnemy } from "../src/enemies.js";
+import { makeEnemy, enemyFire } from "../src/enemies.js";
 import { rocketSpec } from "../src/weapons.js";
+import { lootSource } from "../src/loot.js";
 
 const DT = 1 / 60;
 
@@ -263,6 +264,111 @@ test("primeira partida: 3 s sem ondas", () => {
   const { g } = play({ firstRun: true });
   run(g, 2.9);
   assert.equal(g.enemies.length + g.queue.length, 0);
+});
+
+test("elite tem o triplo de vida", () => {
+  assert.equal(makeEnemy("zangao", { x: 0, y: 0 }, 1, true).hp, 3);
+  assert.equal(makeEnemy("zangao", { x: 0, y: 0 }, 1, true).elite, true);
+  assert.equal(makeEnemy("zangao", { x: 0, y: 0 }).elite, false);
+});
+
+test("volta 1: Atirador dispara leque de 3", () => {
+  const needles = (sector) => {
+    const shots = [];
+    const g = { sector, rng: createRng(1), fireRate: () => 1, aimAngle: () => Math.PI / 2, fire: (x, y, a, v, kind) => shots.push({ a, kind }) };
+    const e = makeEnemy("atirador", { x: 100, y: 60, stayAt: 10, fireT: 0 });
+    for (let i = 0; i < 240; i++) enemyFire(e, 1 / 120, g);
+    return shots.filter((s) => s.kind === "agulha");
+  };
+  assert.equal(needles(6).length, 0, "volta 0: só o tiro de sempre");
+  const fan = needles(7).slice(0, 3).map((s) => Math.round((s.a - Math.PI / 2) * 100) / 100);
+  assert.deepEqual(fan.sort((a, b) => a - b), [-0.25, 0, 0.25]);
+});
+
+test("volta 2: Couraçado dispara anel; volta 3: Mina solta mais tiros", () => {
+  const ring = (sector) => {
+    const shots = [];
+    const g = { sector, rng: createRng(1), fireRate: () => 1, aimAngle: () => Math.PI / 2, fire: (x, y, a, v, kind) => shots.push({ a, kind }) };
+    const e = makeEnemy("couracado", { x: 100, y: 60, fireT: 99 });
+    for (let i = 0; i < 480; i++) enemyFire(e, 1 / 120, g);
+    return shots.length;
+  };
+  assert.equal(ring(12), 0);
+  assert.equal(ring(13), 12);
+  const { g } = play();
+  const burst = (sector) => {
+    g.jumpTo(sector);
+    const before = g.shots.length;
+    const m = makeEnemy("mina", { x: 100, y: 100 });
+    m.hp = 1;
+    g.enemies.push(m);
+    g.bullets.push({ x: 100, y: 104, vx: 0, vy: -1, dmg: 5, pierce: 0, hits: [], band: 0 });
+    g.update(DT);
+    return g.shots.length - before;
+  };
+  assert.equal(burst(18), 8);
+  assert.equal(burst(19), 16);
+});
+
+test("elite solta o dobro de cristais e usa a tabela de loot de elite", () => {
+  const { g } = play();
+  quiet(g);
+  const e = makeEnemy("couracado", { x: g.player.x, y: 120, vx: 0, vy: 0, move: "down", fireT: 99 }, 1, true);
+  e.hp = 0.5;
+  g.enemies.push(e);
+  g.bullets.push({ x: e.x, y: e.y + 4, vx: 0, vy: -1, dmg: 5, pierce: 0, hits: [], band: 0 });
+  g.update(DT);
+  const crystals = g.items.filter((it) => it.kind === "cristal").length;
+  assert.ok(crystals >= 6 && crystals <= 10, `${crystals} cristais (normal: 3 a 5)`);
+  assert.equal(lootSource({ type: "zangao", elite: true }), "elite");
+  assert.equal(lootSource({ type: "zangao" }), "inimigo");
+  assert.equal(lootSource({ type: "couracado", elite: true }), "couracado", "Couraçado já tem tabela melhor");
+  assert.equal(lootSource({ type: "portador" }), "portador");
+});
+
+test("elites aparecem do setor 4 em diante", () => {
+  const elites = (sector) => {
+    const { g } = play({ seed: 3, loadout: { ...DEFAULT_LOADOUT, gun: 12, hp: 99 } });
+    g.jumpTo(sector);
+    const bot = createBot({ skill: 0.9, seed: 5 });
+    const seen = new Set();
+    run(g, 40, (gg) => {
+      bot.drive(gg, DT);
+      gg.player.inv = 1;
+      for (const e of gg.enemies) if (e.elite) seen.add(e);
+    });
+    return [...seen];
+  };
+  assert.equal(elites(3).length, 0);
+  const found = elites(10);
+  assert.ok(found.length >= 3, `${found.length} elites no setor 10`);
+  assert.ok(found.every((e) => e.type !== "portador"), "Portador nunca é elite");
+});
+
+test("tetos: nunca mais de 60 inimigos e 220 tiros inimigos", () => {
+  const { g } = play({ loadout: { ...DEFAULT_LOADOUT, hp: 99 } });
+  g.jumpTo(25);
+  const bot = createBot({ skill: 0.9, seed: 2 });
+  let enemies = 0;
+  let shots = 0;
+  run(g, 60, (gg) => {
+    bot.drive(gg, DT);
+    gg.player.inv = 1;
+    enemies = Math.max(enemies, gg.enemies.length);
+    shots = Math.max(shots, gg.shots.length);
+  });
+  assert.ok(enemies <= 60, `${enemies} inimigos`);
+  assert.ok(shots <= 220, `${shots} tiros`);
+});
+
+test("teto direto: fila cheia não passa de 60 inimigos, tiros não passam de 220", () => {
+  const { g } = play();
+  for (let i = 0; i < 90; i++) g.queue.push({ at: 0, type: "zangao", params: { x: 10 + (i % 20) * 10, y: -200 } });
+  for (let i = 0; i < 300; i++) g.fire(112, 100, Math.PI / 2, 10, "bala");
+  g.update(DT);
+  assert.ok(g.enemies.length <= 60, `${g.enemies.length} inimigos`);
+  assert.ok(g.queue.length >= 30, "o resto espera na fila");
+  assert.ok(g.shots.length <= 220, `${g.shots.length} tiros`);
 });
 
 test("dano: escudo absorve; sem escudo perde casco e 1 nível da arma mais forte", () => {
