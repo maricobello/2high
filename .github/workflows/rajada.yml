@@ -1,0 +1,155 @@
+# Jogo RAJADA: testes, site, APK de Android e checagem do app de iPhone.
+#
+# APK de teste, com link direto: página de versões do repositório, tag "rajada-apk"
+# (atualizada pela main e por execuções manuais). Toda execução também deixa o
+# APK em Actions > execução > Artifacts > rajada-android.
+# Versão de loja (AAB e APK assinados): crie os secrets RAJADA_KEYSTORE_BASE64,
+# RAJADA_KEYSTORE_PASSWORD, RAJADA_KEY_ALIAS e RAJADA_KEY_PASSWORD
+# (passo a passo em rajada/docs/lancamento.md).
+name: Jogo RAJADA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "rajada/**"
+      - ".github/workflows/rajada.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rajada-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+    working-directory: rajada
+
+jobs:
+  web:
+    name: Testes e site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: rajada/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run smoke
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: rajada-prints
+          path: rajada/tests/prints
+          if-no-files-found: ignore
+
+  android:
+    name: APK Android
+    needs: web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # publicar o APK de teste na página de versões
+    env:
+      HAS_SIGNING: ${{ secrets.RAJADA_KEYSTORE_BASE64 != '' }}
+      RAJADA_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: rajada/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+
+      - name: APK de teste
+        working-directory: rajada/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Versão de loja assinada
+        if: env.HAS_SIGNING == 'true'
+        working-directory: rajada/android
+        env:
+          RAJADA_KEYSTORE_BASE64: ${{ secrets.RAJADA_KEYSTORE_BASE64 }}
+          RAJADA_KEYSTORE_PASSWORD: ${{ secrets.RAJADA_KEYSTORE_PASSWORD }}
+          RAJADA_KEY_ALIAS: ${{ secrets.RAJADA_KEY_ALIAS }}
+          RAJADA_KEY_PASSWORD: ${{ secrets.RAJADA_KEY_PASSWORD }}
+        run: |
+          echo "$RAJADA_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/rajada.jks"
+          RAJADA_KEYSTORE="$RUNNER_TEMP/rajada.jks" ./gradlew bundleRelease assembleRelease --no-daemon
+
+      - name: Juntar os arquivos
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/rajada.apk
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab out/rajada-loja.aab
+            cp android/app/build/outputs/apk/release/app-release.apk out/rajada-assinado.apk
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: rajada-android
+          path: rajada/out
+
+      # Só a main ou uma execução manual (Actions > Jogo RAJADA > Run workflow)
+      # atualizam o link público; pushes em outras branches não mexem nele.
+      - name: Publicar o APK de teste (link direto)
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete rajada-apk --yes --cleanup-tag || true
+          gh release create rajada-apk out/rajada.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "RAJADA · APK de teste" \
+            --notes "Versão de teste do jogo RAJADA para Android (commit ${GITHUB_SHA::7}).
+
+          Como instalar: abra este link no celular, baixe rajada.apk e toque no arquivo. O Android pede para permitir apps desta fonte.
+          É assinado com chave de teste: se o Android recusar a atualização, desinstale a versão anterior antes.
+          Para a Google Play, use o AAB assinado (ver rajada/docs/lancamento.md)."
+
+  ios:
+    name: App iPhone (compila)
+    needs: web
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: rajada/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+
+      - name: Compilar para o simulador (sem assinatura)
+        working-directory: rajada/ios/App
+        run: |
+          xcodebuild -version
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO -quiet build

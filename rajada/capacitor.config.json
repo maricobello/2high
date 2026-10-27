@@ -1,0 +1,23 @@
+{
+  "appId": "com.maricobello.rajada",
+  "appName": "RAJADA",
+  "webDir": "dist",
+  "backgroundColor": "#05070f",
+  "loggingBehavior": "debug",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#05070f"
+  },
+  "android": {
+    "backgroundColor": "#05070f"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK",
+      "hidden": true,
+      "animation": "NONE"
+    }
+  }
+}
