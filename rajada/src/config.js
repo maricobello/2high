@@ -83,6 +83,8 @@ export const GUN = {
   fastAt: 30,
   bigMult: 1.4, // dano dos tiros grandes (Pesada em diante)
   homingLife: 1.2, // s de vida do tiro teleguiado
+  homingTurn: 6, // rad/s
+  homingRetarget: 0.25, // s entre uma escolha de alvo e outra
   beam: { width: 4, tick: 0.1, mult: 1.2 }, // Raio: dano 1,2 × nível a cada tique
   // homing: os 2 canos de fora (os últimos da lista) curvam atrás do alvo;
   // sway: graus que o leque balança, para um lado nas rajadas pares e para o outro nas ímpares
@@ -115,6 +117,8 @@ export const ROCKETS = {
   splashDmg: 2,
   fragFrom: 15,
   frag: 4,
+  shardSpeed: 160, // estilhaços saem em X (45°, 135°, 225° e 315°)
+  shardLife: 0.35,
   splashGrow: 0.1,
   splashMax: 2,
   startSpeed: 50,
@@ -172,6 +176,10 @@ export const GUN_FORMS = [
   { at: 30, id: "tempestade", name: "Tempestade" },
   { at: 35, id: "estelar", name: "Estelar" },
 ];
+
+// Tetos de desempenho: inimigos, tiros inimigos e tiros da nave na tela
+// (acima do teto de tiros da nave, os mais antigos somem primeiro).
+export const PERF = { enemies: 60, shots: 220, bullets: 260 };
 
 export const TURBO = { full: 50, dur: 6, perGraze: 0.7, fireMult: 0.5, scoreMult: 2 };
 export const COMBO = { window: 1.6, perStep: 6, max: 8 };

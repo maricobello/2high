@@ -79,6 +79,7 @@ export function rocketLaunch(level, x, y) {
       splash: spec.splash,
       splashDmg: spec.splashDmg,
       frag: spec.frag,
+      band: spec.band,
     });
   }
   return out;

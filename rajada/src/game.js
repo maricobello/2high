@@ -12,7 +12,10 @@ import {
   SHOTS,
   DROPS,
   DIRECTOR,
+  GUN,
+  ROCKETS,
   DRONES,
+  PERF,
   BOSS_DROPS,
   SECTOR_BONUS,
   BOSSES,
@@ -21,7 +24,7 @@ import {
   sectorInfo,
 } from "./config.js";
 import { createRng, clamp } from "./rng.js";
-import { gunVolley, gunInterval, rocketSpec, rocketLaunch, steerRocket, pickTarget, droneSpec, droneVolley } from "./weapons.js";
+import { gunVolley, gunInterval, gunBeam, rocketSpec, rocketLaunch, steerRocket, pickTarget, droneSpec, droneVolley } from "./weapons.js";
 import { killDropChance, pickCapsule, applyCapsule, weaponToLose, loseWeapon } from "./drops.js";
 import { skillAdjust, threatCap, pickWave, waveGap } from "./director.js";
 import { makeEnemy, moveEnemy, enemyFire, onEnemyDeath } from "./enemies.js";
@@ -78,6 +81,7 @@ export function createGame(opts = {}) {
     inv: 0,
     gunT: 0,
     volley: 0,
+    beamT: 0,
     rocketT: 0.6,
     droneT: 0,
     dronePos: DRONES.offset.map(([dx, dy]) => ({ x: W / 2 + dx, y: H - 56 + dy })),
@@ -114,6 +118,8 @@ export function createGame(opts = {}) {
     shots: [],
     bullets: [],
     rockets: [],
+    beam: null, // Raio da metralhadora: { x, width, band }
+    droneBeams: [], // raios dos drones: [{ x, y, len }]
     items: [],
     lasers: [],
     queue: [],
@@ -278,11 +284,22 @@ export function createGame(opts = {}) {
 
   function firePlayer(dt) {
     const turbo = g.turboT > 0;
+    const fire = turbo ? TURBO.fireMult : 1;
     p.gunT -= dt;
     if (p.gunT <= 0) {
       p.gunT += gunInterval(p.gun, turbo);
-      for (const b of gunVolley(p.gun, p.x, p.y - 7, p.volley++)) g.bullets.push(b);
+      for (const b of gunVolley(p.gun, p.x, p.y - 7, p.volley++)) addBullet(b);
       emit("shot", { level: p.gun });
+    }
+    // Raio: o cano do meio vira um feixe que atravessa tudo na coluna da nave
+    const beam = gunBeam(p.gun);
+    g.beam = beam && { x: p.x, width: beam.width, band: beam.band };
+    if (beam) {
+      p.beamT -= dt;
+      if (p.beamT <= 0) {
+        p.beamT += beam.tick * fire;
+        beamHit(p.x, p.y - 7, p.y + 13, beam.width, beam.dmg, "gun");
+      }
     }
     const spec = rocketSpec(p.rockets, turbo);
     if (spec) {
@@ -294,16 +311,62 @@ export function createGame(opts = {}) {
       }
     }
     const drones = droneSpec(p.drones);
+    g.droneBeams.length = 0;
     if (drones.count > 0) {
+      if (drones.beam) for (let i = 0; i < drones.count; i++) g.droneBeams.push({ x: p.dronePos[i].x, y: p.dronePos[i].y - 4, len: DRONES.beam.len });
       p.droneT -= dt;
       if (p.droneT <= 0) {
-        p.droneT += drones.every * (turbo ? TURBO.fireMult : 1);
-        for (let i = 0; i < drones.count; i++) {
-          const d = p.dronePos[i];
-          for (const b of droneVolley(p.drones, d.x, d.y - 4)) g.bullets.push(b);
+        if (drones.beam) {
+          p.droneT += DRONES.beam.tick * fire;
+          for (const b of g.droneBeams) beamHit(b.x, b.y, b.len, 2, DRONES.beam.mult * drones.dmg, "drones");
+        } else {
+          p.droneT += drones.every * fire;
+          for (let i = 0; i < drones.count; i++) {
+            const d = p.dronePos[i];
+            for (const b of droneVolley(p.drones, d.x, d.y - 4)) addBullet(b);
+          }
         }
       }
     }
+  }
+
+  function addBullet(b) {
+    if (!b.hits) b.hits = [];
+    g.bullets.push(b);
+  }
+
+  // Dano de um feixe vertical de (x, y) até len acima, com a largura dada.
+  // Quem está no feixe é decidido antes do dano: pedaços de pedra que nascem
+  // agora não levam o mesmo tique.
+  function beamHit(x, y, len, width, dmg, by) {
+    const inBeam = (cx, cy, bw, bh) => Math.abs(cx - x) <= bw / 2 + width / 2 && cy - bh / 2 <= y && cy + bh / 2 >= y - len;
+    const hit = g.enemies.filter((e) => !e.dead && !e.gone && e.y > -e.h / 2 && inBeam(e.x, e.y, e.def.box[0], e.def.box[1]));
+    for (const e of hit) damageEnemy(e, dmg, by);
+    const b = g.boss;
+    if (b && !b.entering && b.vulnerable && b.hp > 0 && inBeam(b.x, b.y, b.box[0], b.box[1])) damageBoss(dmg);
+  }
+
+  // Curva o objeto (vx, vy) na direção de (tx, ty), no máximo maxTurn rad, sem mudar a velocidade.
+  function turnToward(o, tx, ty, maxTurn) {
+    const sp = Math.hypot(o.vx, o.vy);
+    const cur = Math.atan2(o.vy, o.vx);
+    let diff = Math.atan2(ty - o.y, tx - o.x) - cur;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    const a = cur + clamp(diff, -maxTurn, maxTurn);
+    o.vx = Math.cos(a) * sp;
+    o.vy = Math.sin(a) * sp;
+  }
+
+  // Tiro teleguiado: escolhe o alvo a cada 0,25 s, com o mesmo critério dos foguetes.
+  function steerBullet(b, dt) {
+    b.seek = (b.seek ?? 0) - dt;
+    const t = b.target;
+    if (b.seek <= 0 || !t || t.hp <= 0 || t.dead || t.gone) {
+      b.target = pickTarget(b, g.enemies, g.boss);
+      b.seek = GUN.homingRetarget;
+    }
+    if (b.target) turnToward(b, b.target.x, b.target.y, GUN.homingTurn * dt);
   }
 
   function aliveThreat() {
@@ -366,8 +429,13 @@ export function createGame(opts = {}) {
 
   function moveWorld(dt) {
     for (const b of g.bullets) {
+      if (b.homing) steerBullet(b, dt);
       b.x += b.vx * dt;
       b.y += b.vy * dt;
+      if (b.life !== undefined) {
+        b.life -= dt;
+        if (b.life <= 0) b.dead = true;
+      }
     }
     for (const r of g.rockets) {
       const t = r.target;
@@ -390,14 +458,7 @@ export function createGame(opts = {}) {
       s.t += dt;
       if (s.home > 0) {
         s.home -= dt;
-        const sp = Math.hypot(s.vx, s.vy);
-        const cur = Math.atan2(s.vy, s.vx);
-        let diff = Math.atan2(p.y - s.y, p.x - s.x) - cur;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        const a = cur + clamp(diff, -2.2 * dt, 2.2 * dt);
-        s.vx = Math.cos(a) * sp;
-        s.vy = Math.sin(a) * sp;
+        turnToward(s, p.x, p.y, 2.2 * dt);
       }
       s.x += s.vx * dt;
       s.y += s.vy * dt;
@@ -448,9 +509,14 @@ export function createGame(opts = {}) {
     for (const b of g.bullets) {
       if (b.dead) continue;
       for (const e of g.enemies) {
-        if (e.dead || e.gone || e.y < -e.h / 2) continue;
+        if (e.dead || e.gone || e.y < -e.h / 2 || b.hits.includes(e)) continue;
         if (Math.abs(b.x - e.x) <= e.def.box[0] / 2 + 1 && Math.abs(b.y - e.y) <= e.def.box[1] / 2 + 3) {
-          damageEnemy(e, b.dmg, b.drone ? "drones" : "gun");
+          damageEnemy(e, b.dmg, b.drone ? "drones" : b.shard ? "rockets" : "gun");
+          // perfurante: atravessa `pierce` inimigos e para no seguinte
+          if (b.hits.length < (b.pierce ?? 0)) {
+            b.hits.push(e);
+            continue;
+          }
           b.dead = true;
           break;
         }
@@ -482,6 +548,24 @@ export function createGame(opts = {}) {
       if (hit) damageEnemy(hit, r.dmg, "rockets");
       if (onBoss && g.boss.vulnerable) damageBoss(r.dmg);
       for (const e of splash) damageEnemy(e, r.splashDmg, "rockets");
+      // fragmentação: estilhaços em X, que não voltam em quem levou o foguete
+      for (let k = 0; k < r.frag; k++) {
+        const a = Math.PI / 4 + (k * Math.PI * 2) / r.frag;
+        addBullet({
+          x: r.x,
+          y: r.y,
+          vx: Math.cos(a) * ROCKETS.shardSpeed,
+          vy: Math.sin(a) * ROCKETS.shardSpeed,
+          dmg: r.splashDmg,
+          big: false,
+          pierce: 0,
+          homing: false,
+          band: r.band,
+          life: ROCKETS.shardLife,
+          shard: true,
+          hits: hit ? [hit] : [],
+        });
+      }
       emit("explode", { x: r.x, y: r.y, size: 1 });
     }
 
@@ -756,6 +840,8 @@ export function createGame(opts = {}) {
     g.endT = 0;
     g.stats.cause = cause;
     g.lasers.length = 0;
+    g.beam = null;
+    g.droneBeams.length = 0;
     emit("dead", { x: p.x, y: p.y, cause });
   }
 
@@ -844,7 +930,8 @@ export function createGame(opts = {}) {
   }
 
   function cleanup() {
-    compact(g.bullets, (b) => !b.dead && b.y > -12 && b.x > -12 && b.x < W + 12);
+    compact(g.bullets, (b) => !b.dead && b.y > -12 && b.y < H + 12 && b.x > -12 && b.x < W + 12);
+    if (g.bullets.length > PERF.bullets) g.bullets.splice(0, g.bullets.length - PERF.bullets);
     compact(g.rockets, (r) => !r.dead && r.life > 0 && r.y > -20 && r.y < H + 20 && r.x > -20 && r.x < W + 20);
     compact(g.enemies, (e) => !e.dead && !e.gone);
     compact(g.shots, (s) => !s.dead && s.y < H + 12 && s.y > -40 && s.x > -12 && s.x < W + 12);

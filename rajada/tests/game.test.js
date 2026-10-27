@@ -104,6 +104,103 @@ test("foguete leva o dano do nível em que saiu", () => {
   assert.ok(Math.abs(e.maxHp - e.hp - n * rocketSpec(11).dmg) < 1e-6, `${e.maxHp - e.hp} de dano em ${n} explosões`);
 });
 
+const addEnemy = (g, x, y, hp = 100) => {
+  const e = makeEnemy("couracado", { x, y, vx: 0, vy: 0, move: "down" });
+  e.hp = e.maxHp = hp;
+  g.enemies.push(e);
+  return e;
+};
+const quiet = (g) => {
+  g.player.gunT = 99;
+  g.player.rockets = 0;
+  g.player.drones = 0;
+};
+
+test("tiro perfurante atravessa o primeiro inimigo e para no segundo", () => {
+  const { g } = play();
+  quiet(g);
+  const [a, b, c] = [150, 110, 70].map((y) => addEnemy(g, 112, y));
+  g.bullets.push({ x: 112, y: 200, vx: 0, vy: -330, dmg: 1, pierce: 1, hits: [], band: 3 });
+  run(g, 0.5);
+  assert.equal(a.hp, 99);
+  assert.equal(b.hp, 99);
+  assert.equal(c.hp, 100);
+});
+
+test("tiro teleguiado curva para o inimigo mais perto", () => {
+  const { g } = play();
+  quiet(g);
+  addEnemy(g, 190, 120);
+  const bullet = { x: 112, y: 250, vx: 0, vy: -330, dmg: 1, pierce: 0, homing: true, life: 1.2, hits: [], band: 4 };
+  g.bullets.push(bullet);
+  run(g, 0.3);
+  assert.ok(bullet.vx > 0);
+});
+
+test("Raio dá dano a quem está na coluna da nave e não aos de fora", () => {
+  const { g } = play();
+  quiet(g);
+  g.player.gun = 25;
+  const inside = addEnemy(g, g.player.x, 120);
+  const outside = addEnemy(g, g.player.x + 40, 120);
+  run(g, 0.5);
+  assert.ok(inside.hp < 100);
+  assert.equal(outside.hp, 100);
+});
+
+test("foguete com fragmentação solta 4 estilhaços ao explodir", () => {
+  const { g, count } = play();
+  quiet(g);
+  g.player.rockets = 15;
+  g.player.rocketT = 0;
+  addEnemy(g, g.player.x, g.player.y - 60);
+  let shards = 0;
+  for (let i = 0; i < 120 && !count("explode"); i++) {
+    g.update(DT);
+    shards = g.bullets.filter((b) => b.shard).length;
+  }
+  // o par de foguetes da mesma fileira chega junto: 4 estilhaços por explosão
+  assert.ok(count("explode") > 0);
+  assert.equal(shards, 4 * count("explode"));
+});
+
+test("nível 200 em tudo: 30 s sem erro e no máximo 260 tiros da nave", () => {
+  const { g } = play();
+  Object.assign(g.player, { gun: 200, rockets: 200, drones: 200 });
+  const bot = createBot({ skill: 0.9, seed: 2 });
+  let most = 0;
+  run(g, 30, (game) => {
+    bot.drive(game, DT);
+    most = Math.max(most, game.bullets.length);
+  });
+  assert.ok(most <= 260);
+});
+
+test("drones no nível 10 trocam o tiro por um raio curto", () => {
+  const { g } = play();
+  quiet(g);
+  Object.assign(g.player, { drones: 10, inv: 99 }); // sem levar dano (perderia um nível de drone)
+  run(g, 0.3);
+  const d = g.player.dronePos[0];
+  const near = addEnemy(g, d.x, d.y - 25);
+  const far = addEnemy(g, d.x, d.y - 90);
+  run(g, 0.5, (game) => (game.player.gunT = 99));
+  assert.equal(g.droneBeams.length, 4);
+  assert.ok(near.hp < 100, "inimigo dentro do raio leva dano");
+  assert.equal(far.hp, 100, "fora do alcance não leva");
+  assert.equal(g.bullets.filter((b) => b.drone).length, 0, "com raio o drone não atira");
+});
+
+test("acima de 260 tiros da nave, os mais antigos somem primeiro", () => {
+  const { g } = play();
+  quiet(g);
+  for (let i = 0; i < 300; i++) g.bullets.push({ x: 112, y: 300, vx: 0, vy: -1, dmg: 0, pierce: 0, hits: [], band: 0, id: i });
+  g.update(DT);
+  assert.equal(g.bullets.length, 260);
+  assert.equal(g.bullets[0].id, 40);
+  assert.equal(g.bullets.at(-1).id, 299);
+});
+
 test("dano: escudo absorve; sem escudo perde casco e 1 nível da arma mais forte", () => {
   const { g, events } = play({ loadout: { ...DEFAULT_LOADOUT, shield: true, gun: 4 } });
   run(g, 0.05);
