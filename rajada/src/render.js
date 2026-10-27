@@ -55,6 +55,7 @@ const PLANET_COLORS = [
   ["#d6bcff", "#a46bff", "#2f1b66"],
   ["#b6ffc4", "#4ee36a", "#1d8f45"],
   ["#ffb3dc", "#ff3d55", "#9c1a33"],
+  ["#ffe0a8", "#ffd23f", "#b4501a"],
 ];
 
 const makeCanvas = (w, h) => {

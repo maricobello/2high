@@ -3,19 +3,31 @@
 
 const between = (rng, a, b) => rng.range(a, b);
 
-export function buildWave(id, rng, W, H) {
+// sector: nos setores 1 e 2 a fila e o V vêm mais cheios (o começo tem que
+// ter muito o que derrubar).
+export function buildWave(id, rng, W, H, sector = 1) {
   const list = [];
   const add = (at, type, params) => list.push({ at, type, params });
   const margin = 26;
+  const early = sector <= 2;
   switch (id) {
     case "fila": {
       const x = between(rng, margin, W - margin);
-      for (let i = 0; i < 5; i++) add(i * 0.28, "zangao", { x, y: -8, vy: 62 });
+      for (let i = 0; i < (early ? 8 : 5); i++) add(i * 0.28, "zangao", { x, y: -8, vy: 62 });
       break;
     }
     case "v": {
       const cx = between(rng, 60, W - 60);
-      for (let i = -3; i <= 3; i++) add(Math.abs(i) * 0.12, "zangao", { x: cx + i * 13, y: -8, vy: 52 });
+      const half = early ? 4 : 3;
+      for (let i = -half; i <= half; i++) add(Math.abs(i) * 0.12, "zangao", { x: cx + i * 12, y: -8, vy: 52 });
+      break;
+    }
+    case "enxame": {
+      // 8 a 12 Zangões espalhados pela largura, chegando aos poucos
+      const n = rng.int(8, 12);
+      for (let i = 0; i < n; i++) {
+        add(i * 0.14 + between(rng, 0, 0.2), "zangao", { x: between(rng, 14, W - 14), y: -8, vy: between(rng, 48, 72) });
+      }
       break;
     }
     case "serpente": {

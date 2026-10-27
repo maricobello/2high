@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { tension, cycleLength, skillAdjust, threatCap, pickWave, waveGap } from "../src/director.js";
 import { killDropChance, capsuleWeights, pickCapsule, applyCapsule, weaponToLose, loseWeapon } from "../src/drops.js";
 import { createRng } from "../src/rng.js";
-import { DIRECTOR, DROPS } from "../src/config.js";
+import { DIRECTOR, DROPS, sectorScale, sectorInfo } from "../src/config.js";
+import { buildWave } from "../src/waves.js";
 
 const ship = (over = {}) => ({ gun: 1, rockets: 0, drones: 0, shield: false, hp: 3, maxHp: 3, ...over });
 
@@ -97,4 +98,30 @@ test("dano tira 1 nível da arma de maior nível; metralhadora nunca abaixo de 1
   const p = ship({ gun: 1 });
   loseWeapon(p, "M");
   assert.equal(p.gun, 1);
+});
+
+test("vida +35% por setor, sem teto; limite de inimigos de 18 a 60", () => {
+  assert.deepEqual(sectorScale(1), { hp: 1, cap: 18, gap: 1.4, fire: 1, shotSpeed: 1 });
+  assert.ok(Math.abs(sectorScale(3).hp - 1.7) < 1e-9);
+  assert.equal(sectorScale(20).cap, 60);
+  assert.equal(sectorScale(200).gap, 0.6);
+  assert.equal(sectorScale(200).fire, 3);
+});
+
+test("6 cenários: o 7º setor é Órbita Baixa II", () => {
+  assert.equal(sectorInfo(6).name, "Núcleo");
+  assert.equal(sectorInfo(7).name, "Órbita Baixa II");
+});
+
+test("ondas do começo: fila de 8, V de 9, enxame de 8 a 12", () => {
+  const rng = createRng(1);
+  assert.equal(buildWave("fila", rng, 224, 400, 1).length, 8);
+  assert.equal(buildWave("fila", rng, 224, 400, 3).length, 5);
+  assert.equal(buildWave("v", rng, 224, 400, 2).length, 9);
+  assert.equal(buildWave("v", rng, 224, 400, 3).length, 7);
+  for (let s = 0; s < 20; s++) {
+    const w = buildWave("enxame", createRng(s), 224, 400, 1);
+    assert.ok(w.length >= 8 && w.length <= 12);
+    assert.ok(w.every((en) => en.type === "zangao"));
+  }
 });

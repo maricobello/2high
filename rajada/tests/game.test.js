@@ -259,6 +259,12 @@ test("cápsulas do tutorial continuam comuns", () => {
   }
 });
 
+test("primeira partida: 3 s sem ondas", () => {
+  const { g } = play({ firstRun: true });
+  run(g, 2.9);
+  assert.equal(g.enemies.length + g.queue.length, 0);
+});
+
 test("dano: escudo absorve; sem escudo perde casco e 1 nível da arma mais forte", () => {
   const { g, events } = play({ loadout: { ...DEFAULT_LOADOUT, shield: true, gun: 4 } });
   run(g, 0.05);

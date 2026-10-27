@@ -128,7 +128,7 @@ export function createGame(opts = {}) {
     queue: [],
     boss: null,
     bossN: 0,
-    waveT: 1.6,
+    waveT: firstRun ? 3 : 1.6, // primeira partida: 3 s de calma antes da primeira onda
     lastWave: null,
     mercy: 0,
     sinceCap: 0,
@@ -206,7 +206,7 @@ export function createGame(opts = {}) {
   g.nextBoss = () => BOSSES[g.bossN % BOSSES.length];
   g.turboOn = () => g.turboT > 0;
   // Para testes e capturas das lojas: solta uma onda na hora e pula de setor.
-  g.spawnWave = (id) => enqueue(buildWave(id, rng, W, H));
+  g.spawnWave = (id) => enqueue(buildWave(id, rng, W, H, g.sector));
   g.jumpTo = (sector, bossN = g.bossN) => {
     g.sector = sector;
     g.scale = sectorScale(sector);
@@ -391,7 +391,7 @@ export function createGame(opts = {}) {
     while (g.script.length && g.script[0].at <= g.t) {
       const s = g.script.shift();
       if (s.kind === "carrier") enqueue([carrierEntry(rng, W, true)], s.cap);
-      else enqueue(buildWave("couracado", rng, W, H).map((en) => (en.type === "couracado" ? { ...en, cap: s.cap } : en)));
+      else enqueue(buildWave("couracado", rng, W, H, g.sector).map((en) => (en.type === "couracado" ? { ...en, cap: s.cap } : en)));
     }
 
     if (g.phase === "waves") {
@@ -408,7 +408,7 @@ export function createGame(opts = {}) {
         });
         const id = pickWave(rng, { sector: g.sector, t: g.sectorT, room: cap - aliveThreat(), last: g.lastWave });
         if (id) {
-          enqueue(buildWave(id, rng, W, H));
+          enqueue(buildWave(id, rng, W, H, g.sector));
           g.lastWave = id;
           g.waveT = waveGap(rng, g.sector, g.sectorT);
         } else {

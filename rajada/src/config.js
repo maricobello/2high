@@ -211,6 +211,7 @@ export const SECTORS = [
   { name: "Nebulosa", bg: ["#2a1140", "#07040f"], star: "#ffc4f0", nebula: ["#a01f72", "#5a2fae"] },
   { name: "Fronteira", bg: ["#082c2e", "#03080b"], star: "#b8fff2", nebula: ["#1d8f45", "#2c3f86"] },
   { name: "Abismo", bg: ["#2c0812", "#050206"], star: "#ffb3b3", nebula: ["#9c1a33", "#a01f72"] },
+  { name: "Núcleo", bg: ["#2a1a06", "#070402"], star: "#ffe0a8", nebula: ["#b4501a", "#ffd23f"] },
 ];
 
 export function sectorInfo(n) {
@@ -225,21 +226,24 @@ export function sectorLength(n, firstRun = false) {
   return Math.min(80, 48 + 6 * n);
 }
 
-// Dificuldade por setor.
+// Dificuldade por setor: vida dos inimigos +35% a cada setor, sem teto;
+// limite de ameaça viva de 18 a 60; ondas mais seguidas, tiros mais frequentes
+// e mais rápidos (com teto, para continuar legível).
 export function sectorScale(n) {
   const s = n - 1;
   return {
-    hp: 1 + 0.25 * s,
+    hp: 1 + 0.35 * s,
+    cap: Math.min(60, 18 + 5 * s),
+    gap: Math.max(0.6, 1.4 / (1 + 0.18 * s)),
+    fire: Math.min(3, 1 + 0.28 * s),
     shotSpeed: Math.min(1.6, 1 + 0.07 * s),
-    fire: 1 + 0.28 * s,
-    cap: 9 + 5 * s,
-    gap: 2.4 / (1 + 0.18 * s),
   };
 }
 
 export const WAVES = [
-  { id: "fila", min: 1, weight: 3, threat: 5 },
-  { id: "v", min: 1, weight: 3, threat: 7 },
+  { id: "fila", min: 1, weight: 3, threat: 8 },
+  { id: "v", min: 1, weight: 3, threat: 9 },
+  { id: "enxame", min: 1, weight: 3, threat: 10 },
   { id: "serpente", min: 1, weight: 2, threat: 6 },
   { id: "dardos", min: 1, weight: 2, threat: 4.5 },
   { id: "atiradores", min: 1, weight: 2, threat: 6 },
