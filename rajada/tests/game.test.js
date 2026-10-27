@@ -562,6 +562,47 @@ test("as ondas respeitam o teto de 220 tiros", () => {
   assert.equal(g.shots.length, 220);
 });
 
+test("raio em leque sempre avisa por 1 s antes", () => {
+  const lasers = [];
+  ATTACKS.raio_leque.start({ x: 112, y: 80 }, { aimAngle: () => 1.2, laser: (...args) => lasers.push(args) });
+  assert.equal(lasers.length, 1);
+  const [, from, to, warn, fire, width] = lasers[0];
+  assert.equal(warn, 1);
+  assert.ok(Math.abs(from - 0.3) < 1e-9 && Math.abs(to - 2.1) < 1e-9, "abre ±0,9 rad em volta da nave");
+  assert.equal(width, 6);
+  assert.ok(ATTACKS.raio_leque.still && ATTACKS.raio_leque.dur >= warn + fire);
+  // na partida: o aviso não fere, o raio depois dele sim
+  const { g, count } = play();
+  quiet(g);
+  const b = bossById(g, "rainha");
+  b.x = g.W / 2;
+  b.y = b.ty - 50; // ainda entrando: não ataca nem anda de lado
+  g.boss = b;
+  const center = (gg) => (gg.player.x = gg.W / 2);
+  center(g);
+  g.laser(b, Math.PI / 2, Math.PI / 2, 1, 1.6, 6);
+  run(g, 0.95, center);
+  assert.equal(count("hurt"), 0, "no aviso não fere");
+  run(g, 0.2, center);
+  assert.equal(count("hurt"), 1, "depois do aviso fere");
+});
+
+test("enxame não passa do teto de 60 inimigos", () => {
+  const { g } = play();
+  ATTACKS.enxame.start(bossById(g, "rainha"), g);
+  assert.equal(g.enemies.filter((e) => e.type === "zangao").length, 8, "8 Zangões em V");
+  while (g.enemies.length < 55) g.enemies.push(makeEnemy("zangao", { x: 10, y: -100 }));
+  ATTACKS.enxame.start(bossById(g, "rainha"), g);
+  assert.equal(g.enemies.length, 60);
+});
+
+test("setor 7 é o Colosso na volta 1", () => {
+  assert.equal(BOSSES.length, 6);
+  const b = makeBoss(6, 400, 1);
+  assert.equal(b.id, "colosso");
+  assert.equal(b.lap, 1);
+});
+
 test("segundo ciclo de chefes é mais forte", () => {
   assert.ok(makeBoss(BOSSES.length, 400, 1).maxHp > makeBoss(0, 400, 1).maxHp);
 });

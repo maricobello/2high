@@ -274,6 +274,7 @@ export const BOSSES = [
   // segments gomos seguem o rastro da cabeça a cada `spacing`; só a cabeça leva dano
   { id: "serpente", name: "Serpente", sprite: "serpente", hp: 480, score: 8000, y: 0.25, box: [22, 18], segments: 10, spacing: 9 },
   { id: "forja", name: "Forja", sprite: "forja", hp: 520, score: 9000, y: 0.18, box: [60, 26] },
+  { id: "rainha", name: "Rainha", sprite: "rainha", hp: 560, score: 10000, y: 0.22, box: [36, 30] },
 ];
 
 export const DIRECTOR = {

@@ -208,8 +208,8 @@ export function createGame(opts = {}) {
     g.enemies.push(e);
     return e;
   };
-  g.laser = (b, from, to, warn, fire) => {
-    g.lasers.push({ boss: b, x: b.x, y: b.y + 2, from, to, angle: from, t: 0, warn, fire, width: 7 });
+  g.laser = (b, from, to, warn, fire, width = 7) => {
+    g.lasers.push({ boss: b, x: b.x, y: b.y + 2, from, to, angle: from, t: 0, warn, fire, width });
   };
   g.fireRate = () => g.scale.fire * (g.mercy > 0 ? 0.6 : 1);
   g.progress = () => (g.phase === "waves" ? Math.min(1, g.sectorT / g.sectorLen) : 1);

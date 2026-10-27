@@ -355,10 +355,16 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         if (Math.floor(l.t * 14) % 2) continue;
         ctx.strokeStyle = "#ff5fb4";
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(l.x + 0.5, l.y + 0.5);
-        ctx.lineTo(l.x + Math.cos(l.from) * len, l.y + Math.sin(l.from) * len);
-        ctx.stroke();
+        // raio que varre (leque da Rainha): a linha de chegada aparece mais fraca
+        const edges = Math.abs(l.to - l.from) > 0.3 ? [[l.from, 1], [l.to, 0.4]] : [[l.from, 1]];
+        for (const [a, alpha] of edges) {
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.moveTo(l.x + 0.5, l.y + 0.5);
+          ctx.lineTo(l.x + Math.cos(a) * len, l.y + Math.sin(a) * len);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
         continue;
       }
       ctx.save();

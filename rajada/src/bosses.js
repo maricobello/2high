@@ -154,6 +154,30 @@ const ATTACKS = {
     every: 0.4,
     fire: (b, g) => fan(g, b.x, b.y + 16, 5, 0.2, 105, "bala", g.aimAngle(b.x, b.y + 16)),
   },
+
+  // ----- Rainha -----
+  // chama 8 Zangões em V (o teto de inimigos vale)
+  enxame: {
+    dur: 2,
+    start: (b, g) => {
+      for (const i of [-4, -3, -2, -1, 1, 2, 3, 4]) g.spawnEnemy("zangao", { x: b.x + i * 11, y: b.y + 14 - Math.abs(i) * 5, vy: 54 });
+    },
+  },
+  ferroes: {
+    dur: 1.6,
+    every: 0.4,
+    fire: (b, g) => fan(g, b.x, b.y + 16, 3, 0.12, 150, "agulha", g.aimAngle(b.x, b.y + 16)),
+  },
+  espinhos: { dur: 1.2, every: 0.6, fire: (b, g, i) => ring(g, b.x, b.y, 12, 60, "agulha", i * 0.26) },
+  // fase 2: raio que varre ±0,9 rad em volta da nave, com 1 s de aviso
+  raio_leque: {
+    dur: 2.8,
+    still: true,
+    start: (b, g) => {
+      const a = g.aimAngle(b.x, b.y + 2);
+      g.laser(b, a - 0.9, a + 0.9, 1, 1.6, 6);
+    },
+  },
 };
 
 const SCRIPTS = {
@@ -176,6 +200,10 @@ const SCRIPTS = {
   forja: [
     ["ondas", "brasas", "pausa", "ondas", "pausa"],
     ["ondas", "drones", "brasas", "ondas", "rajada_fornalha"],
+  ],
+  rainha: [
+    ["ferroes", "enxame", "pausa", "ferroes", "espinhos", "pausa"],
+    ["raio_leque", "enxame", "ferroes", "espinhos"],
   ],
 };
 
@@ -296,6 +324,10 @@ function move(b, dt, g) {
     // pesada: só balança ±30 de um lado para o outro
     b.x = g.W / 2 + Math.sin(t * 0.5) * 30;
     b.y = b.ty + Math.sin(t * 0.8) * 2;
+  } else if (b.id === "rainha") {
+    // voo em oito
+    b.x = g.W / 2 + Math.sin(t * 0.7) * 50;
+    b.y = b.ty + Math.sin(t * 1.4) * 12;
   } else if (b.id === "aranha") {
     if (!b.wander || t >= b.wander.until) {
       b.wander = { x: g.rng.range(44, g.W - 44), y: b.ty + g.rng.range(-8, 22), until: t + 2.4 };
