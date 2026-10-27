@@ -70,24 +70,53 @@ export const SHIPS = {
 };
 export const SHIP_ORDER = ["faisca", "vespa", "bigorna", "cometa"];
 
-// Metralhadora: streams = [dx, ângulo em graus]
+// Metralhadora sem teto. Canos: [dx, ângulo em graus]. A forma do nível
+// (GUN_FORMS) escolhe o padrão; as formas acumulam o que as anteriores davam.
+// Cadência: de `every` no nível 1 até `fastest` no nível `fastAt`, e para aí.
+const LEQUE = [[0, 0], [-4, -5], [4, 5], [-6, -13], [6, 13]];
+const PESADA = [...LEQUE, [-8, -20], [8, 20]];
+const TEMPESTADE = [...PESADA, [-10, -28], [10, 28]];
 export const GUN = {
   speed: 330,
-  levels: [
-    { every: 0.125, dmg: 1, streams: [[0, 0]] },
-    { every: 0.125, dmg: 1, streams: [[-3, 0], [3, 0]] },
-    { every: 0.115, dmg: 1, streams: [[0, 0], [-4, -7], [4, 7]] },
-    { every: 0.105, dmg: 1, streams: [[-3, 0], [3, 0], [-5, -11], [5, 11]] },
-    { every: 0.095, dmg: 1, streams: [[0, 0], [-4, -5], [4, 5], [-6, -13], [6, 13]] },
-    { every: 0.085, dmg: 1.4, big: true, streams: [[0, 0], [-4, -5], [4, 5], [-6, -13], [6, 13]] },
-  ],
+  every: 0.125,
+  fastest: 0.075,
+  fastAt: 30,
+  bigMult: 1.4, // dano dos tiros grandes (Pesada em diante)
+  homingLife: 1.2, // s de vida do tiro teleguiado
+  beam: { width: 4, tick: 0.1, mult: 1.2 }, // Raio: dano 1,2 × nível a cada tique
+  // homing: os 2 canos de fora (os últimos da lista) curvam atrás do alvo;
+  // sway: graus que o leque balança, para um lado nas rajadas pares e para o outro nas ímpares
+  patterns: {
+    rajada: { byLevel: [[[0, 0]], [[-3, 0], [3, 0]], [[0, 0], [-4, -7], [4, 7]], [[-3, 0], [3, 0], [-5, -11], [5, 11]]] },
+    leque: { streams: LEQUE },
+    pesada: { streams: PESADA, big: true },
+    perfurante: { streams: PESADA, big: true, pierce: 1 },
+    cacadora: { streams: PESADA, big: true, pierce: 1, homing: true },
+    raio: { streams: PESADA.slice(1), big: true, pierce: 1, homing: true, beam: true },
+    tempestade: { streams: TEMPESTADE, big: true, pierce: 1, homing: true, beam: true, sway: 6 },
+    estelar: { streams: TEMPESTADE, big: true, pierce: 1, homing: true, beam: true, sway: 6 },
+  },
 };
 
+// Foguetes por nível (a linha vale de `from` em diante). Dano e explosão
+// crescem com o nível; do 15 em diante cada explosão solta `frag` estilhaços
+// e, a cada 5 níveis depois do 15, a explosão fica 10% maior (até 2×).
 export const ROCKETS = {
-  levels: [null, { every: 1, count: 1 }, { every: 1, count: 2 }, { every: 0.7, count: 2 }, { every: 0.7, count: 4 }],
+  steps: [
+    { from: 1, every: 1, count: 1 },
+    { from: 2, every: 1, count: 2 },
+    { from: 3, every: 0.7, count: 2 },
+    { from: 4, every: 0.7, count: 4 },
+    { from: 5, every: 0.6, count: 6 },
+    { from: 10, every: 0.5, count: 8 },
+  ],
   dmg: 4,
   splash: 12,
   splashDmg: 2,
+  fragFrom: 15,
+  frag: 4,
+  splashGrow: 0.1,
+  splashMax: 2,
   startSpeed: 50,
   accel: 420,
   maxSpeed: 270,
@@ -95,7 +124,18 @@ export const ROCKETS = {
   life: 2.4,
 };
 
-export const DRONES = { max: 2, every: 0.18, dmg: 0.8, offset: [[-18, 6], [18, 6]] };
+// Drones: até 4 (um por nível); depois do 4 a cadência sobe 5% por nível (até
+// 2×) e do 10 em diante cada drone atira um raio curto (beam).
+export const DRONES = {
+  max: 4,
+  every: 0.18,
+  speedUp: 0.05,
+  speedMax: 2,
+  dmg: 0.8,
+  fanFrom: 5, // dois tiros em leque de ±6°
+  beam: { from: 10, len: 40, mult: 1.5, tick: 0.1 },
+  offset: [[-18, 6], [18, 6], [-28, 14], [28, 14]],
+};
 
 // Poder sem teto: dano cresce a cada nível; a cor do tiro troca a cada 5 níveis
 // (faixa) e vira arco-íris na faixa 10; do 35 em diante, uma ★ a cada 5 níveis.

@@ -143,6 +143,13 @@ test("hangar: compra desconta, respeita o nível máximo e muda a nave", () => {
   assert.equal(buyUpgrade({ ...defaultProfile(), cristais: 10 }, "canhao").ok, false);
 });
 
+test("carga da partida não corta nível de arma", () => {
+  const d = defaultProfile();
+  const p = { ...d, upgrades: { ...d.upgrades, canhao: 9, foguetes: 7 } };
+  assert.equal(loadoutFor(p).gun, 10);
+  assert.equal(loadoutFor(p).rockets, 7);
+});
+
 test("meta mais próxima do hangar diz quanto falta", () => {
   const goal = nextUpgradeGoal({ ...defaultProfile(), cristais: 20 });
   assert.deepEqual(goal, { key: "ima", cost: 60, level: 1, missing: 40 });

@@ -75,10 +75,12 @@ test("tipo de cápsula acompanha a necessidade da nave", () => {
   for (let i = 0; i < 50; i++) assert.notEqual(pickCapsule(rng, ship({ hp: 3 }), ctx), "H");
 });
 
-test("cápsula aplica o nível e avisa quando já estava no máximo", () => {
-  const p = ship({ gun: 5 });
-  assert.deepEqual(applyCapsule(p, "M"), { level: 6, max: false, full: true });
-  assert.deepEqual(applyCapsule(p, "M"), { max: true });
+test("cápsula sobe a arma sem teto; reparo com casco cheio avisa que sobrou", () => {
+  const p = ship({ gun: 5, rockets: 99, drones: 99 });
+  assert.deepEqual(applyCapsule(p, "M"), { level: 6, max: false });
+  assert.deepEqual(applyCapsule(p, "M"), { level: 7, max: false });
+  assert.deepEqual(applyCapsule(p, "F"), { level: 100, max: false });
+  assert.deepEqual(applyCapsule(p, "D"), { level: 100, max: false });
   assert.equal(applyCapsule(p, "H").max, true);
   p.hp = 2;
   assert.equal(applyCapsule(p, "H").level, 3);
@@ -86,11 +88,12 @@ test("cápsula aplica o nível e avisa quando já estava no máximo", () => {
   assert.equal(p.shield, true);
 });
 
-test("dano tira 1 nível da arma mais forte; metralhadora nunca abaixo de 1", () => {
+test("dano tira 1 nível da arma de maior nível; metralhadora nunca abaixo de 1", () => {
   assert.equal(weaponToLose(ship()), null);
   assert.equal(weaponToLose(ship({ gun: 3, rockets: 4 })), "F");
   assert.equal(weaponToLose(ship({ gun: 6, rockets: 1 })), "M");
-  assert.equal(weaponToLose(ship({ drones: 2, gun: 2 })), "D");
+  assert.equal(weaponToLose(ship({ drones: 3, gun: 2 })), "D");
+  assert.equal(weaponToLose(ship({ drones: 2, gun: 2 })), "M", "empate fica com a metralhadora");
   const p = ship({ gun: 1 });
   loseWeapon(p, "M");
   assert.equal(p.gun, 1);

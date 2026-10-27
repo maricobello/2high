@@ -13,7 +13,6 @@ import {
   DROPS,
   DIRECTOR,
   DRONES,
-  ROCKETS,
   BOSS_DROPS,
   SECTOR_BONUS,
   BOSSES,
@@ -22,7 +21,7 @@ import {
   sectorInfo,
 } from "./config.js";
 import { createRng, clamp } from "./rng.js";
-import { gunVolley, gunInterval, rocketSpec, rocketLaunch, steerRocket, pickTarget, droneVolley } from "./weapons.js";
+import { gunVolley, gunInterval, rocketSpec, rocketLaunch, steerRocket, pickTarget, droneSpec, droneVolley } from "./weapons.js";
 import { killDropChance, pickCapsule, applyCapsule, weaponToLose, loseWeapon } from "./drops.js";
 import { skillAdjust, threatCap, pickWave, waveGap } from "./director.js";
 import { makeEnemy, moveEnemy, enemyFire, onEnemyDeath } from "./enemies.js";
@@ -78,6 +77,7 @@ export function createGame(opts = {}) {
     speed: ship.speed,
     inv: 0,
     gunT: 0,
+    volley: 0,
     rocketT: 0.6,
     droneT: 0,
     dronePos: DRONES.offset.map(([dx, dy]) => ({ x: W / 2 + dx, y: H - 56 + dy })),
@@ -281,7 +281,7 @@ export function createGame(opts = {}) {
     p.gunT -= dt;
     if (p.gunT <= 0) {
       p.gunT += gunInterval(p.gun, turbo);
-      for (const b of gunVolley(p.gun, p.x, p.y - 7)) g.bullets.push(b);
+      for (const b of gunVolley(p.gun, p.x, p.y - 7, p.volley++)) g.bullets.push(b);
       emit("shot", { level: p.gun });
     }
     const spec = rocketSpec(p.rockets, turbo);
@@ -293,13 +293,14 @@ export function createGame(opts = {}) {
         emit("rocket", {});
       }
     }
-    if (p.drones > 0) {
+    const drones = droneSpec(p.drones);
+    if (drones.count > 0) {
       p.droneT -= dt;
       if (p.droneT <= 0) {
-        p.droneT += DRONES.every * (turbo ? TURBO.fireMult : 1);
-        for (let i = 0; i < p.drones; i++) {
+        p.droneT += drones.every * (turbo ? TURBO.fireMult : 1);
+        for (let i = 0; i < drones.count; i++) {
           const d = p.dronePos[i];
-          for (const b of droneVolley(p.gun, d.x, d.y - 4)) g.bullets.push(b);
+          for (const b of droneVolley(p.drones, d.x, d.y - 4)) g.bullets.push(b);
         }
       }
     }
@@ -477,10 +478,10 @@ export function createGame(opts = {}) {
       r.dead = true;
       // área da explosão decidida antes do impacto: pedaços de pedra que nascem
       // agora não levam o mesmo estouro
-      const splash = g.enemies.filter((e) => e !== hit && !e.dead && !e.gone && Math.hypot(e.x - r.x, e.y - r.y) <= ROCKETS.splash);
-      if (hit) damageEnemy(hit, ROCKETS.dmg, "rockets");
-      if (onBoss && g.boss.vulnerable) damageBoss(ROCKETS.dmg);
-      for (const e of splash) damageEnemy(e, ROCKETS.splashDmg, "rockets");
+      const splash = g.enemies.filter((e) => e !== hit && !e.dead && !e.gone && Math.hypot(e.x - r.x, e.y - r.y) <= r.splash);
+      if (hit) damageEnemy(hit, r.dmg, "rockets");
+      if (onBoss && g.boss.vulnerable) damageBoss(r.dmg);
+      for (const e of splash) damageEnemy(e, r.splashDmg, "rockets");
       emit("explode", { x: r.x, y: r.y, size: 1 });
     }
 

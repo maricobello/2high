@@ -6,6 +6,8 @@ import { makeBoss, updateBoss, SCRIPTS, ATTACKS } from "../src/bosses.js";
 import { buildWave } from "../src/waves.js";
 import { createRng } from "../src/rng.js";
 import { WAVES, BOSSES } from "../src/config.js";
+import { makeEnemy } from "../src/enemies.js";
+import { rocketSpec } from "../src/weapons.js";
 
 const DT = 1 / 60;
 
@@ -64,6 +66,42 @@ test("cápsulas sobem as armas na hora e avisam", () => {
   );
   run(g, 3);
   assert.ok(g.rockets.length > 0 || events.some((e) => e.type === "rocket"), "foguetes saem");
+});
+
+test("armas acima do antigo máximo: 7 drones e metralhadora 30 atiram sem erro", () => {
+  const { g } = play();
+  Object.assign(g.player, { gun: 30, drones: 7 });
+  run(g, 1);
+  assert.ok(g.bullets.some((b) => b.drone), "drones atirando");
+  assert.ok(g.bullets.filter((b) => !b.drone).length > 9, "metralhadora atirando");
+});
+
+test("Tempestade balança o leque a cada rajada", () => {
+  const { g } = play();
+  g.player.gun = 30;
+  const centerVx = () => {
+    const before = new Set(g.bullets);
+    g.player.gunT = 0;
+    g.update(DT);
+    return g.bullets.find((b) => !before.has(b) && !b.drone).vx;
+  };
+  const a = centerVx();
+  const b = centerVx();
+  assert.ok(a * b < 0, `rajadas seguidas para lados opostos (${a.toFixed(1)}, ${b.toFixed(1)})`);
+});
+
+test("foguete leva o dano do nível em que saiu", () => {
+  const { g, count } = play();
+  Object.assign(g.player, { gunT: 99, rockets: 11, rocketT: 0 });
+  const e = makeEnemy("couracado", { x: g.player.x, y: g.player.y - 70, vx: 0, vy: 0, move: "down", fireT: 99 });
+  e.hp = e.maxHp = 1000;
+  g.enemies.push(e);
+  g.update(DT);
+  g.player.rocketT = 99;
+  run(g, 2, (game) => (game.player.gunT = 99));
+  const n = count("explode");
+  assert.ok(n > 0);
+  assert.ok(Math.abs(e.maxHp - e.hp - n * rocketSpec(11).dmg) < 1e-6, `${e.maxHp - e.hp} de dano em ${n} explosões`);
 });
 
 test("dano: escudo absorve; sem escudo perde casco e 1 nível da arma mais forte", () => {

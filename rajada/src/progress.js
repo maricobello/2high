@@ -13,7 +13,6 @@ import {
 } from "./config.js";
 import { emptyStats, sanitizeStats, recordRun, isStruggling } from "./stats.js";
 import { fillMissions, settleMissions, KINDS } from "./missions.js";
-import { GUN_MAX, ROCKETS_MAX } from "./weapons.js";
 
 export const PROFILE_VERSION = 1;
 
@@ -115,8 +114,8 @@ export function loadoutFor(profile) {
   return {
     ship: SHIPS[profile.ship] ? profile.ship : "faisca",
     hp: ship.hp + u.casco,
-    gun: Math.min(GUN_MAX, ship.gun + u.canhao),
-    rockets: Math.min(ROCKETS_MAX, ship.rockets + u.foguetes),
+    gun: ship.gun + u.canhao,
+    rockets: ship.rockets + u.foguetes,
     drones: ship.drones,
     shield: u.escudo >= 1,
     shieldRegen: UPGRADES.escudo.regen[u.escudo],

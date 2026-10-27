@@ -253,7 +253,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     if (g.status !== "playing") return;
     const def = SHIPS[p.ship];
     const blink = p.inv > 0 && Math.floor(t * 16) % 2 === 0;
-    for (let i = 0; i < p.drones; i++) {
+    for (let i = 0; i < Math.min(p.drones, p.dronePos.length); i++) {
       const d = p.dronePos[i];
       spr("chama", anim(14, i), d.x, d.y + 5);
       spr("drone", 0, d.x, d.y);
