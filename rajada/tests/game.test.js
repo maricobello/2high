@@ -201,6 +201,64 @@ test("acima de 260 tiros da nave, os mais antigos somem primeiro", () => {
   assert.equal(g.bullets.at(-1).id, 299);
 });
 
+test("chefe solta uma cápsula épica ou melhor", () => {
+  const { g, events } = play({ loadout: { ...DEFAULT_LOADOUT, gun: 6, hp: 99 } });
+  g.sectorT = g.sectorLen;
+  const bot = createBot({ skill: 0.9, seed: 3 });
+  run(g, 90, (gg) => {
+    if (gg.stats.bosses) return;
+    bot.drive(gg, DT);
+    gg.player.inv = 1;
+    if (gg.boss && !gg.boss.entering) gg.boss.hp = Math.min(gg.boss.hp, 1);
+  });
+  const kill = events.findIndex((e) => e.type === "boss_kill");
+  assert.ok(kill > 0, "chefe derrotado");
+  const caps = events.slice(0, kill).filter((e) => e.type === "cap_spawn").slice(-2);
+  assert.equal(caps.length, 2);
+  assert.ok(caps.some((e) => ["epica", "lendaria"].includes(e.data.rarity)), caps.map((e) => e.data.rarity).join(","));
+});
+
+test("Couraçado nunca solta cápsula comum", () => {
+  for (let seed = 1; seed <= 20; seed++) {
+    const { g, events } = play({ seed });
+    const e = makeEnemy("couracado", { x: g.player.x, y: g.player.y - 80, vx: 0, vy: 0, move: "down", fireT: 99 });
+    e.hp = 1;
+    g.enemies.push(e);
+    run(g, 1, (gg) => (gg.player.inv = 1));
+    assert.ok(e.dead, `semente ${seed}: abatido`);
+    const cap = events.find((ev) => ev.type === "cap_spawn" && ev.data.x === e.x && ev.data.y === e.y);
+    assert.ok(["rara", "epica", "lendaria"].includes(cap?.data.rarity), `semente ${seed}: ${cap?.data.rarity}`);
+  }
+});
+
+test("lendária de metralhadora no 3 leva ao 6 e avisa a forma Leque", () => {
+  const { g, events } = play();
+  g.player.gun = 3;
+  g.items.push({ kind: "cap", type: "M", rarity: "lendaria", x: g.player.x, y: g.player.y, t: 0 });
+  run(g, 0.1);
+  assert.equal(g.player.gun, 6);
+  const form = events.find((e) => e.type === "form");
+  assert.equal(form?.data.name, "Leque");
+  assert.equal(form.data.weapon, "M");
+  assert.equal(form.data.band, 1);
+  const cap = events.find((e) => e.type === "cap");
+  assert.deepEqual(cap.data.gained, { M: 3 });
+  assert.equal(cap.data.rarity, "lendaria");
+});
+
+test("cápsulas do tutorial continuam comuns", () => {
+  const { g, events } = play({ firstRun: true });
+  const bot = createBot({ skill: 0.9, seed: 4 });
+  run(g, 45, (gg) => {
+    bot.drive(gg, DT);
+    gg.player.inv = 1;
+  });
+  for (const type of ["M", "F", "D"]) {
+    const first = events.find((e) => e.type === "cap_spawn" && e.data.type === type);
+    assert.equal(first?.data.rarity, "comum", type);
+  }
+});
+
 test("dano: escudo absorve; sem escudo perde casco e 1 nível da arma mais forte", () => {
   const { g, events } = play({ loadout: { ...DEFAULT_LOADOUT, shield: true, gun: 4 } });
   run(g, 0.05);

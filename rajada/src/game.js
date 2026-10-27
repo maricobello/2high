@@ -26,6 +26,8 @@ import {
 import { createRng, clamp } from "./rng.js";
 import { gunVolley, gunInterval, gunBeam, rocketSpec, rocketLaunch, steerRocket, pickTarget, droneSpec, droneVolley } from "./weapons.js";
 import { killDropChance, pickCapsule, applyCapsule, weaponToLose, loseWeapon } from "./drops.js";
+import { newPity, rollRarity } from "./loot.js";
+import { bandOf } from "./power.js";
 import { skillAdjust, threatCap, pickWave, waveGap } from "./director.js";
 import { makeEnemy, moveEnemy, enemyFire, onEnemyDeath } from "./enemies.js";
 import { buildWave, carrierEntry } from "./waves.js";
@@ -41,6 +43,7 @@ export const DEFAULT_LOADOUT = {
   shieldRegen: 0,
   magnet: 16,
   luck: 1,
+  luckLevel: 0, // nível de Sorte do hangar: tira chance da cápsula comum
 };
 
 const DYING_FOR = 1.4;
@@ -133,6 +136,7 @@ export function createGame(opts = {}) {
     lastCarrier: -99,
     recover: null,
     capCool: { H: 0, E: 0 },
+    pity: newPity(), // garantias de raridade (comuns seguidas, chefes sem lendária)
     magnetAll: false,
     sectorDamage: 0,
     hitstop: 0,
@@ -675,9 +679,10 @@ export function createGame(opts = {}) {
 
     const [chance, min, max] = e.def.cristal;
     if (rng.chance(chance)) spawnCrystals(e.x, e.y, rng.int(min, max));
-    if (e.def.cap || e.cap) dropCapsule(e.x, e.y, e.cap);
+    const source = e.type === "portador" || e.type === "couracado" ? e.type : "inimigo";
+    if (e.def.cap || e.cap) dropCapsule(e.x, e.y, e.cap, source);
     else if (rng.chance(killDropChance(g.sinceCap, loadout.luck, g.t < 60 ? adjust.earlyDrops : 1) / (1 + DROPS.perSector * (g.sector - 1)))) {
-      dropCapsule(e.x, e.y);
+      dropCapsule(e.x, e.y, undefined, source);
     }
 
     if (e.def.split) {
@@ -716,7 +721,7 @@ export function createGame(opts = {}) {
     clearShots(false);
     g.lasers.length = 0;
     spawnCrystals(b.x, b.y, BOSS_DROPS.cristais);
-    for (let i = 0; i < BOSS_DROPS.caps; i++) dropCapsule(b.x + (i ? 16 : -16), b.y + 10);
+    for (let i = 0; i < BOSS_DROPS.caps; i++) dropCapsule(b.x + (i ? 16 : -16), b.y + 10, undefined, i ? "chefe2" : "chefe1");
     const noHit = g.sectorDamage === 0;
     const bonus = SECTOR_BONUS.perSector * g.sector + (noHit ? SECTOR_BONUS.noHit : 0);
     g.score += bonus;
@@ -744,13 +749,16 @@ export function createGame(opts = {}) {
     return clamp((near / 25) * (p.hp <= 1 ? 1.5 : 1), 0, 1);
   }
 
-  function dropCapsule(x, y, forced) {
+  // forced: tipo do roteiro da primeira partida (sempre comum, para ensinar).
+  // source: origem que decide a chance de cada raridade (LOOT.sources).
+  function dropCapsule(x, y, forced, source = "inimigo") {
     const type = forced ?? pickCapsule(rng, p, { t: g.t, recover: g.recover, stress: stress(), cool: g.capCool });
+    const rarity = forced ? "comum" : rollRarity(rng, source, g.pity, loadout.luckLevel ?? 0);
     if (type === "H") g.capCool.H = g.t + DROPS.coolH;
     if (type === "E") g.capCool.E = g.t + DROPS.coolE;
-    g.items.push({ kind: "cap", type, x: clamp(x, 10, W - 10), y, t: 0 });
+    g.items.push({ kind: "cap", type, rarity, x: clamp(x, 10, W - 10), y, t: 0 });
     g.sinceCap = 0;
-    emit("cap_spawn", { type, x, y });
+    emit("cap_spawn", { type, rarity, x, y });
   }
 
   function collectCapsule(it) {
@@ -758,14 +766,16 @@ export function createGame(opts = {}) {
     st.caps += 1;
     st.capsBy[it.type] = (st.capsBy[it.type] ?? 0) + 1;
     if (it.type === "P") pulse();
-    const r = applyCapsule(p, it.type);
-    if (r.max) {
-      g.score += 500 * g.mult;
-      spawnCrystals(it.x, it.y, 3);
-    }
+    const rarity = it.rarity ?? "comum";
+    const r = applyCapsule(p, it.type, rarity);
+    if (r.turbo) addTurbo(r.turbo === "cheio" ? TURBO.full : r.turbo);
     st.maxGun = Math.max(st.maxGun, p.gun);
     st.maxRockets = Math.max(st.maxRockets, p.rockets);
-    emit("cap", { type: it.type, ...r, x: it.x, y: it.y });
+    emit("cap", { type: it.type, rarity, gained: r.gained, level: r.level, form: r.form, x: it.x, y: it.y });
+    if (r.form) {
+      const level = { M: p.gun, F: p.rockets, D: p.drones }[r.formWeapon];
+      emit("form", { weapon: r.formWeapon, name: r.form, band: bandOf(level) });
+    }
   }
 
   function clearShots(asScore) {
