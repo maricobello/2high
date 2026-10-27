@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Versão: o nome vem de jogo/package.json; o código cresce a cada envio à loja
+// (o workflow passa -PprumoVersionCode=<número da execução>).
+def prumoPackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+// Assinatura para a Play Store: só existe quando a chave é informada (workflow
+// "Jogo PRUMO · Lojas" ou variáveis no computador). Sem ela, o release sai sem assinatura.
+def prumoKeystore = System.getenv('PRUMO_KEYSTORE_PATH')
+
 android {
     namespace = "com.maricobello.prumo"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +14,8 @@ android {
         applicationId "com.maricobello.prumo"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode((project.findProperty('prumoVersionCode') ?: '1').toInteger())
+        versionName prumoPackage.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +23,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (prumoKeystore) {
+                storeFile file(prumoKeystore)
+                storePassword System.getenv('PRUMO_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('PRUMO_KEY_ALIAS')
+                keyPassword System.getenv('PRUMO_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (prumoKeystore) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

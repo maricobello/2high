@@ -11,7 +11,8 @@
     "cap:android": "npm run build && npx cap sync android && npx cap open android",
     "cap:ios": "npm run build && npx cap sync ios && npx cap open ios",
     "smoke": "node tests/smoke.mjs",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.mjs",
+    "loja": "node scripts/loja.mjs"
   },
   "devDependencies": {
     "@capacitor/assets": "3.0.5",
@@ -20,6 +21,7 @@
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.5.3",
     "@capacitor/haptics": "8.0.2",
     "@capacitor/ios": "8.5.3"

@@ -1,6 +1,7 @@
 // Junta o jogo num HTML único (JS, CSS e fonte embutidos).
 // dist/        site e app nativo (com modo offline)
 // dist/artifact.html  prévia jogável, sem o esqueleto <html>/<head>
+// dist/privacidade.html e suporte.html  páginas exigidas pelas lojas (e-mail em loja/config.json)
 import { build } from "esbuild";
 import { readFile, writeFile, mkdir, cp, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -44,7 +45,8 @@ await mkdir(dist, { recursive: true });
 const site = inline(html, await bundle(true));
 await writeFile(join(dist, "index.html"), site);
 
-const body = html.match(/<body>([\s\S]*)<\/body>/)[1];
+// a prévia é um arquivo só: sem os links para as páginas de privacidade e suporte
+const body = html.match(/<body>([\s\S]*)<\/body>/)[1].replace(/\s*<nav class="legal"[\s\S]*?<\/nav>/, "");
 const description = html.match(/<meta name="description"[^>]*>/)[0];
 const artifact = inline(
   `<title>PRUMO</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n${description}\n${STYLE_TAG}\n${body}`,
@@ -57,5 +59,19 @@ await writeFile(join(dist, "sw.js"), (await read("sw.js")).replace("__CACHE__", 
 await cp(join(root, "manifest.webmanifest"), join(dist, "manifest.webmanifest"));
 await cp(join(root, "icon.svg"), join(dist, "icon.svg"));
 await cp(join(root, "icons"), join(dist, "icons"), { recursive: true });
+await cp(join(root, "fonts"), join(dist, "fonts"), { recursive: true });
+await cp(join(root, "paginas.css"), join(dist, "paginas.css"));
+
+const config = JSON.parse(await read("loja/config.json"));
+const contato = config.email
+  ? `<a href="mailto:${config.email}">${config.email}</a>`
+  : "O e-mail de contato será publicado aqui em breve.";
+for (const page of ["privacidade.html", "suporte.html"]) {
+  const text = (await read(page))
+    .replaceAll("{{CONTATO}}", () => contato)
+    .replaceAll("{{ATUALIZADO}}", () => config.atualizado);
+  await writeFile(join(dist, page), text);
+}
+if (!config.email) console.warn("aviso: loja/config.json sem e-mail. Preencha antes de enviar às lojas.");
 
 console.log(`dist/index.html ${(site.length / 1024).toFixed(0)} KB · versão ${hash}`);

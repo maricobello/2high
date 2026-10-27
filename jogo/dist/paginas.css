@@ -1,0 +1,96 @@
+/* Páginas de texto do site do jogo (privacidade e suporte). Mesmo mundo escuro do jogo. */
+@font-face {
+  font-family: "Unbounded";
+  src: url("fonts/unbounded-latin.woff2") format("woff2");
+  font-weight: 200 900;
+  font-display: swap;
+}
+
+:root {
+  --ink: #070b14;
+  --paper: #f3f5fa;
+  --dim: rgba(243, 245, 250, 0.68);
+  --faint: rgba(243, 245, 250, 0.14);
+  --gold: #ffcf5c;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(#173457, var(--ink) 420px) no-repeat var(--ink);
+  color: var(--paper);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.doc {
+  max-width: 64ch;
+  margin-inline: auto;
+  padding: 40px max(20px, env(safe-area-inset-right, 0px)) 64px max(20px, env(safe-area-inset-left, 0px));
+}
+
+.back {
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--paper);
+  text-decoration: none;
+}
+
+h1 {
+  margin: 28px 0 4px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(28px, 7vw, 40px);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+h2 {
+  margin: 32px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+p,
+li {
+  color: var(--dim);
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+strong {
+  color: var(--paper);
+}
+
+a {
+  color: var(--gold);
+}
+
+a:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.meta {
+  font-size: 14px;
+}
+
+hr {
+  margin: 40px 0 0;
+  border: 0;
+  border-top: 1px solid var(--faint);
+}

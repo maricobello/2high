@@ -1,5 +1,7 @@
 // Telas, entrada e laço de quadros. Liga o motor (game.js) ao desenho, ao som
 // e ao progresso salvo.
+import { Capacitor } from "@capacitor/core";
+import { App } from "@capacitor/app";
 import { PHASES } from "./phases.js";
 import { createGame } from "./game.js";
 import { createRenderer } from "./render.js";
@@ -388,6 +390,15 @@ document.addEventListener("keydown", (e) => {
     toggleSound();
   }
 });
+
+// Botão voltar do Android: pausa a partida, fecha a tela por cima e, no início, sai do jogo.
+if (Capacitor.isNativePlatform()) {
+  App.addListener("backButton", () => {
+    if (screen === "game") pause();
+    else if (screen === "home") App.exitApp();
+    else goHome();
+  });
+}
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) pause();

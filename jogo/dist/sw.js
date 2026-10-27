@@ -1,4 +1,4 @@
-// Guarda o jogo para abrir sem internet. O build troca prumo-e67bff9a8b por um nome
+// Guarda o jogo para abrir sem internet. O build troca prumo-0844772d76 por um nome
 // novo a cada versão, e a versão antiga é apagada ao ativar.
 const CACHE = "__CACHE__";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icons/icon-192.png", "icons/icon-512.png"];

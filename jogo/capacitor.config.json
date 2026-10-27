@@ -8,5 +8,12 @@
   },
   "android": {
     "backgroundColor": "#070b14"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "hidden": true,
+      "initialViewportFitValueHint": "cover"
+    }
   }
 }

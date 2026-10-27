@@ -583,3 +583,18 @@ button:disabled {
 .row.single {
   grid-template-columns: 1fr;
 }
+
+.legal {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  font-size: 12px;
+  color: var(--dim);
+  text-decoration: none;
+}

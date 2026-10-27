@@ -1,45 +1,13 @@
 // Teste de ponta a ponta no navegador: abre o build, joga e confere as telas.
 // Uso: npm run build && npm run smoke  (prints em tests/prints/)
-import { createRequire } from "node:module";
-import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import assert from "node:assert/strict";
+import { chromium, devices, root, serveDist, dropWhen, screenIs, setProgress } from "../scripts/navegador.mjs";
 
-const require = createRequire(import.meta.url);
-const { chromium, devices } = require("playwright");
-const root = fileURLToPath(new URL("..", import.meta.url));
 const shots = join(root, "tests/prints");
-const PORT = 5180;
-const URL_QA = `http://localhost:${PORT}/?qa`;
-
 await mkdir(shots, { recursive: true });
-const server = spawn(process.execPath, [join(root, "scripts/serve.mjs"), "dist"], {
-  env: { ...process.env, PORT: String(PORT) },
-  stdio: "ignore",
-});
-await new Promise((r) => setTimeout(r, 400));
-
-// Espera o bloco chegar a `dist` do centro (ou passar de `far`) e solta na hora certa.
-const dropWhen = (page, { near, far }) =>
-  page.evaluate(
-    async ({ near, far }) => {
-      const g = window.__prumo.game();
-      for (let i = 0; i < 2000; i++) {
-        const o = Math.abs(g.offset());
-        if (g.moving && g.moving.p > 0.1 && ((near !== undefined && o < near) || (far !== undefined && o > far))) {
-          document.getElementById("app").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
-          return true;
-        }
-        await new Promise(requestAnimationFrame);
-      }
-      return false;
-    },
-    { near, far },
-  );
-
-const screenIs = (page, name) => page.waitForFunction((n) => window.__prumo.screen() === n, name, { timeout: 8000 });
+const server = await serveDist(5180);
 
 async function run(label, context) {
   const page = await context.newPage();
@@ -47,7 +15,7 @@ async function run(label, context) {
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
-  await page.goto(URL_QA);
+  await page.goto(server.url);
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(shots, `${label}-1-inicio.png`) });
 
@@ -88,11 +56,7 @@ async function run(label, context) {
   await screenIs(page, "home");
 
   // Infinito liberado (progresso salvo como se as fases 1 a 3 estivessem feitas)
-  await page.evaluate(() =>
-    localStorage.setItem("prumo.v1", JSON.stringify({ stars: [3, 2, 1, 0, 0, 0, 0, 0], best: 6, muted: false })),
-  );
-  await page.reload();
-  await page.waitForTimeout(800);
+  await setProgress(page, { stars: [3, 2, 1, 0, 0, 0, 0, 0], best: 6, muted: false });
   await page.screenshot({ path: join(shots, `${label}-7-inicio-progresso.png`) });
   await page.click("#btn-phases");
   await screenIs(page, "phases");
@@ -123,5 +87,5 @@ try {
   await run("celular", await browser.newContext({ ...devices["iPhone 13"] }));
 } finally {
   await browser.close();
-  server.kill();
+  server.stop();
 }
