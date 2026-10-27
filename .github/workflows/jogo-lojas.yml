@@ -154,6 +154,7 @@ jobs:
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/PRUMO.xcarchive" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION="$(node -p "require('./package.json').version")" \
             CODE_SIGNING_ALLOWED=NO \
             "${AUTH[@]}" archive
 

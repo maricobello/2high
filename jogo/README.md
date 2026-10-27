@@ -36,54 +36,31 @@ npm run smoke        # joga sozinho no navegador, no computador e no celular; pr
 | `dist/sw.js`, `manifest.webmanifest`, `icons/` | instalar como app e jogar sem internet |
 | `dist/artifact.html` | prévia jogável publicada no claude.ai |
 
-## Publicar no site
+## Publicar
 
-Qualquer hospedagem de arquivos estáticos serve. Suba o conteúdo de `dist/`.
+**Site:** https://prumo-jogo.vercel.app (projeto `prumo-jogo` na Vercel, diretório
+`jogo`, build `npm run build`, saída `dist`). No celular, "Adicionar à tela de início"
+instala como app (tela cheia e offline).
 
-- **Vercel:** novo projeto apontando para este repositório, com *Root Directory*
-  `jogo`, *Build Command* `npm run build` e *Output Directory* `dist`.
-- **Dentro do site atual:** copiar `dist/` para `public/jogo/` deixa o jogo em
-  `/jogo/index.html`.
+**Lojas:** siga [docs/publicar-nas-lojas.md](docs/publicar-nas-lojas.md). Os workflows
+do GitHub fazem o trabalho pesado:
 
-No celular, "Adicionar à tela de início" instala como app (abre em tela cheia e funciona offline).
+| Workflow | Quando roda | O que faz |
+|---|---|---|
+| Jogo PRUMO · APK Android | push em `jogo/` | testes, APK de teste (`prumo-apk`) e checagem do AAB assinado |
+| Jogo PRUMO · iOS | push no projeto iOS | compila para iPhone num Mac, sem assinar |
+| Jogo PRUMO · Lojas | à mão | chave do Android, AAB assinado para a Play, envio ao TestFlight |
 
-## Android (APK e Google Play)
+**Com Android Studio ou Xcode instalados** (opcional): `npm run cap:android` ou
+`npm run cap:ios` faz o build, sincroniza e abre o projeto nativo.
 
-**APK de teste, sem instalar nada:** cada push que mexe em `jogo/` roda o
-workflow `Jogo PRUMO · APK Android` no GitHub. Em *Actions*, abra a última
-execução e baixe `prumo-apk`. Copie o `app-debug.apk` para o celular e instale
-(o Android pede para permitir apps de fontes desconhecidas).
+**Depois de mudar o jogo:**
 
-**Google Play:** precisa de conta de desenvolvedor (taxa única de US$ 25) e de um
-pacote assinado:
-
-```bash
-npm run cap:android  # build + sincroniza + abre no Android Studio
-```
-
-No Android Studio: *Build > Generate Signed App Bundle*, crie a chave (guarde-a:
-sem ela não dá para atualizar o app) e envie o `.aab` no Play Console.
-
-## iPhone (App Store)
-
-Precisa de um Mac com Xcode e de conta Apple Developer (US$ 99 por ano).
-
-```bash
-npm run cap:ios      # build + sincroniza + abre no Xcode
-```
-
-No Xcode: escolha seu *Team* em *Signing & Capabilities*, depois
-*Product > Archive* e *Distribute App* para enviar ao App Store Connect.
-
-## Antes de lançar nas lojas
-
-- Troque `appId` em `capacitor.config.json` (hoje `com.maricobello.prumo`) por um
-  domínio seu ao contrário, antes do primeiro envio: depois não muda mais.
-- Política de privacidade: o jogo não coleta dados nem usa internet; o progresso
-  fica só no aparelho. As lojas pedem um link com esse texto.
-- Ícone e abertura: edite `icon.svg` e rode `npm run icons` e
-  `npx capacitor-assets generate --android --ios`.
-- Depois de qualquer mudança no jogo: `npm run build && npx cap sync`.
+- `npm run build && npx cap sync`
+- Imagens das lojas: `npm run loja`
+- Ícone: edite `icon.svg`, rode `npm run icons` e depois
+  `npx capacitor-assets generate --android --ios`
+- E-mail de contato das páginas de privacidade e suporte: `loja/config.json`
 
 ## Estrutura
 
@@ -93,4 +70,6 @@ No Xcode: escolha seu *Team* em *Signing & Capabilities*, depois
 | `tests/` | testes das regras e teste no navegador |
 | `android/`, `ios/` | projetos nativos (Capacitor) |
 | `assets/` | origem dos ícones e da abertura nativos |
+| `loja/` | capturas, imagem de destaque, ícone e textos da ficha das lojas |
+| `privacidade.html`, `suporte.html` | páginas exigidas pelas lojas |
 | `fonts/` | Unbounded (SIL Open Font License) |
