@@ -128,6 +128,32 @@ const ATTACKS = {
     },
   },
   anel_serpente: { dur: 1.2, every: 0.4, mouth: true, fire: (b, g, i) => ring(g, b.x, b.y + 4, 16, 70, "bolha", i * 0.2) },
+
+  // ----- Forja -----
+  // onda de fogo: uma fileira cobrindo a largura com um vão de 28 sorteado
+  // (desce mais rápido na fase 2). Tiros a 6,5 um do outro: a nave (raio 1,5)
+  // não passa entre dois (raio 2), só pelo vão.
+  ondas: {
+    dur: 2.4,
+    every: 0.8,
+    fire: (b, g) => {
+      const gap = g.rng.range(24, g.W - 24);
+      for (let x = 4; x <= g.W - 4; x += 6.5) if (Math.abs(x - gap) > 14) g.fire(x, b.y + 14, DOWN, b.phase === 2 ? 88 : 70, "bala");
+    },
+  },
+  brasas: { dur: 2, every: 0.12, fire: (b, g) => g.fire(g.rng.range(8, g.W - 8), -4, DOWN + g.rng.range(-0.1, 0.1), 80, "bolha") },
+  // fase 2: lança 3 dardos em mergulho de dentro da fornalha
+  drones: {
+    dur: 1.6,
+    start: (b, g) => {
+      for (const dx of [-30, 0, 30]) g.spawnEnemy("dardo", { x: b.x + dx, y: b.y + 8, move: "dive", yStop: b.y + 30, diveSpeed: 165 });
+    },
+  },
+  rajada_fornalha: {
+    dur: 1.6,
+    every: 0.4,
+    fire: (b, g) => fan(g, b.x, b.y + 16, 5, 0.2, 105, "bala", g.aimAngle(b.x, b.y + 16)),
+  },
 };
 
 const SCRIPTS = {
@@ -146,6 +172,10 @@ const SCRIPTS = {
   serpente: [
     ["gomos", "pausa", "gomos", "pausa"],
     ["gomos", "anel_serpente", "gomos", "anel_serpente"],
+  ],
+  forja: [
+    ["ondas", "brasas", "pausa", "ondas", "pausa"],
+    ["ondas", "drones", "brasas", "ondas", "rajada_fornalha"],
   ],
 };
 
@@ -262,6 +292,10 @@ function move(b, dt, g) {
     b.moveT += dt * (b.phase === 2 ? 1.5 : 1);
     b.x = g.W / 2 + Math.sin(b.moveT * 0.9) * (g.W / 2 - 30);
     b.y = b.ty + Math.sin(b.moveT * 1.7) * 26;
+  } else if (b.id === "forja") {
+    // pesada: só balança ±30 de um lado para o outro
+    b.x = g.W / 2 + Math.sin(t * 0.5) * 30;
+    b.y = b.ty + Math.sin(t * 0.8) * 2;
   } else if (b.id === "aranha") {
     if (!b.wander || t >= b.wander.until) {
       b.wander = { x: g.rng.range(44, g.W - 44), y: b.ty + g.rng.range(-8, 22), until: t + 2.4 };

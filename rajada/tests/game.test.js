@@ -521,6 +521,47 @@ test("tiro no gomo é bloqueado; na cabeça dá dano", () => {
   assert.ok(b.hp < hp, "a cabeça leva dano");
 });
 
+const bossById = (g, id) => {
+  const n = BOSSES.findIndex((b) => b.id === id);
+  assert.ok(n >= 0, `${id} está na lista de chefes`);
+  return makeBoss(n, g.H, 1);
+};
+
+test("onda de fogo sempre deixa um vão de pelo menos 24", () => {
+  assert.ok(ATTACKS.ondas, "ataque ondas existe");
+  for (let seed = 1; seed <= 50; seed++) {
+    const xs = [];
+    const g = { W: 224, rng: createRng(seed), fire: (x) => xs.push(x), aimAngle: () => Math.PI / 2 };
+    ATTACKS.ondas.fire({ x: 112, y: 60, phase: 1 }, g, 0);
+    const edges = [0, ...xs.sort((a, b) => a - b), 224];
+    const gaps = edges.slice(1).map((x, i) => x - edges[i]).sort((a, b) => b - a);
+    assert.ok(gaps[0] >= 24, `semente ${seed}: maior vão ${gaps[0].toFixed(1)}`);
+    assert.ok(gaps[1] < 7, `semente ${seed}: só um vão (o segundo tem ${gaps[1].toFixed(1)}; a nave passaria)`);
+  }
+});
+
+test("fase 2: o ataque drones solta exatamente 3 dardos", () => {
+  const { g } = play();
+  g.boss = bossById(g, "forja");
+  run(g, 4, (gg) => (gg.player.inv = 1));
+  const darts = () => g.enemies.filter((e) => e.type === "dardo").length;
+  const before = darts();
+  ATTACKS.drones.start(g.boss, g);
+  assert.equal(darts(), before + 3);
+  while (g.enemies.length < 59) g.enemies.push(makeEnemy("zangao", { x: 10, y: -100 }));
+  const capped = darts();
+  ATTACKS.drones.start(g.boss, g);
+  assert.equal(darts(), capped + 1, "respeita o teto de 60 inimigos");
+});
+
+test("as ondas respeitam o teto de 220 tiros", () => {
+  const { g } = play();
+  g.boss = bossById(g, "forja");
+  for (let i = 0; i < 215; i++) g.fire(112, 100, Math.PI / 2, 10, "bala");
+  ATTACKS.ondas.fire(g.boss, g, 0);
+  assert.equal(g.shots.length, 220);
+});
+
 test("segundo ciclo de chefes é mais forte", () => {
   assert.ok(makeBoss(BOSSES.length, 400, 1).maxHp > makeBoss(0, 400, 1).maxHp);
 });

@@ -201,6 +201,13 @@ export function createGame(opts = {}) {
     g.shots.push({ x, y, vx: Math.cos(angle) * sp, vy: Math.sin(angle) * sp, kind, r: SHOTS[kind].r, grazed: false, t: 0, src: "chefe", ...extra });
   };
   g.aimAngle = (x, y) => Math.atan2(p.y - y, p.x - x);
+  // Para os chefes: solta um inimigo na hora (respeita o teto de inimigos).
+  g.spawnEnemy = (type, params) => {
+    if (g.enemies.length >= PERF.enemies) return null;
+    const e = makeEnemy(type, params, g.scale.hp);
+    g.enemies.push(e);
+    return e;
+  };
   g.laser = (b, from, to, warn, fire) => {
     g.lasers.push({ boss: b, x: b.x, y: b.y + 2, from, to, angle: from, t: 0, warn, fire, width: 7 });
   };
