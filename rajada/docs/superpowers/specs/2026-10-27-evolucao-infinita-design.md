@@ -57,9 +57,10 @@ dos inimigos pequenos e dos tiros (só as cores mudam), modo para dois jogadores
 
 - Toda arma tem nível de 0 (ou 1, na metralhadora) até infinito.
 - Dano multiplicado por `1 + 0,10 × (nível − 1)` (cresce sempre, sem teto).
-- Faixa de cor: `faixa = floor((nível − 1) / 5)`, de 0 a 10, nesta ordem: branco,
-  amarelo, laranja, vermelho, rosa, violeta, azul, ciano, verde, dourado. Do nível
-  50 em diante, arco-íris animado (troca de matiz, sem piscar claro e escuro).
+- Faixa de cor: `faixa = min(10, floor(nível / 5))`, trocando junto com cada marco
+  (5, 10, 15...), nesta ordem: branco (níveis 1 a 4), amarelo, laranja, vermelho,
+  rosa, violeta, azul, ciano, verde, dourado (45 a 49). Do nível 50 em diante (faixa
+  10), arco-íris animado (troca de matiz, sem piscar claro e escuro).
 - Estrelas: a partir do nível 35, uma ★ a cada 5 níveis (35 = 1★, 40 = 2★...),
   cada uma com +15% de dano além do linear.
 - Tetos técnicos (legibilidade e desempenho): no máximo 9 canos por rajada, 8
