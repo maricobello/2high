@@ -3,7 +3,8 @@
 // As peças grandes (chefes, couraçado, pedras, explosão) são desenhadas por um
 // mini editor de pixels: formas simples, depois espelho, sombra e contorno.
 import { createRng } from "./rng.js";
-import { DARK, grid, toRows, set, rect, poly, ellipse, line, stamp, shade, outline, finish } from "./pixel.js";
+import { couracadoHD, portadorHD, pedraHD } from "./art-grandes.js";
+import { DARK, grid, toRows, set, rect, poly, ellipse, line, stamp, shade, outline, finish, spin4 } from "./pixel.js";
 
 export const PALETTE = {
   k: "#090c18", // contorno
@@ -45,18 +46,6 @@ export const PALETTE = {
 // Espelha a metade esquerda (a última coluna é o eixo e não se repete).
 const mirror = (rows) => rows.map((r) => r + [...r.slice(0, -1)].reverse().join(""));
 const flipX = (rows) => rows.map((r) => [...r].reverse().join(""));
-const rotate = (rows) => {
-  const h = rows.length;
-  const w = rows[0].length;
-  const out = [];
-  for (let x = 0; x < w; x++) {
-    let line = "";
-    for (let y = h - 1; y >= 0; y--) line += rows[y][x];
-    out.push(line);
-  }
-  return out;
-};
-const spin4 = (rows) => [rows, rotate(rows), rotate(rotate(rows)), rotate(rotate(rotate(rows)))];
 
 // ---------- nave inclinada ----------
 
@@ -216,25 +205,6 @@ const ATIRADOR_B = [
   "......y......",
 ];
 
-function couracado(frame) {
-  const G = grid(27, 23);
-  const glow = frame ? "Y" : "y";
-  rect(G, 11, 0, 3, 2, frame ? "y" : "o"); // motor
-  poly(G, [[13.5, 1], [8, 3], [6, 9], [7, 17], [10, 21], [13.5, 22]], "g");
-  poly(G, [[8, 6], [2, 9], [1, 15], [3, 18], [8, 17]], "d");
-  rect(G, 2, 17, 2, 4, "d"); // canhões laterais
-  set(G, 2, 21, "r");
-  set(G, 3, 21, "r");
-  rect(G, 12, 3, 2, 16, "l"); // espinha
-  ellipse(G, 13.5, 10.5, 4.6, 4.6, "l");
-  ellipse(G, 13.5, 10.5, 3, 3, "o");
-  ellipse(G, 13.5, 10.5, 1.6, 1.6, glow);
-  rect(G, 13, 15, 1, 6, "d"); // cano central
-  set(G, 13, 21, "r");
-  set(G, 9, 6, "r");
-  return finish(G);
-}
-
 function rock(size, seed) {
   const rng = createRng(seed);
   const G = grid(size, size);
@@ -286,29 +256,6 @@ const MINA_B = [
   "..RRrRR..",
   ".R.RRR.R.",
   "....R....",
-];
-
-const PORTADOR_A = [
-  "......OOOOO......",
-  "....OoyyyyyoO....",
-  "..OoyYwwwwwYyoO..",
-  ".OyyyyyyyyyyyyyO.",
-  "OoyoyoyoyoyoyoyoO",
-  ".OyyyyyyyyyyyyyO.",
-  "..OoyyyyyyyyyoO..",
-  "....OOoooooOO....",
-  "......O.O.O......",
-];
-const PORTADOR_B = [
-  "......OOOOO......",
-  "....OoyyyyyoO....",
-  "..OoyYwwwwwYyoO..",
-  ".OyyyyyyyyyyyyyO.",
-  "OyoyoyoyoyoyoyoyO",
-  ".OyyyyyyyyyyyyyO.",
-  "..OoyyyyyyyyyoO..",
-  "....OOoooooOO....",
-  ".....O.O.O.O.....",
 ];
 
 // ---------- chefes ----------
@@ -540,12 +487,9 @@ export const SPRITES = {
   zangao: [ZANGAO_A, ZANGAO_B],
   dardo: [DARDO_A, DARDO_B],
   atirador: [ATIRADOR_A, ATIRADOR_B],
-  couracado: [couracado(0), couracado(1)],
-  pedra_g: spin4(rock(17, 3)),
   pedra_m: spin4(rock(11, 8)),
   pedra_p: spin4(rock(7, 5)),
   mina: [MINA_A, MINA_B],
-  portador: [PORTADOR_A, PORTADOR_B],
   colosso: [colosso(0), colosso(1)],
   aranha: [aranha(0), aranha(1)],
   olho: [olho(0), olho(1), olho(2)],
@@ -607,7 +551,11 @@ export const SPRITES = {
 
 // Sprites em alta definição: grade com o dobro de pixels (cada unidade do
 // mundo vale 2×2 pixels). A arte entra aqui pelos arquivos art-*.js.
-export const HD_SPRITES = {};
+export const HD_SPRITES = {
+  couracado: [couracadoHD(0), couracadoHD(1)],
+  portador: [portadorHD(0), portadorHD(1)],
+  pedra_g: [pedraHD(0), pedraHD(1), pedraHD(2), pedraHD(3)],
+};
 
 export const isHd = (name) => Object.hasOwn(HD_SPRITES, name);
 

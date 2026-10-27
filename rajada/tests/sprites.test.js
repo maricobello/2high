@@ -1,14 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { SPRITES, HD_SPRITES, worldSize, validateSprites } from "../src/sprites.js";
+import { SPRITES, HD_SPRITES, worldSize, validateSprites, sizeOf, isHd } from "../src/sprites.js";
 import { hdGrid, shade3, rim, dither, finishHD } from "../src/pixel-hd.js";
 import { toRows } from "../src/pixel.js";
 
 const fingerprint = (o) => createHash("sha256").update(JSON.stringify(o)).digest("hex");
 
+// Impressão digital dos sprites de baixa resolução que não foram redesenhados
+// (os que passaram para alta definição saem da conta).
 test("editor movido sem mudar nenhum sprite", () => {
-  assert.equal(fingerprint(SPRITES), "e2b4950ba60f41e68c6cd100afbf1717b524cc4b2c363dc17d07cbe03b60bf23");
+  assert.equal(fingerprint(SPRITES), "59e56b92c725abf82a423575d578d7ce3d04ede194dfd89d1d9b52c0f025fc7b");
 });
 
 test("sprite HD mede metade da grade no mundo", () => {
@@ -54,4 +56,16 @@ test("brilho e contorno fecham a peça", () => {
   for (const row of out) {
     for (let x = 0; x < row.length; x++) assert.equal(row[x] === ".", row[row.length - 1 - x] === ".", "silhueta espelhada");
   }
+});
+
+test("inimigos grandes em alta definição mantêm o tamanho no mundo", () => {
+  const expected = { couracado: [27, 23, 2], portador: [17, 9, 2], pedra_g: [17, 17, 4] };
+  for (const [name, [w, h, frames]] of Object.entries(expected)) {
+    assert.ok(isHd(name), name);
+    assert.deepEqual(sizeOf(name), { w, h }, name);
+    assert.equal(HD_SPRITES[name].length, frames, name);
+    const distinct = new Set(HD_SPRITES[name].map((f) => f.join("\n")));
+    assert.equal(distinct.size, frames, `${name}: quadros diferentes entre si`);
+  }
+  assert.deepEqual(validateSprites(), []);
 });

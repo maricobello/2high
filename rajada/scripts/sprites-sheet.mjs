@@ -1,5 +1,7 @@
 // Folha de prévia de todos os sprites (ampliados), para conferir a pixel art.
+// Sprites em alta definição aparecem no mesmo tamanho de mundo, com o dobro de detalhe.
 // Uso: npm run sprites  → tests/prints/sprites.png
+// Só alguns, maiores: node scripts/sprites-sheet.mjs 10 couracado,portador → tests/prints/sprites-filtro.png
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -10,19 +12,22 @@ const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const root = fileURLToPath(new URL("..", import.meta.url));
 const scale = Number(process.argv[2] ?? 6);
+const only = process.argv[3] ? process.argv[3].split(",") : null;
 
 const entry = `
-import { buildSprites, SPRITES } from "./src/sprites.js";
+import { buildSprites, SPRITES, HD_SPRITES } from "./src/sprites.js";
 const sprites = buildSprites((w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h }));
 const S = ${scale};
 const sheet = document.getElementById("sheet");
-for (const name of Object.keys(SPRITES)) {
+const only = ${JSON.stringify(only)};
+for (const name of [...Object.keys(SPRITES), ...Object.keys(HD_SPRITES)].filter((n) => !only || only.includes(n))) {
   const s = sprites[name];
   const cell = document.createElement("figure");
   for (const set of [s.frames, s.flipped].filter(Boolean)) {
     for (const f of set) {
       const c = document.createElement("canvas");
-      c.width = f.width * S; c.height = f.height * S;
+      // no tamanho do mundo: um sprite em alta definição mostra o dobro de detalhe
+      c.width = s.w * S; c.height = s.h * S;
       const ctx = c.getContext("2d");
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(f, 0, 0, c.width, c.height);
@@ -30,7 +35,7 @@ for (const name of Object.keys(SPRITES)) {
     }
   }
   const cap = document.createElement("figcaption");
-  cap.textContent = name + " " + s.w + "x" + s.h;
+  cap.textContent = name + " " + s.w + "x" + s.h + (s.hd ? " HD" : "");
   cell.append(cap);
   sheet.append(cell);
 }
@@ -55,7 +60,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.setContent(html);
 await page.waitForTimeout(200);
-const out = join(root, "tests/prints/sprites.png");
+const out = join(root, only ? "tests/prints/sprites-filtro.png" : "tests/prints/sprites.png");
 await page.locator("#sheet").screenshot({ path: out });
 await browser.close();
 if (errors.length) throw new Error(errors.join("\n"));

@@ -98,3 +98,17 @@ export const finish = (G, { sym = true } = {}) => {
   outline(G);
   return toRows(G);
 };
+
+// Gira as linhas de texto 90° no sentido horário.
+export const rotate = (rows) => {
+  const h = rows.length;
+  const w = rows[0].length;
+  const out = [];
+  for (let x = 0; x < w; x++) {
+    let line = "";
+    for (let y = h - 1; y >= 0; y--) line += rows[y][x];
+    out.push(line);
+  }
+  return out;
+};
+export const spin4 = (rows) => [rows, rotate(rows), rotate(rotate(rows)), rotate(rotate(rotate(rows)))];
