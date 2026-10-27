@@ -499,6 +499,74 @@ export function eliteVariant(rows, skin = 0) {
 
 const ENEMY_SPRITES = [...new Set(Object.values(ENEMIES).map((d) => d.sprite))];
 
+// Peças dos chefes que trocam de paleta nas voltas e quebram na fase 2.
+const BOSS_PARTS = ["colosso", "aranha", "olho", "iris", "serpente", "serpente_gomo", "serpente_cauda", "forja", "rainha"];
+
+// Cores da "armadura" de cada peça, a parte que racha na fase 2: casco do
+// Colosso e da Forja, carapaça da Aranha, olho e íris, escamas da Serpente,
+// corpo e coroa da Rainha.
+export const BOSS_ARMOR = {
+  colosso: "gld",
+  aranha: "uvV",
+  olho: "wlR",
+  iris: "bNB",
+  serpente: "eEm",
+  serpente_gomo: "eEm",
+  serpente_cauda: "eEm",
+  forja: "gld",
+  rainha: "vVuyY",
+};
+
+// Armadura quebrada: placas arrancadas (aparece o fundo escuro, com brasas)
+// em cerca de 15% da armadura e rachaduras pretas por dentro. O padrão
+// depende só do tamanho da peça, então é igual em todos os quadros e o dano
+// não pisca na animação. A silhueta não muda.
+export function broken(rows, armor = "gld") {
+  const h = rows.length;
+  const w = rows[0].length;
+  const rng = createRng(w * 977 + h * 131);
+  const G = rows.map((r) => [...r]);
+  const filled = (x, y) => (G[y]?.[x] ?? ".") !== ".";
+  const zoom = Math.max(1, w / 60);
+  const mask = Array.from({ length: h }, () => new Uint8Array(w));
+  let covered = 0;
+  while (covered < w * h * 0.14) {
+    const cx = rng.range(0, w);
+    const cy = rng.range(0, h);
+    const r = rng.range(2, 5) * zoom;
+    for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(h - 1, Math.ceil(cy + r)); y++) {
+      for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(w - 1, Math.ceil(cx + r)); x++) {
+        if (mask[y][x] || (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 > r * r) continue;
+        mask[y][x] = 1;
+        covered += 1;
+      }
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (mask[y][x] && armor.includes(G[y][x])) G[y][x] = (x * 7 + y * 13) % 11 === 0 ? "o" : (x + y) % 3 === 0 ? "k" : "n";
+    }
+  }
+  // rachaduras: linhas tortas que só passam por dentro da peça (o contorno fica)
+  const inner = (x, y) => filled(x, y) && filled(x + 1, y) && filled(x - 1, y) && filled(x, y + 1) && filled(x, y - 1);
+  const cracks = 4 + Math.round(w / 40);
+  for (let c = 0; c < cracks; c++) {
+    let x = rng.range(w * 0.2, w * 0.8);
+    let y = rng.range(h * 0.2, h * 0.8);
+    let a = rng.range(0, Math.PI * 2);
+    const len = rng.range(6, 14) * zoom;
+    for (let i = 0; i < len; i++) {
+      a += rng.range(-0.6, 0.6);
+      x += Math.cos(a);
+      y += Math.sin(a);
+      const px = Math.round(x);
+      const py = Math.round(y);
+      if (inner(px, py)) G[py][px] = "k";
+    }
+  }
+  return G.map((r) => r.join(""));
+}
+
 export function buildSprites(makeCanvas) {
   const out = {};
   // flashFrom: variação só de cor usa o mesmo branco de acerto da original
@@ -517,11 +585,11 @@ export function buildSprites(makeCanvas) {
     const palette = Object.fromEntries(Object.entries(RAMP_SLOT).map(([ch, slot]) => [ch, ramp[slot]]));
     for (const name of BULLETS) add(`${name}@${i}`, SPRITES[name], false, palette, out[name]);
   });
-  // variações dos inimigos (voltas e elites): geradas na primeira vez que
-  // aparecem, para não pesar na abertura do jogo
+  // variações (voltas, elites e chefes quebrados): geradas na primeira vez
+  // que aparecem, para não pesar na abertura do jogo
   Object.defineProperty(out, "make", {
     value(name) {
-      const v = enemyVariant(name);
+      const v = variantOf(name);
       if (!v) return null;
       add(name, v.frames, v.hd, undefined, v.elite ? null : out[v.base]);
       return out[name];
@@ -530,16 +598,22 @@ export function buildSprites(makeCanvas) {
   return out;
 }
 
-// Variações dos inimigos: `nome@1`…`@3` (voltas), `nome@elite` e `nome@2@elite`.
+// Variações: inimigos `nome@1`…`@3` (voltas), `nome@elite`, `nome@2@elite`;
+// chefes `nome_quebrado`, `nome@1`…`@3` e `nome_quebrado@2`.
 const ENEMY_VARIANTS = ENEMY_SPRITES.flatMap((name) => ["@1", "@2", "@3", "@elite", "@1@elite", "@2@elite", "@3@elite"].map((v) => name + v));
+const BOSS_VARIANTS = BOSS_PARTS.flatMap((name) => ["_quebrado", "@1", "@2", "@3", "_quebrado@1", "_quebrado@2", "_quebrado@3"].map((v) => name + v));
+const VARIANTS = new Set([...ENEMY_VARIANTS, ...BOSS_VARIANTS]);
 
-function enemyVariant(name) {
-  if (!ENEMY_VARIANTS.includes(name)) return null;
-  const [base, ...tags] = name.split("@");
+function variantOf(name) {
+  if (!VARIANTS.has(name)) return null;
+  const [head, ...tags] = name.split("@");
+  const isBroken = head.endsWith("_quebrado");
+  const base = isBroken ? head.slice(0, -"_quebrado".length) : head;
   const skin = Number(tags[0]) || 0;
   const elite = tags.includes("elite");
   const hd = isHd(base);
   let frames = hd ? HD_SPRITES[base] : SPRITES[base];
+  if (isBroken) frames = frames.map((rows) => broken(rows, BOSS_ARMOR[base]));
   if (skin) frames = frames.map((rows) => lapVariant(rows, skin));
   if (elite) frames = frames.map((rows) => eliteVariant(rows, skin));
   return { base, frames, hd, elite };
@@ -551,6 +625,7 @@ export const spriteNames = () => [
   ...Object.keys(HD_SPRITES),
   ...POWER.ramps.flatMap((_, i) => BULLETS.map((n) => `${n}@${i}`)),
   ...ENEMY_VARIANTS,
+  ...BOSS_VARIANTS,
 ];
 
 // Pinta as linhas num canvas de uma vez (ImageData): bem mais rápido que um

@@ -6,6 +6,7 @@ import { buildSprites } from "./sprites.js";
 import { drawText, textWidth } from "./font.js";
 import { W, SHIPS, SHOTS, POWER, RARITY, LAPS, sectorInfo, lapOf, lapSkin } from "./config.js";
 import { CAP_NAMES } from "./drops.js";
+import { bossSprite } from "./bosses.js";
 import { bandOf, rampOf } from "./power.js";
 
 // Pixels de canvas por unidade do mundo: o mundo continua com 224 de largura,
@@ -311,8 +312,14 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
   function drawBoss(g) {
     const b = g.boss;
     if (!b) return;
+    // a versão quebrada nasce enquanto o chefe entra (sem engasgo na fase 2)
+    if (b.entering && !b.broken) for (const part of b.id === "olho" ? ["olho", "iris"] : [b.def.sprite]) {
+      const name = bossSprite({ ...b, broken: true }, part);
+      if (!sprites[name]) sprites.make(name);
+    }
+    const glow = Math.max(b.flash > 0 ? 0.4 : 0, b.lap > LAPS.glowAfter ? LAPS.glow : 0);
     if (b.id === "olho") {
-      spr("olho", b.lid, b.x, b.y, { glow: b.flash > 0 ? 0.4 : 0 });
+      spr(bossSprite(b), b.lid, b.x, b.y, { glow });
       if (b.lid !== 2) {
         const p = g.player;
         const dx = p.x - b.x;
@@ -320,10 +327,10 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         const d = Math.hypot(dx, dy) || 1;
         const k = Math.min(5, d / 20);
         const iy = b.lid === 1 ? 3 : 0;
-        spr("iris", 0, b.x + (dx / d) * k, b.y + 0.5 + (dy / d) * k * 0.7 + iy);
+        spr(bossSprite(b, "iris"), 0, b.x + (dx / d) * k, b.y + 0.5 + (dy / d) * k * 0.7 + iy);
       }
     } else {
-      spr(b.def.sprite, anim(6), b.x, b.y, { glow: b.flash > 0 ? 0.4 : 0 });
+      spr(bossSprite(b), anim(6), b.x, b.y, { glow });
     }
   }
 
@@ -577,9 +584,18 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         break;
       case "boss_phase":
         if (g.boss) {
-          ring(g.boss.x, g.boss.y, "#ffffff", 50, 0.4);
-          boom(g.boss.x - 10, g.boss.y);
-          boom(g.boss.x + 12, g.boss.y + 6, 0.1);
+          const b = g.boss;
+          ring(b.x, b.y, "#ffffff", 50, 0.4);
+          boom(b.x - 10, b.y);
+          boom(b.x + 12, b.y + 6, 0.1);
+          // pedaços da armadura voando, em meio pixel (alta definição)
+          for (let i = 0; i < 48; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const sp = 40 + Math.random() * 110;
+            const x = b.x + (Math.random() - 0.5) * b.w * 0.7;
+            const y = b.y + (Math.random() - 0.5) * b.h * 0.6;
+            particle(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 20, 0.6 + Math.random() * 0.6, DEBRIS.chefe[i % DEBRIS.chefe.length], i % 3 ? 0.5 : 1, 1.5);
+          }
         }
         shake(5);
         break;

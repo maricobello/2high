@@ -1,7 +1,7 @@
 // Chefes: entrada, movimento e roteiro de ataques. Cada ataque tem duração,
 // intervalo entre disparos e a função que dispara. Abaixo de 50% de vida o
 // chefe entra na fase 2: roteiro novo e tiros mais frequentes.
-import { BOSSES, W } from "./config.js";
+import { BOSSES, W, lapSkin } from "./config.js";
 import { sizeOf } from "./sprites.js";
 
 const DOWN = Math.PI / 2;
@@ -167,8 +167,14 @@ export function makeBoss(n, H, hpScale) {
     wander: null,
     damageTaken: false,
     lap,
+    skin: lapSkin(lap), // paleta da volta (0 na primeira)
+    broken: false, // armadura quebrada (fase 2)
   };
 }
+
+// Sprite do chefe (ou de uma peça dele, como a íris): quebrado na fase 2 e
+// na paleta da volta.
+export const bossSprite = (b, part = b.def.sprite) => `${part}${b.broken ? "_quebrado" : ""}${b.skin ? `@${b.skin}` : ""}`;
 
 // Atualiza movimento e ataques. Devolve "phase2" quando muda de fase.
 export function updateBoss(b, dt, g) {
@@ -190,6 +196,7 @@ export function updateBoss(b, dt, g) {
   let event = null;
   if (b.phase === 1 && b.hp < b.maxHp / 2) {
     b.phase = 2;
+    b.broken = true;
     b.script = 0;
     b.attack = null;
     event = "phase2";

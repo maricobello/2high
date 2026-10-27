@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createGame, DEFAULT_LOADOUT } from "../src/game.js";
 import { createBot } from "../src/bot.js";
-import { makeBoss, updateBoss, SCRIPTS, ATTACKS } from "../src/bosses.js";
+import { makeBoss, updateBoss, bossSprite, SCRIPTS, ATTACKS } from "../src/bosses.js";
 import { buildWave } from "../src/waves.js";
 import { createRng } from "../src/rng.js";
 import { WAVES, BOSSES } from "../src/config.js";
@@ -466,5 +466,27 @@ test("chefes: roteiros só usam ataques existentes e mudam de fase em 50%", () =
 });
 
 test("segundo ciclo de chefes é mais forte", () => {
-  assert.ok(makeBoss(3, 400, 1).maxHp > makeBoss(0, 400, 1).maxHp);
+  assert.ok(makeBoss(BOSSES.length, 400, 1).maxHp > makeBoss(0, 400, 1).maxHp);
+});
+
+test("chefes em rodízio na ordem da lista; a volta conta pelo tamanho da lista", () => {
+  BOSSES.forEach((def, n) => assert.equal(makeBoss(n, 400, 1).id, def.id));
+  const next = makeBoss(BOSSES.length, 400, 1);
+  assert.equal(next.lap, 1);
+  assert.equal(next.skin, 1);
+  assert.equal(next.broken, false);
+  assert.equal(makeBoss(0, 400, 1).skin, 0);
+});
+
+test("fase 2 quebra a armadura e troca o sprite", () => {
+  const { g } = play();
+  for (let n = 0; n < BOSSES.length * 2; n++) {
+    const b = makeBoss(n, 400, 1);
+    for (let i = 0; i < 400; i++) updateBoss(b, DT, g);
+    assert.equal(bossSprite(b), BOSSES[n % BOSSES.length].sprite + (b.skin ? `@${b.skin}` : ""));
+    b.hp = b.maxHp * 0.4;
+    assert.equal(updateBoss(b, DT, g), "phase2");
+    assert.equal(b.broken, true);
+    assert.match(bossSprite(b), /_quebrado(@\d)?$/);
+  }
 });

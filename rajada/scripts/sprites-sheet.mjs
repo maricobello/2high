@@ -25,9 +25,12 @@ const sprites = buildSprites((w, h) => Object.assign(document.createElement("can
 const S = ${scale};
 const sheet = document.getElementById("sheet");
 const only = ${JSON.stringify(only)};
+// chefes: inteiro, quebrado (fase 2) e quebrado na volta 1
 const names = ${lapMode}
-  ? spriteNames().filter((n) => n.includes("@") && !n.startsWith("tiro")).sort()
-  : [...Object.keys(SPRITES), ...Object.keys(HD_SPRITES)].filter((n) => !only || only.includes(n));
+  ? spriteNames().filter((n) => n.includes("@") && !n.startsWith("tiro") && !${JSON.stringify(BOSSES)}.some((b) => n.startsWith(b))).sort()
+  : ${bossMode}
+    ? only.flatMap((n) => [n, n + "_quebrado", n + "_quebrado@1"])
+    : [...Object.keys(SPRITES), ...Object.keys(HD_SPRITES)].filter((n) => !only || only.includes(n));
 for (const name of names) {
   const s = sprites[name] ?? sprites.make(name);
   const cell = document.createElement("figure");

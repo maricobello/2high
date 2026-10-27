@@ -33,7 +33,7 @@ import { bandOf } from "./power.js";
 import { skillAdjust, threatCap, pickWave, waveGap, isStrong } from "./director.js";
 import { makeEnemy, moveEnemy, enemyFire, onEnemyDeath } from "./enemies.js";
 import { buildWave, carrierEntry } from "./waves.js";
-import { makeBoss, updateBoss, bossHit } from "./bosses.js";
+import { makeBoss, updateBoss, bossHit, bossSprite } from "./bosses.js";
 
 export const DEFAULT_LOADOUT = {
   ship: "faisca",
@@ -741,7 +741,7 @@ export function createGame(opts = {}) {
     g.phase = "after";
     g.phaseT = 0;
     g.hitstop = 0.2;
-    emit("boss_kill", { name: b.name, sprite: b.def.sprite, x: b.x, y: b.y, w: b.w, h: b.h, score: pts });
+    emit("boss_kill", { name: b.name, sprite: bossSprite(b), x: b.x, y: b.y, w: b.w, h: b.h, score: pts });
     emit("sector_clear", { sector: g.sector, bonus, noHit });
   }
 

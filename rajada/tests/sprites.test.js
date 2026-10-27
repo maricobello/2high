@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { SPRITES, HD_SPRITES, PALETTE, worldSize, validateSprites, sizeOf, isHd, lapVariant, eliteVariant, spriteNames } from "../src/sprites.js";
+import { SPRITES, HD_SPRITES, PALETTE, worldSize, validateSprites, sizeOf, isHd, lapVariant, eliteVariant, spriteNames, broken, BOSS_ARMOR } from "../src/sprites.js";
+import { BOSSES } from "../src/config.js";
 import { hdGrid, shade3, rim, dither, finishHD } from "../src/pixel-hd.js";
 import { toRows } from "../src/pixel.js";
 
@@ -113,4 +114,52 @@ test("cada inimigo tem as variações de volta e de elite", () => {
   for (const name of ["zangao", "couracado", "pedra_g", "mina"]) {
     for (const v of ["@1", "@2", "@3", "@elite", "@1@elite", "@3@elite"]) assert.ok(names.includes(name + v), name + v);
   }
+});
+
+test("todo chefe tem sprite inteiro, quebrado e das 3 voltas", () => {
+  const names = spriteNames();
+  for (const { sprite } of BOSSES) {
+    for (const v of ["", "_quebrado", "@1", "@2", "@3", "_quebrado@1", "_quebrado@3"]) assert.ok(names.includes(sprite + v), sprite + v);
+  }
+  for (const part of ["iris", "serpente", "serpente_gomo", "forja", "rainha"]) assert.ok(names.includes(`${part}_quebrado@2`), part);
+});
+
+test("armadura quebrada: mesma silhueta, cerca de 15% da armadura arrancada e rachaduras", () => {
+  const count = (rows, ch) => rows.join("").split(ch).length - 1;
+  for (const name of Object.keys(BOSS_ARMOR)) {
+    const armorOf = BOSS_ARMOR[name];
+    for (const rows of HD_SPRITES[name]) {
+      const out = broken(rows, armorOf);
+      assert.equal(out.length, rows.length);
+      out.forEach((r, y) => {
+        assert.equal(r.length, rows[y].length);
+        for (let x = 0; x < r.length; x++) assert.equal(r[x] === ".", rows[y][x] === ".", `${name}: silhueta igual`);
+      });
+      for (const ch of out.join("")) assert.ok(ch === "." || PALETTE[ch], `${name}: cor ${ch}`);
+      let armor = 0;
+      let changed = 0;
+      rows.forEach((r, y) => {
+        for (let x = 0; x < r.length; x++) {
+          if (!armorOf.includes(r[x])) continue;
+          armor += 1;
+          if (out[y][x] !== r[x]) changed += 1;
+        }
+      });
+      const share = changed / armor;
+      assert.ok(share >= 0.1 && share <= 0.3, `${name}: ${(share * 100).toFixed(0)}% da armadura`);
+      assert.ok(count(out, "k") > count(rows, "k"), `${name}: rachaduras`);
+    }
+  }
+  // o mesmo padrão em todos os quadros: o dano não pisca na animação
+  const [f0, f1] = HD_SPRITES.colosso;
+  const [b0, b1] = [f0, f1].map((rows) => broken(rows));
+  let both = 0;
+  f0.forEach((r, y) => {
+    for (let x = 0; x < r.length; x++) {
+      if (!"gld".includes(r[x]) || r[x] !== f1[y][x]) continue;
+      both += 1;
+      assert.equal(b0[y][x] !== r[x], b1[y][x] !== f1[y][x], `quadros diferentes em ${x},${y}`);
+    }
+  });
+  assert.ok(both > 100);
 });
