@@ -343,9 +343,10 @@ export const DRONE_MARKS = { 4: "Esquadrilha", 10: "Raios" };
 export const BOSS_DROPS = { cristais: 30, caps: 2 };
 export const SECTOR_BONUS = { perSector: 1000, noHit: 2000 };
 
+// infinite: depois da tabela o preço segue crescendo 1,5× por nível, sem teto.
 export const UPGRADES = {
   casco: { name: "Casco", costs: [150, 600], text: (n) => `+${n} de casco máximo` },
-  canhao: { name: "Canhão", costs: [100, 350, 900], text: (n) => `Começa com metralhadora nv ${1 + n}` },
+  canhao: { name: "Canhão", costs: [100, 350, 900], infinite: true, text: (n) => `Começa com metralhadora nv ${1 + n}` },
   ima: { name: "Ímã", costs: [60, 180, 400, 800], radius: [16, 24, 34, 46, 60], text: (n) => `Puxa cristais a ${[16, 24, 34, 46, 60][n]} px` },
   escudo: {
     name: "Escudo",
@@ -353,8 +354,14 @@ export const UPGRADES = {
     regen: [0, 0, 40, 25],
     text: (n) => (n === 1 ? "Começa com escudo" : `Escudo volta sozinho a cada ${[0, 0, 40, 25][n]} s`),
   },
-  sorte: { name: "Sorte", costs: [120, 400, 900], mult: [1, 1.15, 1.3, 1.5], text: (n) => `+${[0, 15, 30, 50][n]}% de cápsulas` },
-  foguetes: { name: "Foguetes", costs: [250, 750], text: (n) => `Começa com foguetes nv ${n}` },
+  sorte: {
+    name: "Sorte",
+    costs: [120, 400, 900],
+    infinite: true,
+    mult: [1, 1.15, 1.3, 1.5],
+    text: (n) => (n <= 3 ? `+${[0, 15, 30, 50][n]}% de cápsulas` : `+50% de cápsulas e mais chance de raras (nível ${n})`),
+  },
+  foguetes: { name: "Foguetes", costs: [250, 750], infinite: true, text: (n) => `Começa com foguetes nv ${n}` },
 };
 export const UPGRADE_ORDER = ["canhao", "ima", "casco", "escudo", "sorte", "foguetes"];
 

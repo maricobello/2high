@@ -46,7 +46,8 @@ export function upgradesPanel(profile, iconUrl) {
     const cost = upgradeCost(key, lv);
     const max = cost === null;
     const can = !max && profile.cristais >= cost;
-    const pips = U.costs.map((_, i) => `<i class="${i < lv ? "on" : ""}"></i>`).join("");
+    // sem teto: depois da tabela, o nível aparece em número
+    const pips = U.infinite && lv >= U.costs.length ? `<b class="lv">nv ${lv}</b>` : U.costs.map((_, i) => `<i class="${i < lv ? "on" : ""}"></i>`).join("");
     const label = max
       ? `${U.name} no nível máximo`
       : `Comprar ${U.name} nível ${lv + 1} por ${fmt(cost)} cristais${can ? "" : `, faltam ${fmt(cost - profile.cristais)}`}`;

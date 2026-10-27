@@ -163,6 +163,15 @@ async function run(label, context) {
   await screenIs(page, "game");
   assert.equal(await page.isVisible("#hint"), false, "dica só na primeira partida");
 
+  // recorde de nível da metralhadora avisa na hora
+  const record = await page.evaluate(() => window.__rajada.profile().stats.best.gun);
+  assert.ok(record >= 37, `recorde guardado: ${record}`);
+  await page.evaluate((n) => {
+    window.__rajada.level("M", n);
+    window.__rajada.capsule("M");
+  }, record);
+  await page.waitForFunction((n) => document.getElementById("toast").textContent.includes(`Recorde: metralhadora nível ${n + 1}`), record, { timeout: 4000 });
+
   // volta ao início, missões e ajustes
   await page.keyboard.press("Escape");
   await screenIs(page, "pause");

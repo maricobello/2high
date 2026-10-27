@@ -18,6 +18,7 @@ import {
   PERF,
   ELITE,
   SLOW,
+  RARITIES,
   eliteChance,
   BOSS_DROPS,
   SECTOR_BONUS,
@@ -170,6 +171,10 @@ export function createGame(opts = {}) {
       cause: null,
       maxGun: p.gun,
       maxRockets: p.rockets,
+      maxDrones: p.drones,
+      bestRarity: 0, // melhor cápsula pega: 0 comum a 3 lendária
+      bossesBy: {}, // { id do chefe: derrotas nesta partida }
+      bossesSeen: [], // chefes que apareceram nesta partida
       s1Spawns: 0, // inimigos nascidos no setor 1
       s1Time: 0, // s de ondas no setor 1
     },
@@ -746,6 +751,7 @@ export function createGame(opts = {}) {
     const b = g.boss;
     const st = g.stats;
     st.bosses += 1;
+    st.bossesBy[b.id] = (st.bossesBy[b.id] ?? 0) + 1;
     if (!b.damageTaken) st.noHitBoss = true;
     const pts = b.def.score * g.mult;
     g.score += pts;
@@ -803,6 +809,8 @@ export function createGame(opts = {}) {
     if (r.turbo) addTurbo(r.turbo === "cheio" ? TURBO.full : r.turbo);
     st.maxGun = Math.max(st.maxGun, p.gun);
     st.maxRockets = Math.max(st.maxRockets, p.rockets);
+    st.maxDrones = Math.max(st.maxDrones, p.drones);
+    st.bestRarity = Math.max(st.bestRarity, RARITIES.indexOf(rarity));
     emit("cap", { type: it.type, rarity, gained: r.gained, level: r.level, form: r.form, x: it.x, y: it.y });
     if (r.form) {
       const level = { M: p.gun, F: p.rockets, D: p.drones }[r.formWeapon];
@@ -899,6 +907,8 @@ export function createGame(opts = {}) {
       killsBy: { ...st.killsBy },
       killsType: { ...st.killsType },
       capsBy: { ...st.capsBy },
+      bossesBy: { ...st.bossesBy },
+      bossesSeen: [...st.bossesSeen],
     };
   }
   g.summary = summary;
@@ -950,6 +960,7 @@ export function createGame(opts = {}) {
       if (g.phaseT >= 2.6) {
         const hpScale = g.scale.hp * (g.firstRun && g.sector === 1 ? 0.6 : 1);
         g.boss = makeBoss(g.bossN, H, hpScale);
+        if (!g.stats.bossesSeen.includes(g.boss.id)) g.stats.bossesSeen.push(g.boss.id);
         setPhase("boss");
         emit("boss_start", { name: g.boss.name });
       }

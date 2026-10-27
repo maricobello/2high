@@ -237,6 +237,7 @@ function onGameEvent(s, type, d) {
       if (d.type === "P") audio.pulse();
       vibrate(d.type === "P" ? [30, 20, 60] : d.rarity === "lendaria" ? [20, 30, 20, 30, 40] : 10);
       for (const w of Object.keys(d.gained ?? {})) hud.bumpWeapon(w);
+      if (d.gained?.M) gunRecord(s);
       break;
     case "form":
       audio.form();
@@ -306,6 +307,18 @@ function onGameEvent(s, type, d) {
       break;
     default:
   }
+}
+
+// Recorde de nível da metralhadora: aviso na hora, uma vez por partida
+// (só para quem já tem um recorde guardado).
+function gunRecord(s) {
+  const best = profile.stats.best.gun;
+  const level = s.game.player.gun;
+  if (s.gunRecord || best <= 0 || level <= best) return;
+  s.gunRecord = true;
+  showToast(`Recorde: metralhadora nível ${level}`);
+  audio.mission();
+  vibrate(15);
 }
 
 // Missões cumpridas no meio da partida: aviso na hora.

@@ -2,7 +2,8 @@
 // próprio jogador (perto do percentil 65), então dá para cumprir em 1 a 3
 // partidas. O que mais derruba o jogador e a arma que ele menos usa viram
 // missões. Funções puras, testadas em tests/meta.test.js.
-import { SHIPS, SHIP_ORDER } from "./config.js";
+import { SHIPS, SHIP_ORDER, BOSSES, GUN_FORMS } from "./config.js";
+import { gunForm } from "./power.js";
 import { percentile, recentValues, topEnemyCause } from "./stats.js";
 import { fmt } from "./format.js";
 
@@ -16,6 +17,10 @@ const PLURAL = {
   pedra_m: "pedras",
   pedra_p: "pedras",
 };
+
+// "a Rainha", "o Colosso"
+const BOSS_ARTICLE = { colosso: "o", aranha: "a", olho: "o", serpente: "a", forja: "a", rainha: "a" };
+const bossName = (id) => `${BOSS_ARTICLE[id] ?? "o"} ${BOSSES.find((b) => b.id === id)?.name ?? id}`;
 
 const nice = (v, step) => Math.max(step, Math.round(v / step) * step);
 const p65 = (stats, key, fallback) => (stats.recent.length >= 3 ? percentile(recentValues(stats, key), 0.65) : fallback);
@@ -45,6 +50,17 @@ export const KINDS = {
   bosses_total: { scope: "total", reward: 70, value: (r) => r.bosses, text: (m) => `Derrote ${m.n} ${m.n === 1 ? "chefe" : "chefes"}` },
   type_total: { scope: "total", reward: 60, value: (r, m) => r.killsType?.[m.type] ?? 0, text: (m) => `Destrua ${m.n} ${PLURAL[m.type]}` },
   carriers_total: { scope: "total", reward: 50, value: (r) => r.carriers, text: (m) => `Destrua ${m.n} portadores` },
+  gun_level_run: { scope: "run", reward: 50, value: (r) => r.maxGun ?? 0, text: (m) => `Chegue ao nível ${m.n} da metralhadora` },
+  // n: nível em que a forma aparece
+  form_run: { scope: "run", reward: 60, value: (r) => r.maxGun ?? 0, text: (m) => `Chegue à forma ${gunForm(m.n).name}` },
+  // n: 2 épica, 3 lendária
+  rarity_run: { scope: "run", reward: 60, value: (r) => r.bestRarity ?? 0, text: (m) => `Pegue uma cápsula ${m.n >= 3 ? "lendária" : "épica"}` },
+  boss_kill_total: {
+    scope: "total",
+    reward: 80,
+    value: (r, m) => r.bossesBy?.[m.type] ?? 0,
+    text: (m) => `Derrote ${bossName(m.type)}${m.n > 1 ? ` ${m.n} vezes` : ""}`,
+  },
 };
 
 export const missionText = (m) => KINDS[m.kind].text(m);
@@ -70,6 +86,19 @@ export function missionOptions(stats, owned = ["faisca"]) {
   const unused = SHIP_ORDER.find((id) => owned.includes(id) && id !== "faisca" && !(stats.shipRuns[id] > 0));
   if (unused) add("ship_run", 4, 1, { type: unused });
   if (stats.bosses >= 2) add("nohit_boss", 1, 1);
+  // armas sem teto: próximo nível, próxima forma e cápsulas raras
+  const best = stats.best.gun ?? 0;
+  add("gun_level_run", 2, Math.max(6, best + 3));
+  const nextForm = GUN_FORMS.find((f) => f.at > best && f.at <= 30);
+  if (nextForm) add("form_run", 2.5, nextForm.at);
+  const rarity = stats.best.rarity ?? 0;
+  add("rarity_run", rarity < 3 ? 1.5 : 0.6, rarity < 2 ? 2 : 3);
+  // chefe já visto e ainda não derrotado (ou o menos derrotado)
+  const seen = BOSSES.filter((b) => stats.bossSeen?.[b.id]);
+  if (seen.length) {
+    const target = seen.reduce((a, b) => ((stats.bossKills?.[b.id] ?? 0) < (stats.bossKills?.[a.id] ?? 0) ? b : a));
+    add("boss_kill_total", 1.5, 1, { type: target.id });
+  }
   return o;
 }
 

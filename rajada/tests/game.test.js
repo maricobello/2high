@@ -395,6 +395,27 @@ test("com reduzir movimento não há câmera lenta", () => {
   for (const d of legendaryAndTime({ reducedMotion: true })) assert.ok(Math.abs(d - 0.1) <= 1 / 120 + 1e-9, d.toFixed(4));
 });
 
+test("resumo da partida traz recordes de arma, raridade e chefes", () => {
+  const { g } = play({ loadout: { ...DEFAULT_LOADOUT, gun: 6, hp: 99 } });
+  g.items.push({ kind: "cap", type: "D", rarity: "epica", x: g.player.x, y: g.player.y, t: 0 });
+  g.update(DT);
+  let sum = g.summary();
+  assert.equal(sum.maxDrones, 3);
+  assert.equal(sum.bestRarity, 2);
+  assert.deepEqual(sum.bossesSeen, []);
+  g.sectorT = g.sectorLen;
+  const bot = createBot({ skill: 0.9, seed: 3 });
+  run(g, 90, (gg) => {
+    if (gg.stats.bosses) return;
+    bot.drive(gg, DT);
+    gg.player.inv = 1;
+    if (gg.boss && !gg.boss.entering) gg.boss.hp = Math.min(gg.boss.hp, 1);
+  });
+  sum = g.summary();
+  assert.equal(sum.bossesSeen[0], "colosso", "o primeiro chefe visto");
+  assert.equal(sum.bossesBy.colosso, 1);
+});
+
 test("dano: escudo absorve; sem escudo perde casco e 1 nível da arma mais forte", () => {
   const { g, events } = play({ loadout: { ...DEFAULT_LOADOUT, shield: true, gun: 4 } });
   run(g, 0.05);

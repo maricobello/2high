@@ -20,7 +20,10 @@ export function emptyStats() {
     killsType: {},
     causes: {},
     shipRuns: {},
-    best: { score: 0, sector: 0, combo: 1, kills: 0, crystals: 0, dur: 0 },
+    // recordes; gun, rockets, drones: maior nível de arma; rarity: 0 comum a 3 lendária
+    best: { score: 0, sector: 0, combo: 1, kills: 0, crystals: 0, dur: 0, gun: 0, rockets: 0, drones: 0, rarity: 0 },
+    bossKills: {}, // { id do chefe: vezes derrotado }
+    bossSeen: {}, // { id do chefe: true }
     recent: [],
     skill: 0.3,
     beforeBoss: 0,
@@ -46,6 +49,8 @@ export function sanitizeStats(raw) {
   s.killsType = counts(raw.killsType);
   s.causes = counts(raw.causes);
   s.shipRuns = counts(raw.shipRuns);
+  s.bossKills = counts(raw.bossKills);
+  if (raw.bossSeen && typeof raw.bossSeen === "object") for (const [k, v] of Object.entries(raw.bossSeen)) if (v === true) s.bossSeen[k] = true;
   if (raw.best && typeof raw.best === "object") {
     for (const k of Object.keys(s.best)) s.best[k] = num(raw.best[k], k === "combo" ? 1 : 0);
   }
@@ -98,7 +103,13 @@ export function recordRun(stats, run, today) {
     kills: Math.max(s.best.kills, run.kills),
     crystals: Math.max(s.best.crystals, run.crystals),
     dur: Math.max(s.best.dur, run.dur),
+    gun: Math.max(s.best.gun, run.maxGun ?? 0),
+    rockets: Math.max(s.best.rockets, run.maxRockets ?? 0),
+    drones: Math.max(s.best.drones, run.maxDrones ?? 0),
+    rarity: Math.max(s.best.rarity, run.bestRarity ?? 0),
   };
+  for (const [k, v] of Object.entries(run.bossesBy ?? {})) s.bossKills[k] = (s.bossKills[k] ?? 0) + v;
+  for (const id of run.bossesSeen ?? []) s.bossSeen[id] = true;
   s.recent = [
     ...s.recent,
     {

@@ -14,7 +14,9 @@ import {
   nextUpgradeGoal,
   ensureMissions,
   shipUnlockMet,
+  upgradeCost,
 } from "../src/progress.js";
+import { upgradesPanel } from "../src/ui.js";
 
 const run = (over = {}) => ({
   score: 3000,
@@ -208,4 +210,71 @@ test("perfil salvo estragado ou antigo vira um perfil válido", () => {
   assert.equal(p.settings.music, false);
   assert.equal(p.settings.sfx, true);
   assert.deepEqual(sanitizeProfile("lixo"), defaultProfile());
+});
+
+test("save antigo abre sem perder nada", () => {
+  const p = sanitizeProfile({ cristais: 500, upgrades: { canhao: 3, sorte: 3 }, stats: { runs: 4, best: { score: 900, sector: 3 } } });
+  assert.equal(p.cristais, 500);
+  assert.equal(p.upgrades.canhao, 3);
+  assert.equal(p.stats.best.score, 900);
+  assert.equal(p.stats.best.gun, 0);
+  assert.deepEqual(p.stats.bossKills, {});
+});
+
+test("hangar sem fim: preço cresce 1,5× depois da tabela", () => {
+  assert.equal(upgradeCost("canhao", 3), 1350);
+  assert.equal(upgradeCost("canhao", 4), 2030);
+  assert.equal(upgradeCost("foguetes", 2), 1130);
+  assert.equal(upgradeCost("casco", 2), null);
+  const p = sanitizeProfile({ upgrades: { canhao: 14, casco: 9 } });
+  assert.equal(p.upgrades.canhao, 14, "nível acima da tabela continua no save");
+  assert.equal(p.upgrades.casco, 2, "o que tem teto continua com teto");
+});
+
+test("Canhão 10 começa no nível 11 e Sorte 6 sobe a raridade", () => {
+  const base = defaultProfile();
+  const l = loadoutFor({ ...base, upgrades: { ...base.upgrades, canhao: 10, sorte: 6 } });
+  assert.equal(l.gun, 11);
+  assert.equal(l.luck, 1.5);
+  assert.equal(l.luckLevel, 6);
+});
+
+test("missões novas têm texto e contam progresso", () => {
+  assert.equal(KINDS.form_run.text({ n: 15 }), "Chegue à forma Perfurante");
+  assert.equal(KINDS.form_run.value({ maxGun: 15 }), 15);
+  assert.equal(KINDS.gun_level_run.text({ n: 22 }), "Chegue ao nível 22 da metralhadora");
+  assert.equal(KINDS.rarity_run.text({ n: 3 }), "Pegue uma cápsula lendária");
+  assert.equal(KINDS.rarity_run.text({ n: 2 }), "Pegue uma cápsula épica");
+  assert.equal(KINDS.boss_kill_total.text({ n: 1, type: "rainha" }), "Derrote a Rainha");
+  assert.equal(KINDS.boss_kill_total.text({ n: 1, type: "colosso" }), "Derrote o Colosso");
+  assert.equal(KINDS.boss_kill_total.value({ bossesBy: { rainha: 2 } }, { type: "rainha" }), 2);
+});
+
+test("recordes de arma, raridade e chefes entram nas estatísticas", () => {
+  const s = recordRun(emptyStats(), run({ maxGun: 22, maxRockets: 9, maxDrones: 4, bestRarity: 3, bossesBy: { rainha: 1 }, bossesSeen: ["rainha"] }), "d");
+  assert.equal(s.best.gun, 22);
+  assert.equal(s.best.rarity, 3);
+  assert.deepEqual(s.bossKills, { rainha: 1 });
+  assert.equal(s.bossSeen.rainha, true);
+  const again = sanitizeStats(JSON.parse(JSON.stringify(s)));
+  assert.equal(again.best.drones, 4);
+  assert.equal(again.bossSeen.rainha, true);
+});
+
+test("missões de forma, raridade e chefe aparecem para quem já chegou perto", () => {
+  const stats = recordRun(emptyStats(), run({ maxGun: 12, bestRarity: 1, bosses: 1, bossesBy: { colosso: 1 }, bossesSeen: ["colosso", "aranha"] }), "d");
+  const kinds = Object.fromEntries(missionOptions(stats).map((o) => [o.kind, o]));
+  assert.equal(kinds.form_run.n, 15, "próxima forma: Perfurante");
+  assert.ok(kinds.gun_level_run.n > 12);
+  assert.equal(kinds.rarity_run.n, 2);
+  assert.equal(kinds.boss_kill_total.type, "aranha", "o chefe visto e ainda não derrotado");
+});
+
+test("hangar: Canhão, Foguetes e Sorte nunca ficam no máximo", () => {
+  const base = defaultProfile();
+  const html = upgradesPanel({ ...base, cristais: 0, upgrades: { ...base.upgrades, canhao: 9, sorte: 5, foguetes: 7, casco: 2 } }, () => "x");
+  const card = (key) => html.split('<div class="upgrade">').find((c) => c.includes(`data-buy="${key}"`));
+  assert.ok(!card("canhao").includes("MÁX"));
+  assert.ok(card("sorte").includes("mais chance de raras"));
+  assert.ok(card("casco").includes("MÁX"));
 });

@@ -10,6 +10,7 @@ import {
   MISSIONS_PER_RANK,
   RANK_BONUS,
   RANK_BONUS_MAX,
+  BOSSES,
 } from "./config.js";
 import { emptyStats, sanitizeStats, recordRun, isStruggling } from "./stats.js";
 import { fillMissions, settleMissions, KINDS } from "./missions.js";
@@ -43,14 +44,16 @@ export function sanitizeProfile(raw) {
   if (!raw || typeof raw !== "object") return p;
   p.cristais = int(raw.cristais, 0, 1e9);
   if (raw.upgrades && typeof raw.upgrades === "object") {
-    for (const k of UPGRADE_ORDER) p.upgrades[k] = int(raw.upgrades[k], 0, UPGRADES[k].costs.length);
+    for (const k of UPGRADE_ORDER) p.upgrades[k] = int(raw.upgrades[k], 0, UPGRADES[k].infinite ? 1e6 : UPGRADES[k].costs.length);
   }
   if (Array.isArray(raw.ships)) p.ships = SHIP_ORDER.filter((id) => id === "faisca" || raw.ships.includes(id));
   p.ship = p.ships.includes(raw.ship) ? raw.ship : "faisca";
   if (Array.isArray(raw.missions)) {
     p.missions = raw.missions
       .filter((m) => m && KINDS[m.kind] && Number.isFinite(Number(m.n)))
-      .filter((m) => (m.kind === "ship_run" ? SHIPS[m.type] : m.kind === "type_total" ? typeof m.type === "string" : true))
+      .filter((m) =>
+        m.kind === "ship_run" ? SHIPS[m.type] : m.kind === "type_total" ? typeof m.type === "string" : m.kind === "boss_kill_total" ? BOSSES.some((b) => b.id === m.type) : true,
+      )
       .slice(0, 3)
       .map((m) => ({
         id: String(m.id ?? Math.random()),
@@ -78,7 +81,13 @@ export function sanitizeProfile(raw) {
 
 // ---------- hangar ----------
 
-export const upgradeCost = (key, level) => UPGRADES[key].costs[level] ?? null;
+// Preço do próximo nível: a tabela e, nas infinitas, 1,5× a cada nível depois dela.
+export function upgradeCost(key, level) {
+  const U = UPGRADES[key];
+  if (level < U.costs.length) return U.costs[level];
+  if (!U.infinite) return null;
+  return Math.round((U.costs.at(-1) * 1.5 ** (level - U.costs.length + 1)) / 10) * 10;
+}
 
 export function canBuy(profile, key) {
   const cost = upgradeCost(key, profile.upgrades[key]);
@@ -120,7 +129,8 @@ export function loadoutFor(profile) {
     shield: u.escudo >= 1,
     shieldRegen: UPGRADES.escudo.regen[u.escudo],
     magnet: UPGRADES.ima.radius[u.ima],
-    luck: UPGRADES.sorte.mult[u.sorte],
+    luck: UPGRADES.sorte.mult[Math.min(u.sorte, UPGRADES.sorte.mult.length - 1)],
+    luckLevel: u.sorte, // cada nível tira chance da cápsula comum (loot.js)
   };
 }
 
