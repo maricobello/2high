@@ -43,14 +43,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-// Tela do jogo: esconde o indicador de início e adia o gesto da borda de baixo,
-// para arrastar a nave perto da borda sem sair do app. A barra de status fica
-// com o plugin SystemBars (capacitor.config.json).
+// Tela do jogo: adia o gesto da borda de baixo, para arrastar a nave perto da
+// borda sem sair do app. A barra de status e o indicador de início ficam
+// escondidos pelo plugin SystemBars (hidden: true em capacitor.config.json).
 class GameViewController: CAPBridgeViewController {
-    override var prefersHomeIndicatorAutoHidden: Bool {
-        return true
-    }
-
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
         return .bottom
     }
