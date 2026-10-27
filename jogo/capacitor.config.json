@@ -1,0 +1,19 @@
+{
+  "appId": "com.maricobello.prumo",
+  "appName": "PRUMO",
+  "webDir": "dist",
+  "backgroundColor": "#070b14",
+  "ios": {
+    "contentInset": "never"
+  },
+  "android": {
+    "backgroundColor": "#070b14"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "hidden": true,
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

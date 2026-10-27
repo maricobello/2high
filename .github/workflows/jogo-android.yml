@@ -1,0 +1,56 @@
+# Testa o jogo PRUMO e gera o APK de Android (versão de teste, instalável direto
+# no celular). O arquivo fica em Actions > execução > Artifacts > prumo-apk.
+name: Jogo PRUMO · APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "jogo/**"
+      - ".github/workflows/jogo-android.yml"
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jogo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: jogo/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+
+      - name: Compilar APK
+        working-directory: jogo/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prumo-apk
+          path: jogo/android/app/build/outputs/apk/debug/app-debug.apk
+
+      # Mesmo caminho do envio à Play Store (workflow "Jogo PRUMO · Lojas"),
+      # com uma chave descartável: garante que o AAB sai assinado.
+      - name: Testar AAB assinado
+        working-directory: jogo/android
+        run: |
+          export PRUMO_KEYSTORE_PATH="$RUNNER_TEMP/teste.jks" PRUMO_KEY_ALIAS=prumo
+          export PRUMO_KEYSTORE_PASSWORD=teste123 PRUMO_KEY_PASSWORD=teste123
+          keytool -genkeypair -keystore "$PRUMO_KEYSTORE_PATH" -storetype PKCS12 -alias prumo \
+            -keyalg RSA -keysize 2048 -validity 1 -storepass teste123 -keypass teste123 -dname "CN=PRUMO, C=BR"
+          ./gradlew bundleRelease --no-daemon -PprumoVersionCode=7
+          keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab | grep -q "CN=PRUMO"
