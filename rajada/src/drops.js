@@ -1,6 +1,7 @@
 // Cápsulas: quando caem e de que tipo. A chance cresce com o tempo sem
 // cápsula (garantia contra azar) e o tipo acompanha o que a nave precisa.
-import { DROPS } from "./config.js";
+import { DROPS, RARITY } from "./config.js";
+import { levelGain, markCrossed } from "./loot.js";
 
 export const CAP_TYPES = ["M", "F", "D", "E", "H", "P"];
 export const CAP_NAMES = { M: "Metralhadora", F: "Foguetes", D: "Drone", E: "Escudo", H: "Reparo", P: "Pulso" };
@@ -33,31 +34,41 @@ export function pickCapsule(rng, p, ctx) {
   return rng.weighted(capsuleWeights(p, ctx)) ?? "M";
 }
 
-// Aplica a cápsula na nave. Devolve o que mudou para a tela avisar.
-// Armas não têm nível máximo; max: escudo ou casco já cheios (vira bônus de
-// pontos e cristais).
-export function applyCapsule(p, type) {
-  switch (type) {
-    case "M":
-      p.gun += 1;
-      return { level: p.gun, max: false };
-    case "F":
-      p.rockets += 1;
-      return { level: p.rockets, max: false };
-    case "D":
-      p.drones += 1;
-      return { level: p.drones, max: false };
-    case "E":
-      if (p.shield) return { max: true };
-      p.shield = true;
-      return { level: 1, max: false };
-    case "H":
-      if (p.hp >= p.maxHp) return { max: true };
-      p.hp += 1;
-      return { level: p.hp, max: false };
-    default:
-      return { level: 1, max: false }; // Pulso: o efeito é aplicado pela partida
+const WEAPON_KEY = { M: "gun", F: "rockets", D: "drones" };
+
+// Aplica a cápsula na nave. Arma: sobe o nível conforme a raridade. Suporte:
+// aplica o que couber (casco ou escudo cheios não dão nada a mais) e os extras
+// da raridade. Devolve o que mudou para a tela avisar: níveis ganhos por arma,
+// o nível novo, o marco cruzado (form, e de qual arma) e o TURBO ganho
+// (0, 20 ou "cheio"). O efeito do Pulso e do TURBO é aplicado pela partida.
+export function applyCapsule(p, type, rarity = "comum") {
+  const r = RARITY[rarity];
+  const gained = {};
+  let level = 1;
+  let turbo = 0;
+  const raise = (w, n) => {
+    gained[w] = n;
+    p[WEAPON_KEY[w]] += n;
+  };
+  if (WEAPON_KEY[type]) {
+    raise(type, levelGain(rarity, type, p[WEAPON_KEY[type]]));
+    level = p[WEAPON_KEY[type]];
+  } else {
+    if (type === "E") p.shield = true;
+    if (type === "H") p.hp = Math.min(p.maxHp, p.hp + 1);
+    if (type === "H") level = p.hp;
+    if (r.all) for (const w of ["M", "F", "D"]) raise(w, r.all);
+    turbo = r.turboFull ? "cheio" : r.turbo ?? 0;
   }
+  let form = null;
+  let formWeapon = null;
+  for (const w of ["M", "F", "D"]) {
+    if (form || !gained[w]) continue;
+    const now = p[WEAPON_KEY[w]];
+    form = markCrossed(w, now - gained[w], now);
+    if (form) formWeapon = w;
+  }
+  return { gained, level, form, formWeapon, turbo };
 }
 
 // Ao levar dano, a arma de maior nível perde 1 nível (empate: M, F, D).

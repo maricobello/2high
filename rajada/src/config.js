@@ -278,6 +278,42 @@ export const DROPS = {
   recoverFor: 12, // s em que a arma perdida tem peso triplo
 };
 
+// Raridade das cápsulas. Arma (M, F, D): comum +1, rara +2, épica +3,
+// lendária até o próximo marco (mínimo +3). Suporte (E, H, P): o efeito e
+// mais, rara +20 de TURBO, épica +1 em todas as armas, lendária +1 em todas e
+// TURBO cheio.
+export const RARITIES = ["comum", "rara", "epica", "lendaria"];
+export const RARITY = {
+  comum: { color: null, gain: 1 },
+  rara: { color: "#3d6bff", gain: 2, turbo: 20 },
+  epica: { color: "#a46bff", gain: 3, all: 1 },
+  lendaria: { color: "#ffd23f", toMilestone: true, minGain: 3, all: 1, turboFull: true },
+};
+
+// Chance de cada raridade por origem, na ordem de RARITIES. Garantias:
+// `pityCommons` comuns seguidas forçam rara ou melhor; a 1ª cápsula do chefe
+// é lendária se os `legendaryBosses` − 1 chefes anteriores não deram uma.
+// Cada nível de Sorte tira `luckShift` da comum (até `minCommon`, quando ela
+// começa acima disso) e reparte entre as outras.
+export const LOOT = {
+  sources: {
+    inimigo: [0.88, 0.11, 0.01, 0],
+    portador: [0.6, 0.35, 0.05, 0],
+    elite: [0.3, 0.5, 0.18, 0.02],
+    couracado: [0, 0.7, 0.27, 0.03],
+    chefe1: [0, 0, 0.85, 0.15],
+    chefe2: [0.3, 0.5, 0.2, 0],
+  },
+  pityCommons: 6,
+  legendaryBosses: 3,
+  luckShift: 0.02,
+  minCommon: 0.4,
+};
+
+// Marcos de foguetes e drones (nível: nome), avisados como forma nova.
+export const ROCKET_MARKS = { 5: "Salva de 6", 10: "Salva de 8", 15: "Fragmentação" };
+export const DRONE_MARKS = { 4: "Esquadrilha", 10: "Raios" };
+
 export const BOSS_DROPS = { cristais: 30, caps: 2 };
 export const SECTOR_BONUS = { perSector: 1000, noHit: 2000 };
 

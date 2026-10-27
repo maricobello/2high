@@ -75,16 +75,16 @@ test("tipo de cápsula acompanha a necessidade da nave", () => {
   for (let i = 0; i < 50; i++) assert.notEqual(pickCapsule(rng, ship({ hp: 3 }), ctx), "H");
 });
 
-test("cápsula sobe a arma sem teto; reparo com casco cheio avisa que sobrou", () => {
+test("cápsula comum sobe a arma 1 nível sem teto; reparo e escudo aplicam o que cabe", () => {
   const p = ship({ gun: 5, rockets: 99, drones: 99 });
-  assert.deepEqual(applyCapsule(p, "M"), { level: 6, max: false });
-  assert.deepEqual(applyCapsule(p, "M"), { level: 7, max: false });
-  assert.deepEqual(applyCapsule(p, "F"), { level: 100, max: false });
-  assert.deepEqual(applyCapsule(p, "D"), { level: 100, max: false });
-  assert.equal(applyCapsule(p, "H").max, true);
+  assert.deepEqual(applyCapsule(p, "M"), { gained: { M: 1 }, level: 6, form: null, formWeapon: null, turbo: 0 });
+  assert.equal(applyCapsule(p, "M").level, 7);
+  assert.equal(applyCapsule(p, "F").level, 100);
+  assert.equal(applyCapsule(p, "D").level, 100);
+  assert.equal(applyCapsule(p, "H").level, 3, "casco cheio continua cheio");
   p.hp = 2;
   assert.equal(applyCapsule(p, "H").level, 3);
-  assert.equal(applyCapsule(p, "E").max, false);
+  applyCapsule(p, "E");
   assert.equal(p.shield, true);
 });
 
