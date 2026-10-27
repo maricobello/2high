@@ -1,0 +1,29 @@
+{
+  "name": "prumo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PRUMO: jogo de empilhar de um toque. Fora do build do site.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.js",
+    "build": "node scripts/build.mjs",
+    "cap:android": "npm run build && npx cap sync android && npx cap open android",
+    "cap:ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "smoke": "node tests/smoke.mjs",
+    "icons": "node scripts/icons.mjs",
+    "loja": "node scripts/loja.mjs"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.3",
+    "esbuild": "0.25.10"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.3"
+  }
+}

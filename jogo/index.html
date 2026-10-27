@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>PRUMO</title>
+<meta name="description" content="Jogo de empilhar de um toque. Solte o bloco no prumo, erre por pouco e tente de novo.">
+<meta name="theme-color" content="#0a1626">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+  <canvas id="stage" aria-hidden="true"></canvas>
+
+  <header id="hud" class="hud" hidden>
+    <button id="btn-pause" class="icon-btn" type="button" aria-label="Pausar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+    <div class="hud-center">
+      <div id="hud-height" class="hud-height">0</div>
+      <div id="hud-label" class="hud-label">Alicerce · 0/10</div>
+    </div>
+    <div id="hud-right" class="hud-right"></div>
+  </header>
+
+  <div id="banner" class="banner" hidden>
+    <span id="banner-eyebrow" class="eyebrow">Fase 1</span>
+    <strong id="banner-title" class="banner-title">Alicerce</strong>
+    <span id="banner-hint" class="banner-hint">Toque para soltar o bloco.</span>
+  </div>
+
+  <section id="home" class="screen home" aria-label="Início">
+    <div class="home-top">
+      <span id="total-stars" class="total-stars">0/24</span>
+      <button id="btn-sound" class="icon-btn" type="button" aria-label="Som ligado" aria-pressed="true"></button>
+    </div>
+    <div id="brand" class="brand">
+      <h1 class="wordmark">PRUMO</h1>
+      <p class="tagline">Solte o bloco no prumo.<br>Erre por pouco, tente de novo.</p>
+    </div>
+    <div id="home-bottom" class="home-bottom">
+      <button id="btn-play" class="primary" type="button">
+        <span>Jogar</span>
+        <small id="play-sub">Fase 1 · Alicerce</small>
+      </button>
+      <div class="row">
+        <button id="btn-phases" class="secondary stacked" type="button">
+          <span>Fases</span><small id="phases-sub">1 de 8</small>
+        </button>
+        <button id="btn-endless" class="secondary stacked" type="button"></button>
+      </div>
+      <nav class="legal" aria-label="Informações">
+        <a href="privacidade.html">Privacidade</a>
+        <a href="suporte.html">Suporte</a>
+      </nav>
+    </div>
+  </section>
+
+  <section id="phases" class="screen overlay" aria-label="Fases" hidden>
+    <div class="card">
+      <p id="phases-stars" class="eyebrow"></p>
+      <h2 class="card-title">Fases</h2>
+      <ol id="phase-list" class="phase-list"></ol>
+      <div class="actions">
+        <button id="btn-phases-close" class="link" type="button">Fechar</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="pause" class="screen overlay" aria-label="Pausa" hidden>
+    <div class="card">
+      <p class="eyebrow">Pausa</p>
+      <h2 class="card-title">Pausado</h2>
+      <div class="actions">
+        <button id="btn-resume" class="primary" type="button"><span>Continuar</span></button>
+        <div class="row">
+          <button id="btn-restart" class="secondary" type="button">Recomeçar</button>
+          <button id="btn-pause-menu" class="secondary" type="button">Início</button>
+        </div>
+        <button id="btn-pause-sound" class="link" type="button">Som: ligado</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="screen overlay" aria-label="Resultado" hidden>
+    <div class="card" role="status">
+      <p id="res-eyebrow" class="eyebrow"></p>
+      <h2 id="res-title" class="card-title"></h2>
+      <div id="res-stars" class="stars-row" aria-hidden="true"></div>
+      <div id="res-meter" class="meter"><span></span></div>
+      <p id="res-sub" class="card-sub"></p>
+      <div class="actions">
+        <button id="res-primary" class="primary" type="button"><span></span><small>ou toque em qualquer lugar</small></button>
+        <div class="row">
+          <button id="res-secondary" class="secondary" type="button"></button>
+          <button id="res-menu" class="secondary" type="button">Início</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</main>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

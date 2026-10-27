@@ -1,0 +1,179 @@
+# Prepara o jogo PRUMO para as lojas. Rodar à mão em Actions > "Jogo PRUMO · Lojas"
+# > Run workflow. Passo a passo e segredos: jogo/docs/publicar-nas-lojas.md
+name: Jogo PRUMO · Lojas
+
+on:
+  workflow_dispatch:
+    inputs:
+      tarefa:
+        description: O que fazer
+        type: choice
+        options:
+          - android
+          - ios
+          - android-e-ios
+          - gerar-chave-android
+        default: android-e-ios
+
+jobs:
+  # Uma vez só: cria a chave de envio da Play Store. Baixe o artefato "chave-android"
+  # (fica 1 dia), guarde o .jks num lugar seguro e cole o .txt no segredo ANDROID_KEYSTORE_BASE64.
+  gerar-chave-android:
+    if: inputs.tarefa == 'gerar-chave-android'
+    runs-on: ubuntu-latest
+    env:
+      SENHA: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+    steps:
+      - name: Conferir segredo
+        run: |
+          if [ ${#SENHA} -lt 6 ]; then
+            echo "::error::Crie antes o segredo ANDROID_KEYSTORE_PASSWORD (6 caracteres ou mais)."
+            exit 1
+          fi
+      - name: Criar chave
+        run: |
+          keytool -genkeypair -keystore prumo-upload.jks -storetype PKCS12 -alias prumo \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$SENHA" -keypass "$SENHA" -dname "CN=PRUMO, C=BR"
+          base64 -w0 prumo-upload.jks > ANDROID_KEYSTORE_BASE64.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chave-android
+          path: |
+            prumo-upload.jks
+            ANDROID_KEYSTORE_BASE64.txt
+          retention-days: 1
+
+  # Gera o .aab assinado para enviar no Play Console.
+  android:
+    if: inputs.tarefa == 'android' || inputs.tarefa == 'android-e-ios'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jogo
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      PRUMO_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      PRUMO_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      PRUMO_KEY_ALIAS: prumo
+    steps:
+      - name: Conferir segredos
+        working-directory: .
+        run: |
+          for s in KEYSTORE_BASE64 PRUMO_KEYSTORE_PASSWORD; do
+            if [ -z "${!s}" ]; then
+              echo "::error::Falta um segredo do Android. Veja jogo/docs/publicar-nas-lojas.md (passo da chave)."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: jogo/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+
+      - name: Compilar AAB assinado
+        working-directory: jogo/android
+        run: |
+          export PRUMO_KEYSTORE_PATH="$RUNNER_TEMP/prumo-upload.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$PRUMO_KEYSTORE_PATH"
+          ./gradlew bundleRelease --no-daemon -PprumoVersionCode=${{ github.run_number }}
+          keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab | grep -q "CN=PRUMO" \
+            || { echo "::error::O AAB saiu sem assinatura."; exit 1; }
+          rm "$PRUMO_KEYSTORE_PATH"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prumo-aab-${{ github.run_number }}
+          path: jogo/android/app/build/outputs/bundle/release/app-release.aab
+
+  # Compila num Mac do GitHub e envia ao App Store Connect (aparece no TestFlight).
+  # A assinatura é feita pela própria Apple (certificado gerenciado na nuvem), usando a
+  # chave da API da App Store Connect com acesso "Admin".
+  ios:
+    if: inputs.tarefa == 'ios' || inputs.tarefa == 'android-e-ios'
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: jogo
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+    steps:
+      - name: Conferir segredos
+        working-directory: .
+        run: |
+          for s in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+            if [ -z "${!s}" ]; then
+              echo "::error::Falta um segredo da Apple. Veja jogo/docs/publicar-nas-lojas.md (passo da chave da API)."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: jogo/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync ios
+
+      - name: Compilar e enviar ao App Store Connect
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$KEY"
+          AUTH=(-allowProvisioningUpdates
+                -authenticationKeyPath "$KEY"
+                -authenticationKeyID "$ASC_KEY_ID"
+                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/PRUMO.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION="$(node -p "require('./package.json').version")" \
+            CODE_SIGNING_ALLOWED=NO \
+            "${AUTH[@]}" archive
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/PRUMO.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            "${AUTH[@]}"
+          rm "$KEY"

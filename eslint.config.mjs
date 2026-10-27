@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "rajada/**",
     // estúdio de vídeos (Remotion) tem dependências e checagem próprias
     "studio/**",
+    // jogo PRUMO: projeto à parte, com testes próprios (jogo/README.md)
+    "jogo/**",
   ]),
 ]);
 
