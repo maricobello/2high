@@ -165,6 +165,8 @@ export function createGame(opts = {}) {
       cause: null,
       maxGun: p.gun,
       maxRockets: p.rockets,
+      s1Spawns: 0, // inimigos nascidos no setor 1
+      s1Time: 0, // s de ondas no setor 1
     },
   };
 
@@ -393,6 +395,7 @@ export function createGame(opts = {}) {
     }
 
     if (g.phase === "waves") {
+      if (g.sector === 1) g.stats.s1Time += dt;
       g.waveT -= dt;
       if (g.waveT <= 0 && g.mercy <= 0) {
         const cap = threatCap({
@@ -426,6 +429,7 @@ export function createGame(opts = {}) {
       const e = makeEnemy(q.type, q.params, g.scale.hp);
       if (q.cap) e.cap = q.cap;
       g.enemies.push(e);
+      if (g.sector === 1) g.stats.s1Spawns += 1;
       q.done = true;
     }
     if (g.queue.length) compact(g.queue, (q) => !q.done);

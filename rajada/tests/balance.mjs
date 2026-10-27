@@ -25,6 +25,7 @@ const row = (label, runs) => {
   const q = (k, p) => percentile(runs.map((r) => r[k]), p);
   const capsPerMin = runs.map((r) => (r.caps / r.dur) * 60);
   const cristPerMin = runs.map((r) => (r.crystals / r.dur) * 60);
+  const s1PerMin = runs.filter((r) => r.s1Time > 0).map((r) => (r.s1Spawns / r.s1Time) * 60);
   const causes = {};
   for (const r of runs) causes[r.cause ?? "tempo"] = (causes[r.cause ?? "tempo"] ?? 0) + 1;
   const top = Object.entries(causes)
@@ -36,7 +37,8 @@ const row = (label, runs) => {
     `${label.padEnd(22)} duração ${fmt(q("dur", 0.25))} /${fmt(q("dur", 0.5))} /${fmt(q("dur", 0.75))} s` +
       ` · setor ${fmt(q("sector", 0.5))} (máx ${Math.max(...runs.map((r) => r.sector))})` +
       ` · chefes ${fmt(q("bosses", 0.5))} · cápsulas/min ${fmt(percentile(capsPerMin, 0.5), 1)}` +
-      ` · cristais ${fmt(q("crystals", 0.5))} (${fmt(percentile(cristPerMin, 0.5), 1)}/min) · ${top}`,
+      ` · cristais ${fmt(q("crystals", 0.5))} (${fmt(percentile(cristPerMin, 0.5), 1)}/min)` +
+      ` · inimigos/min no setor 1 ${fmt(percentile(s1PerMin, 0.5), 1)} · ${top}`,
   );
 };
 
