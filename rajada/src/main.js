@@ -189,6 +189,7 @@ function startRun() {
     skill: profile.stats.skill,
     struggling: struggling(profile),
     firstRun,
+    reducedMotion,
     onEvent: (type, data) => onGameEvent(session, type, data),
   });
   session.game = g;
@@ -914,6 +915,7 @@ if (qa) {
       const g = session?.game;
       if (g) g.items.push({ kind: "cap", type, rarity, x: g.player.x, y: g.player.y - 2, t: 0 });
     },
+    fx: () => renderer.fxStats(),
     // põe a metralhadora (M), os foguetes (F) ou os drones (D) no nível n
     level(weapon, n) {
       const g = session?.game;

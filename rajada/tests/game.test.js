@@ -371,6 +371,30 @@ test("teto direto: fila cheia não passa de 60 inimigos, tiros não passam de 22
   assert.ok(g.shots.length <= 220, `${g.shots.length} tiros`);
 });
 
+const legendaryAndTime = (opts) => {
+  const { g } = play(opts);
+  quiet(g);
+  g.items.push({ kind: "cap", type: "M", rarity: "lendaria", x: g.player.x, y: g.player.y, t: 0 });
+  g.update(DT);
+  const advances = [];
+  for (let i = 0; i < 4; i++) {
+    const t0 = g.t;
+    g.update(0.1);
+    advances.push(g.t - t0);
+  }
+  return advances;
+};
+
+test("câmera lenta da lendária dura 0,3 s e a velocidade volta ao normal", () => {
+  const advances = legendaryAndTime();
+  for (const d of advances.slice(0, 3)) assert.ok(Math.abs(d - 0.035) <= 1 / 120 + 1e-9, `lento: ${d.toFixed(4)}`);
+  assert.ok(Math.abs(advances[3] - 0.1) <= 1 / 120 + 1e-9, `normal: ${advances[3].toFixed(4)}`);
+});
+
+test("com reduzir movimento não há câmera lenta", () => {
+  for (const d of legendaryAndTime({ reducedMotion: true })) assert.ok(Math.abs(d - 0.1) <= 1 / 120 + 1e-9, d.toFixed(4));
+});
+
 test("dano: escudo absorve; sem escudo perde casco e 1 nível da arma mais forte", () => {
   const { g, events } = play({ loadout: { ...DEFAULT_LOADOUT, shield: true, gun: 4 } });
   run(g, 0.05);

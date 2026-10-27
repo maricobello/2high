@@ -194,10 +194,47 @@ async function run(label, context) {
   console.log(`ok ${label}`);
 }
 
+// Efeitos: print com movimento normal (rastro dos tiros, cápsula lendária com
+// anel e faíscas) e 20 s em cada modo, inclusive "reduzir movimento", sem erro
+// e sem clarão de tela inteira mais de 3 vezes por segundo.
+async function effects(browser) {
+  for (const reducedMotion of ["no-preference", "reduce"]) {
+    const context = await browser.newContext({ ...devices["iPhone 13"], reducedMotion });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    await page.goto(URL_QA);
+    await page.waitForTimeout(800);
+    await page.click("#btn-play");
+    await screenIs(page, "game");
+    await page.evaluate(() => {
+      const r = window.__rajada;
+      r.autopilot(true, 0.9);
+      r.level("M", 40);
+      r.level("F", 15);
+      r.level("D", 4);
+    });
+    await game(page, (g) => (g.player.hp = g.player.maxHp = 99));
+    await page.waitForTimeout(1500);
+    await game(page, (g) => g.items.push({ kind: "cap", type: "E", rarity: "lendaria", x: g.player.x, y: g.player.y - 70, t: 0 }));
+    await page.waitForTimeout(450);
+    if (reducedMotion === "no-preference") await page.screenshot({ path: join(shots, "efeitos.png") });
+    const before = await page.evaluate(() => window.__rajada.fx().flashes);
+    await page.waitForTimeout(20000);
+    const flashes = (await page.evaluate(() => window.__rajada.fx().flashes)) - before;
+    assert.ok(flashes <= 3 * 20 + 1, `${flashes} clarões em 20 s (${reducedMotion})`);
+    assert.deepEqual(errors, [], `erros no console (efeitos, ${reducedMotion})`);
+    await context.close();
+  }
+  console.log("ok efeitos");
+}
+
 const browser = await chromium.launch();
 try {
   await run("computador", await browser.newContext({ viewport: { width: 1280, height: 800 } }));
   await run("celular", await browser.newContext({ ...devices["iPhone 13"] }));
+  await effects(browser);
 } finally {
   await browser.close();
   server.kill();

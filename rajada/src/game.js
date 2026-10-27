@@ -17,6 +17,7 @@ import {
   DRONES,
   PERF,
   ELITE,
+  SLOW,
   eliteChance,
   BOSS_DROPS,
   SECTOR_BONUS,
@@ -60,6 +61,7 @@ export function createGame(opts = {}) {
     struggling = false,
     firstRun = false,
     mode = "run",
+    reducedMotion = false, // "reduzir movimento": sem câmera lenta
     onEvent = () => {},
   } = opts;
   const rng = createRng(seed);
@@ -142,6 +144,7 @@ export function createGame(opts = {}) {
     magnetAll: false,
     sectorDamage: 0,
     hitstop: 0,
+    slowT: 0, // câmera lenta (s de tempo real que faltam)
     bottomInset: 0,
     input: { mode: null, tx: 0, ty: 0, ax: 0, ay: 0, dx: 0, dy: 0 },
     script: firstRun
@@ -226,6 +229,12 @@ export function createGame(opts = {}) {
 
   g.update = (dt) => {
     if (g.status === "over") return;
+    if (g.slowT > 0) {
+      // só o pedaço dentro da câmera lenta anda devagar
+      const slow = Math.min(dt, g.slowT);
+      g.slowT -= dt;
+      dt = slow * SLOW.scale + (dt - slow);
+    }
     if (g.hitstop > 0) {
       g.hitstop -= dt;
       return;
@@ -719,7 +728,7 @@ export function createGame(opts = {}) {
       }
     }
     onEnemyDeath(e, g);
-    emit("kill", { x: e.x, y: e.y, type: e.type, size: Math.max(e.w, e.h), score: pts, mult: g.mult, by });
+    emit("kill", { x: e.x, y: e.y, type: e.type, size: Math.max(e.w, e.h), score: pts, mult: g.mult, by, elite: e.elite });
   }
 
   function damageBoss(dmg) {
@@ -790,6 +799,7 @@ export function createGame(opts = {}) {
     if (it.type === "P") pulse();
     const rarity = it.rarity ?? "comum";
     const r = applyCapsule(p, it.type, rarity);
+    if (rarity === "lendaria" && !reducedMotion) g.slowT = SLOW.dur;
     if (r.turbo) addTurbo(r.turbo === "cheio" ? TURBO.full : r.turbo);
     st.maxGun = Math.max(st.maxGun, p.gun);
     st.maxRockets = Math.max(st.maxRockets, p.rockets);

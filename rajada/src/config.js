@@ -181,6 +181,10 @@ export const GUN_FORMS = [
 // (acima do teto de tiros da nave, os mais antigos somem primeiro).
 export const PERF = { enemies: 60, shots: 220, bullets: 260 };
 
+// Câmera lenta ao pegar cápsula lendária: `dur` s de tempo real a `scale`
+// da velocidade (desligada com "reduzir movimento").
+export const SLOW = { dur: 0.3, scale: 0.35 };
+
 export const TURBO = { full: 50, dur: 6, perGraze: 0.7, fireMult: 0.5, scoreMult: 2 };
 export const COMBO = { window: 1.6, perStep: 6, max: 8 };
 

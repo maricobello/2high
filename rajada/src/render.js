@@ -78,7 +78,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
   let planet = null;
   let nebulas = [];
   let stars = [];
-  const fx = { parts: [], booms: [], texts: [], rings: [], ghosts: [], trail: [], later: [], flash: 0, shake: 0, hurt: 0 };
+  const fx = { parts: [], booms: [], texts: [], rings: [], ghosts: [], trail: [], later: [], flash: 0, shake: 0, hurt: 0, muzzle: 0, muzzleBand: 0, flashes: 0, lastFlash: -1 };
 
   function resize(height) {
     H = height;
@@ -273,7 +273,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     for (let i = 0; i < Math.min(p.drones, p.dronePos.length); i++) {
       const d = p.dronePos[i];
       spr("chama", anim(14, i), d.x, d.y + 5);
-      spr("drone", 0, d.x, d.y);
+      spr("drone", anim(12, i), d.x, d.y);
     }
     if (g.turboT > 0 && !reducedMotion) {
       for (const [i, tr] of fx.trail.entries()) spr(def.sprite, 0, tr.x, tr.y, { flash: true, alpha: 0.08 + i * 0.04 });
@@ -418,6 +418,17 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     drawBeams(g);
     for (const b of g.bullets) {
       const i = rampIndex(b.band ?? 0, g.t);
+      // rastro da faixa 6 em diante (mais longo do 7, as estrelas)
+      if (!reducedMotion && (b.band ?? 0) >= 6) {
+        const [, mid, dark] = POWER.ramps[i];
+        const steps = b.band >= 7 ? 3 : 2;
+        for (let k = 1; k <= steps; k++) {
+          ctx.globalAlpha = 0.6 - k * 0.15;
+          ctx.fillStyle = k === 1 ? mid : dark;
+          ctx.fillRect(Math.round(b.x - b.vx * 0.011 * k) - 0.5, Math.round(b.y - b.vy * 0.011 * k), 1, 2);
+        }
+        ctx.globalAlpha = 1;
+      }
       if (b.shard) {
         const [light, mid] = POWER.ramps[i];
         ctx.fillStyle = mid;
@@ -443,13 +454,25 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     }
   }
 
+  // clarão no cano a cada rajada, na cor da faixa da metralhadora
+  function drawMuzzle(g) {
+    if (fx.muzzle <= 0 || g.status !== "playing") return;
+    const p = g.player;
+    const [light, mid] = rampOf(fx.muzzleBand, g.t);
+    ctx.fillStyle = mid;
+    ctx.fillRect(Math.round(p.x) - 1.5, Math.round(p.y) - 9.5, 3, 2);
+    ctx.fillStyle = light;
+    ctx.fillRect(Math.round(p.x) - 0.5, Math.round(p.y) - 10, 1, 2.5);
+  }
+
   function drawItems(g) {
     for (const it of g.items) {
       if (it.kind !== "cap") {
         spr("cristal", anim(8, it.t * 4), it.x, it.y);
         continue;
       }
-      // rara ou melhor: anel na cor da raridade (lendária com dois)
+      // rara ou melhor: anel e 4 pontos girando na cor da raridade (a
+      // lendária com dois anéis e faíscas)
       const color = RARITY[it.rarity]?.color;
       if (color) {
         ctx.strokeStyle = color;
@@ -462,6 +485,13 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
           ctx.stroke();
         }
         ctx.globalAlpha = 1;
+        ctx.fillStyle = color;
+        const spin = reducedMotion ? 0 : t * 3;
+        for (let k = 0; k < 4; k++) {
+          const a = spin + it.t + (k * Math.PI) / 2;
+          ctx.fillRect(Math.round(it.x + Math.cos(a) * 12) - 0.5, Math.round(it.y + Math.sin(a) * 12) - 0.5, 1.5, 1.5);
+        }
+        if (it.rarity === "lendaria" && Math.random() < 0.35) spark(it.x + (Math.random() - 0.5) * 18, it.y + (Math.random() - 0.5) * 18, Math.random() < 0.5 ? "#ffd23f" : "#fff4b0", 0.45, 18);
       }
       spr(`cap_${it.type}`, anim(4, it.t), it.x, it.y);
     }
@@ -503,7 +533,14 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     fx.rings.push({ x, y, color, max, t: 0, dur });
   }
 
+  // Textos que sobem; um novo no mesmo lugar de outro recente vai para cima
+  // dele (ex.: "LENDÁRIA · ESCUDO" e "TURBO" juntos).
   function text(str, x, y, color = "#f4f7ff", dur = 0.8, scale = 1) {
+    for (let k = 0; k < 4; k++) {
+      const hit = fx.texts.find((o) => o.t < 0.5 && Math.abs(o.x - x) < 60 && Math.abs(o.y - y) < (5 * o.scale + 5 * scale) / 2 + 2);
+      if (!hit) break;
+      y = hit.y - 5 * scale - 3;
+    }
     fx.texts.push({ str, x, y, color, t: 0, dur, scale });
   }
 
@@ -515,12 +552,20 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     if (!reducedMotion) fx.shake = Math.max(fx.shake, v);
   }
 
+  // clarão de tela inteira: no máximo 3 por segundo (risco para fotossensíveis)
   function flash(v) {
-    if (!reducedMotion) fx.flash = Math.max(fx.flash, v);
+    if (reducedMotion || t - fx.lastFlash < 1 / 3) return;
+    fx.lastFlash = t;
+    fx.flashes += 1;
+    fx.flash = Math.max(fx.flash, v);
   }
 
   function event(type, d, g) {
     switch (type) {
+      case "shot":
+        fx.muzzle = 0.05;
+        fx.muzzleBand = bandOf(d.level);
+        break;
       case "hit":
         for (let i = 0; i < 2; i++) spark(d.x, d.y + 3, i ? "#fff4b0" : "#ffd23f", 0.15, 70);
         break;
@@ -532,6 +577,11 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
           boom(d.x - 6, d.y + 4, 0.08);
           boom(d.x + 7, d.y - 3, 0.14);
           shake(3);
+        }
+        // elite: explosões em cadeia e faíscas douradas
+        if (d.elite) {
+          for (let k = 0; k < 3; k++) boom(d.x + (Math.random() - 0.5) * 14, d.y + (Math.random() - 0.5) * 10, 0.07 * (k + 1));
+          burst(d.x, d.y, ["#ffd23f", "#fff4b0"], 10, 60, 0.5);
         }
         if (d.score >= 60 || d.mult >= 3) text(`+${d.score}`, d.x, d.y - 8, d.mult >= 4 ? "#ffd23f" : "#f4f7ff", 0.7);
         break;
@@ -669,6 +719,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     for (const gh of fx.ghosts) gh.t += dt;
     fx.ghosts = fx.ghosts.filter((gh) => gh.t < gh.dur);
     fx.flash = Math.max(0, fx.flash - dt * 1.4);
+    fx.muzzle = Math.max(0, fx.muzzle - dt);
     fx.shake = Math.max(0, fx.shake - dt * 22);
     fx.hurt = Math.max(0, fx.hurt - dt * 2);
   }
@@ -728,6 +779,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     drawBoss(g);
     drawPlayerShots(g);
     drawPlayer(g);
+    drawMuzzle(g);
     drawShots(g);
     drawLasers(g);
     drawFx();
@@ -749,7 +801,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     }
   }
 
-  return { resize, draw, event, sprites, setSector };
+  return { resize, draw, event, sprites, setSector, fxStats: () => ({ flashes: fx.flashes }) };
 }
 
 const easeOut = (u) => 1 - (1 - u) * (1 - u);

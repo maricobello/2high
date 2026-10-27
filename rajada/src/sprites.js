@@ -370,7 +370,12 @@ export const SPRITES = {
     ["YY", "yy", "oo", "o."],
     ["yy", "yo", "o.", ".."],
   ],
-  drone: [["...w...", "..ece..", ".eEcEe.", "eEEwEEe", "eE.e.Ee", "...d..."]],
+  // hélice girando no topo (3 quadros)
+  drone: [
+    ["..www..", "..ece..", ".eEcEe.", "eEEwEEe", "eE.e.Ee", "...d..."],
+    ["...w...", "..ewe..", ".eEcEe.", "eEEwEEe", "eE.e.Ee", "...d..."],
+    [".w...w.", "..ece..", ".eEcEe.", "eEECEEe", "eE.e.Ee", "...d..."],
+  ],
   escudo: [escudo(0), escudo(1), escudo(2), escudo(3)],
   zangao: [ZANGAO_A, ZANGAO_B],
   dardo: [DARDO_A, DARDO_B],

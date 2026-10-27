@@ -152,11 +152,11 @@ export function createAudio() {
     // cápsula rara, épica ou lendária: brilho a mais por cima do som da cápsula
     rarity(r) {
       if (!ready()) return;
-      if (r === "rara") arp([1319, 1568, 1976], 0.05, { type: "triangle", gain: 0.08, delay: 0.18 });
-      else if (r === "epica") arp([880, 1109, 1319, 1760], 0.06, { type: "square", gain: 0.05, delay: 0.18 });
+      if (r === "rara") arp([1319, 1568, 1976], 0.05, { type: "triangle", gain: 0.07, delay: 0.18 });
+      else if (r === "epica") arp([880, 1109, 1319, 1760], 0.06, { type: "square", gain: 0.04, delay: 0.18 });
       else if (r === "lendaria") {
-        arp([523, 659, 784, 1047, 1319, 1568, 2093], 0.07, { type: "square", gain: 0.06, delay: 0.15 });
-        tone({ freq: 131, type: "sine", gain: 0.22, dur: 0.7, delay: 0.15 });
+        arp([523, 659, 784, 1047, 1319, 1568, 2093], 0.07, { type: "square", gain: 0.05, delay: 0.15 });
+        tone({ freq: 131, type: "sine", gain: 0.16, dur: 0.7, delay: 0.15 });
       }
     },
     form() {

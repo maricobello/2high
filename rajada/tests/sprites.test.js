@@ -11,7 +11,7 @@ const fingerprint = (o) => createHash("sha256").update(JSON.stringify(o)).digest
 // Impressão digital dos sprites de baixa resolução que não foram redesenhados
 // (os que passaram para alta definição saem da conta).
 test("editor movido sem mudar nenhum sprite", () => {
-  assert.equal(fingerprint(SPRITES), "1064bd70b6fe284b901812c0b95cd1c56f0c0a12b259fd7d317b25fe47ad8901");
+  assert.equal(fingerprint(SPRITES), "ae19f94fd391661b044a240769e644215df7626d7fb370159f5a9c7f082d9b3b");
 });
 
 test("sprite HD mede metade da grade no mundo", () => {
