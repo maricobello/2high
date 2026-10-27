@@ -4,8 +4,9 @@
 // Os efeitos (partículas, explosões, textos) nascem dos eventos da partida.
 import { buildSprites } from "./sprites.js";
 import { drawText, textWidth } from "./font.js";
-import { W, SHIPS, SHOTS, sectorInfo } from "./config.js";
+import { W, SHIPS, SHOTS, POWER, RARITY, sectorInfo } from "./config.js";
 import { CAP_NAMES } from "./drops.js";
+import { bandOf, rampOf } from "./power.js";
 
 // Pixels de canvas por unidade do mundo: o mundo continua com 224 de largura,
 // mas o canvas tem o dobro por dentro para os sprites em alta definição.
@@ -34,6 +35,20 @@ const DEBRIS = {
 
 const CAP_COLORS = { M: "#ffd23f", F: "#ff8a2a", D: "#4ee36a", E: "#48e4f0", H: "#ff5fb4", P: "#a46bff" };
 const CAP_LABEL = { M: "METRALHADORA", F: "FOGUETES", D: "DRONE", E: "ESCUDO", H: "REPARO", P: "PULSO" };
+const RARITY_NAME = { rara: "RARA", epica: "ÉPICA", lendaria: "LENDÁRIA" };
+
+// Texto da cápsula pega: "METRALHADORA +2", "LENDÁRIA · LEQUE", "ÉPICA · REPARO".
+function capLabel(d) {
+  const gain = d.gained?.[d.type];
+  if (gain) {
+    const base = `${CAP_LABEL[d.type]} +${gain}`;
+    return d.rarity === "lendaria" ? `LENDÁRIA · ${d.form ?? base}` : base;
+  }
+  return RARITY_NAME[d.rarity] ? `${RARITY_NAME[d.rarity]} · ${CAP_LABEL[d.type]}` : CAP_LABEL[d.type];
+}
+
+// Índice da rampa de cor da faixa (o arco-íris troca de rampa com o tempo).
+const rampIndex = (band, time) => POWER.ramps.indexOf(rampOf(band, time));
 const PLANET_COLORS = [
   ["#7cb4ff", "#3d6bff", "#1a2550"],
   ["#e8c9a4", "#c09a7a", "#5a4032"],
@@ -343,8 +358,47 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     }
   }
 
+  // Feixe vertical de top a bottom: borda escura, corpo médio e miolo claro.
+  function beam(x, top, bottom, width, [light, mid, dark]) {
+    const h = bottom - top;
+    if (h <= 0) return;
+    ctx.fillStyle = dark;
+    ctx.fillRect(x - width / 2, top, width, h);
+    ctx.fillStyle = mid;
+    ctx.fillRect(x - width / 2 + 0.5, top, width - 1, h);
+    ctx.fillStyle = light;
+    const core = Math.max(0.5, width / 4);
+    ctx.fillRect(x - core / 2, top, core, h);
+  }
+
+  function drawBeams(g) {
+    const p = g.player;
+    if (g.beam) {
+      const ramp = rampOf(g.beam.band, g.t);
+      beam(Math.round(g.beam.x), -4, p.y - 7, g.beam.width, ramp);
+      ctx.fillStyle = ramp[0];
+      ctx.fillRect(Math.round(g.beam.x) - 1.5, p.y - 8.5, 3, 2); // clarão no cano
+    }
+    if (g.droneBeams.length) {
+      const ramp = rampOf(bandOf(p.drones), g.t);
+      for (const b of g.droneBeams) beam(Math.round(b.x), b.y - b.len, b.y, 2, ramp);
+    }
+  }
+
   function drawPlayerShots(g) {
-    for (const b of g.bullets) spr(b.drone ? "tiro_drone" : b.big ? "tiro_max" : "tiro", 0, b.x, b.y);
+    drawBeams(g);
+    for (const b of g.bullets) {
+      const i = rampIndex(b.band ?? 0, g.t);
+      if (b.shard) {
+        const [light, mid] = POWER.ramps[i];
+        ctx.fillStyle = mid;
+        ctx.fillRect(Math.round(b.x) - 1, Math.round(b.y) - 1, 2, 2);
+        ctx.fillStyle = light;
+        ctx.fillRect(Math.round(b.x) - 1, Math.round(b.y) - 1, 1, 1);
+        continue;
+      }
+      spr(`${b.drone ? "tiro_drone" : b.big ? "tiro_max" : "tiro"}@${i}`, 0, b.x, b.y);
+    }
     for (const r of g.rockets) {
       const cx = Math.round(r.x);
       const cy = Math.round(r.y);
@@ -362,8 +416,25 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
 
   function drawItems(g) {
     for (const it of g.items) {
-      if (it.kind === "cap") spr(`cap_${it.type}`, anim(4, it.t), it.x, it.y);
-      else spr("cristal", anim(8, it.t * 4), it.x, it.y);
+      if (it.kind !== "cap") {
+        spr("cristal", anim(8, it.t * 4), it.x, it.y);
+        continue;
+      }
+      // rara ou melhor: anel na cor da raridade (lendária com dois)
+      const color = RARITY[it.rarity]?.color;
+      if (color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        const rings = it.rarity === "lendaria" ? [8, 10.5] : [8];
+        for (const r of rings) {
+          ctx.globalAlpha = 0.65 + 0.35 * Math.sin(t * 6 + it.t * 3 + r);
+          ctx.beginPath();
+          ctx.arc(Math.round(it.x), Math.round(it.y), r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+      spr(`cap_${it.type}`, anim(4, it.t), it.x, it.y);
     }
   }
 
@@ -440,14 +511,24 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         boom(d.x, d.y, 0, 0.04);
         burst(d.x, d.y, ["#ffd23f", "#ff8a2a"], 5, 50, 0.3);
         break;
-      case "cap_spawn":
-        ring(d.x, d.y, CAP_COLORS[d.type], 14, 0.35);
+      case "cap_spawn": {
+        const rare = RARITY[d.rarity]?.color;
+        ring(d.x, d.y, rare ?? CAP_COLORS[d.type], rare ? 22 : 14, rare ? 0.5 : 0.35);
         break;
+      }
       case "cap": {
-        ring(d.x, d.y, CAP_COLORS[d.type], 24, 0.4);
-        burst(d.x, d.y, [CAP_COLORS[d.type], "#ffffff"], 12, 70, 0.5);
-        const label = d.max ? `${CAP_LABEL[d.type]} MAX +500` : d.type === "P" ? "PULSO" : `${CAP_LABEL[d.type]}${d.level > 1 || d.type === "M" ? ` ${d.level}` : ""}`;
-        text(label, g.player.x, g.player.y - 16, CAP_COLORS[d.type], 1.1);
+        const color = RARITY[d.rarity]?.color ?? CAP_COLORS[d.type];
+        ring(d.x, d.y, color, 24, 0.4);
+        burst(d.x, d.y, [color, CAP_COLORS[d.type], "#ffffff"], d.rarity && d.rarity !== "comum" ? 20 : 12, 70, 0.5);
+        text(capLabel(d), g.player.x, g.player.y - 16, color, 1.1);
+        break;
+      }
+      case "form": {
+        // forma nova: anel na cor da faixa e o nome grande no centro
+        const color = rampOf(d.band, g.t)[1];
+        ring(g.player.x, g.player.y, color, 34, 0.6);
+        ring(g.player.x, g.player.y, "#ffffff", 20, 0.35);
+        text(d.name, W / 2, H * 0.36, color, 1.2, 3);
         break;
       }
       case "cristal":

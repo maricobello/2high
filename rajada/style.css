@@ -543,6 +543,33 @@ button:disabled {
   animation: bump 0.4s ease-out;
 }
 
+/* próximo marco da metralhadora: "faltam 3 para PERFURANTE" e a barra do bloco de 5 níveis */
+.hud-next {
+  --band: var(--cyan);
+  display: grid;
+  gap: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(244, 247, 255, 0.75);
+  white-space: nowrap;
+}
+
+.next-bar {
+  display: block;
+  width: 72px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.next-bar span {
+  display: block;
+  height: 100%;
+  background: var(--band);
+}
+
 .hud-center {
   text-align: center;
   min-width: 90px;

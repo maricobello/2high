@@ -2,7 +2,8 @@
 // som, ao progresso salvo e às telas de início, hangar, missões e resultado.
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { W, SHIPS, UPGRADES, TURBO, sectorInfo, BREAK_AFTER } from "./config.js";
+import { W, SHIPS, UPGRADES, TURBO, POWER, sectorInfo, BREAK_AFTER } from "./config.js";
+import { bandOf, rampOf, weaponLabel, nextMilestone } from "./power.js";
 import { createGame } from "./game.js";
 import { createRenderer } from "./render.js";
 import { createAudio, buzz } from "./audio.js";
@@ -231,9 +232,14 @@ function onGameEvent(s, type, d) {
       break;
     case "cap":
       audio.cap(d.type);
+      if (d.rarity && d.rarity !== "comum") audio.rarity(d.rarity);
       if (d.type === "P") audio.pulse();
-      vibrate(d.type === "P" ? [30, 20, 60] : 10);
-      hud.bumpWeapon(d.type);
+      vibrate(d.type === "P" ? [30, 20, 60] : d.rarity === "lendaria" ? [20, 30, 20, 30, 40] : 10);
+      for (const w of Object.keys(d.gained ?? {})) hud.bumpWeapon(w);
+      break;
+    case "form":
+      audio.form();
+      vibrate([15, 25, 30]);
       break;
     case "cristal":
       audio.cristal(d.streak);
@@ -433,6 +439,7 @@ const hud = (() => {
   const el = {
     hearts: $("hud-hearts"),
     weapons: $("hud-weapons"),
+    next: $("hud-next"),
     score: $("hud-score"),
     mult: $("hud-mult"),
     cristais: $("hud-cristais"),
@@ -473,13 +480,28 @@ const hud = (() => {
           Array.from({ length: p.maxHp }, (_, i) => `<i class="${i < p.hp ? "" : "empty"}"></i>`).join("") + (p.shield ? '<i class="shield"></i>' : "");
         el.hearts.setAttribute("aria-label", `Casco ${p.hp} de ${p.maxHp}${p.shield ? ", com escudo" : ""}`);
       }
+      const levels = { M: p.gun, F: p.rockets, D: p.drones };
       const weapons = `${p.gun}/${p.rockets}/${p.drones}`;
       if (weapons !== last.weapons) {
         last.weapons = weapons;
+        last.colors = {};
         const items = [["M", p.gun]];
         if (p.rockets) items.push(["F", p.rockets]);
         if (p.drones) items.push(["D", p.drones]);
-        el.weapons.innerHTML = items.map(([k, v]) => `<span data-w="${k}"><i style="--img:url(${iconUrl(`cap_${k}`)})"></i>${v}</span>`).join("");
+        el.weapons.innerHTML = items.map(([k, v]) => `<span data-w="${k}"><i style="--img:url(${iconUrl(`cap_${k}`)})"></i>${weaponLabel(v)}</span>`).join("");
+        // próximo marco da metralhadora: forma nova até o 30, depois a próxima ★
+        const next = nextMilestone(p.gun);
+        const done = ((POWER.band - next.missing) / POWER.band) * 100;
+        el.next.innerHTML = `${next.missing === 1 ? "falta" : "faltam"} ${next.missing} para ${next.label.toUpperCase()}<span class="next-bar"><span style="width:${done}%"></span></span>`;
+      }
+      // nível na cor da faixa de cada arma (o arco-íris muda com o tempo)
+      for (const span of el.weapons.children) {
+        const w = span.dataset.w;
+        const color = rampOf(bandOf(levels[w]), g.t)[1];
+        if (last.colors[w] === color) continue;
+        last.colors[w] = color;
+        span.style.color = color;
+        if (w === "M") el.next.style.setProperty("--band", color);
       }
       const score = Math.round(g.score);
       if (score !== last.score) {
@@ -888,9 +910,14 @@ if (qa) {
       saveProfile(profile);
       renderHome();
     },
-    capsule(type) {
+    capsule(type, rarity = "comum") {
       const g = session?.game;
-      if (g) g.items.push({ kind: "cap", type, x: g.player.x, y: g.player.y - 2, t: 0 });
+      if (g) g.items.push({ kind: "cap", type, rarity, x: g.player.x, y: g.player.y - 2, t: 0 });
+    },
+    // põe a metralhadora (M), os foguetes (F) ou os drones (D) no nível n
+    level(weapon, n) {
+      const g = session?.game;
+      if (g) g.player[{ M: "gun", F: "rockets", D: "drones" }[weapon]] = n;
     },
     skipToBoss() {
       const g = session?.game;

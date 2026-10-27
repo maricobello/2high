@@ -149,6 +149,21 @@ export function createAudio() {
       else if (type === "E") arp([523, 784, 1047, 1568], 0.045, { type: "triangle", gain: 0.1 });
       else arp([523, 659, 784, 1047], 0.045);
     },
+    // cápsula rara, épica ou lendária: brilho a mais por cima do som da cápsula
+    rarity(r) {
+      if (!ready()) return;
+      if (r === "rara") arp([1319, 1568, 1976], 0.05, { type: "triangle", gain: 0.08, delay: 0.18 });
+      else if (r === "epica") arp([880, 1109, 1319, 1760], 0.06, { type: "square", gain: 0.05, delay: 0.18 });
+      else if (r === "lendaria") {
+        arp([523, 659, 784, 1047, 1319, 1568, 2093], 0.07, { type: "square", gain: 0.06, delay: 0.15 });
+        tone({ freq: 131, type: "sine", gain: 0.22, dur: 0.7, delay: 0.15 });
+      }
+    },
+    form() {
+      if (!ready()) return;
+      arp([392, 523, 659, 784, 1047], 0.06, { type: "sawtooth", gain: 0.045 });
+      hiss({ gain: 0.08, dur: 0.5, freq: 300, to: 3000, type: "bandpass", q: 1.5 });
+    },
     cristal(streak) {
       if (!ready() || !allow("cristal", 30)) return;
       const f = noteFor(streak, 880);

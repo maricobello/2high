@@ -3,6 +3,7 @@
 // As peças grandes (chefes, couraçado, pedras, explosão) são desenhadas por um
 // mini editor de pixels: formas simples, depois espelho, sombra e contorno.
 import { createRng } from "./rng.js";
+import { POWER } from "./config.js";
 import { couracadoHD, portadorHD, pedraHD } from "./art-grandes.js";
 import { colossoHD, aranhaHD, olhoHD, irisHD, serpenteHD, serpenteGomoHD, serpenteCaudaHD, forjaHD, rainhaHD } from "./art-chefes.js";
 import { DARK, grid, toRows, set, rect, poly, ellipse, line, stamp, shade, outline, finish, spin4 } from "./pixel.js";
@@ -464,23 +465,33 @@ export function sizeOf(name) {
 // makeCanvas(w, h) devolve um canvas; no navegador é document.createElement.
 // Sprites em alta definição saem com hd: true e w/h no mundo; o desenho usa
 // esses números para encaixar a grade dobrada no mesmo espaço.
+// Tiros pintados pela rampa de cada faixa de poder: cabeça clara, corpo
+// médio, cauda escura. Gerados no início (não desenhados à mão): `tiro@3` é o
+// tiro da faixa 3; o arco-íris usa as rampas das outras faixas.
+const BULLETS = ["tiro", "tiro_max", "tiro_drone"];
+const RAMP_SLOT = { w: 0, Y: 0, C: 0, y: 1, c: 1, o: 2, b: 2 };
+
 export function buildSprites(makeCanvas) {
   const out = {};
-  const add = (name, frames, hd) => {
+  const add = (name, frames, hd, palette) => {
     out[name] = {
-      frames: frames.map((rows) => paint(makeCanvas, rows, null)),
+      frames: frames.map((rows) => paint(makeCanvas, rows, null, palette)),
       flash: frames.map((rows) => paint(makeCanvas, rows, "#ffffff")),
-      flipped: name.endsWith("_bank") ? frames.map((rows) => paint(makeCanvas, flipX(rows), null)) : null,
+      flipped: name.endsWith("_bank") ? frames.map((rows) => paint(makeCanvas, flipX(rows), null, palette)) : null,
       ...worldSize(frames[0], hd),
       hd,
     };
   };
   for (const [name, frames] of Object.entries(SPRITES)) add(name, frames, false);
   for (const [name, frames] of Object.entries(HD_SPRITES)) add(name, frames, true);
+  POWER.ramps.forEach((ramp, i) => {
+    const palette = Object.fromEntries(Object.entries(RAMP_SLOT).map(([ch, slot]) => [ch, ramp[slot]]));
+    for (const name of BULLETS) add(`${name}@${i}`, SPRITES[name], false, palette);
+  });
   return out;
 }
 
-function paint(makeCanvas, rows, solid) {
+function paint(makeCanvas, rows, solid, palette = PALETTE) {
   const h = rows.length;
   const w = rows[0].length;
   const canvas = makeCanvas(w, h);
@@ -489,7 +500,7 @@ function paint(makeCanvas, rows, solid) {
     for (let x = 0; x < w; x++) {
       const ch = rows[y][x];
       if (ch === ".") continue;
-      ctx.fillStyle = solid ?? PALETTE[ch];
+      ctx.fillStyle = solid ?? palette[ch] ?? PALETTE[ch];
       ctx.fillRect(x, y, 1, 1);
     }
   }

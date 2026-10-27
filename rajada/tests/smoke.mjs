@@ -101,6 +101,18 @@ async function run(label, context) {
   assert.equal(await page.isVisible("#hud-boss"), true, "barra de vida do chefe");
   await snap("4-chefe");
 
+  // armas sem teto: nível com estrela no placar, próximo marco e cápsula lendária
+  await game(page, (g) => (g.player.inv = 3));
+  await page.evaluate(() => window.__rajada.level("M", 37));
+  await page.waitForTimeout(300);
+  assert.equal(await page.textContent('#hud-weapons [data-w="M"]'), "37★1");
+  assert.equal(await page.textContent("#hud-next"), "faltam 3 para ★2");
+  await page.evaluate(() => window.__rajada.capsule("M", "lendaria"));
+  await page.waitForTimeout(500);
+  assert.equal(await page.textContent('#hud-weapons [data-w="M"]'), "40★2");
+  assert.equal(await page.textContent("#hud-next"), "faltam 5 para ★3");
+  await snap("armas");
+
   // derrota: casco a zero
   await page.evaluate(() => window.__rajada.autopilot(false));
   for (let i = 0; i < 10 && (await page.evaluate(() => window.__rajada.screen())) === "game"; i++) {
