@@ -2,6 +2,7 @@
 // Sprites em alta definição aparecem no mesmo tamanho de mundo, com o dobro de detalhe.
 // Uso: npm run sprites  → tests/prints/sprites.png
 // Só alguns, maiores: node scripts/sprites-sheet.mjs 10 couracado,portador → tests/prints/sprites-filtro.png
+// Chefes: node scripts/sprites-sheet.mjs chefes → tests/prints/chefes.png
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -11,8 +12,10 @@ import { build } from "esbuild";
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 const root = fileURLToPath(new URL("..", import.meta.url));
-const scale = Number(process.argv[2] ?? 6);
-const only = process.argv[3] ? process.argv[3].split(",") : null;
+const BOSSES = ["colosso", "aranha", "olho", "iris", "serpente", "serpente_gomo", "serpente_cauda", "forja", "rainha"];
+const bossMode = process.argv[2] === "chefes";
+const scale = bossMode ? 4 : Number(process.argv[2] ?? 6);
+const only = bossMode ? BOSSES : process.argv[3] ? process.argv[3].split(",") : null;
 
 const entry = `
 import { buildSprites, SPRITES, HD_SPRITES } from "./src/sprites.js";
@@ -60,7 +63,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 await page.setContent(html);
 await page.waitForTimeout(200);
-const out = join(root, only ? "tests/prints/sprites-filtro.png" : "tests/prints/sprites.png");
+const out = join(root, bossMode ? "tests/prints/chefes.png" : only ? "tests/prints/sprites-filtro.png" : "tests/prints/sprites.png");
 await page.locator("#sheet").screenshot({ path: out });
 await browser.close();
 if (errors.length) throw new Error(errors.join("\n"));

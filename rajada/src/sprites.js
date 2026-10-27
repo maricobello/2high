@@ -4,6 +4,7 @@
 // mini editor de pixels: formas simples, depois espelho, sombra e contorno.
 import { createRng } from "./rng.js";
 import { couracadoHD, portadorHD, pedraHD } from "./art-grandes.js";
+import { colossoHD, aranhaHD, olhoHD, irisHD, serpenteHD, serpenteGomoHD, serpenteCaudaHD, forjaHD, rainhaHD } from "./art-chefes.js";
 import { DARK, grid, toRows, set, rect, poly, ellipse, line, stamp, shade, outline, finish, spin4 } from "./pixel.js";
 
 export const PALETTE = {
@@ -260,120 +261,6 @@ const MINA_B = [
 
 // ---------- chefes ----------
 
-const TORRETA = [".ddd.", "dlllg", "dlrld", "dgggd", "..d.."];
-
-function colosso(frame) {
-  const G = grid(63, 41);
-  const flame = frame ? "Y" : "y";
-  // chamas e bocais dos motores (no topo: o chefe vem de cima)
-  rect(G, 23, 0, 3, 2, "o");
-  set(G, 24, 0, flame);
-  rect(G, 30, 0, 2, 2, "o");
-  set(G, 31, 0, flame);
-  rect(G, 22, 2, 5, 3, "d");
-  rect(G, 29, 2, 3, 3, "d");
-  rect(G, 20, 5, 12, 4, "g");
-  // casco central
-  poly(G, [[31.5, 6], [22, 8], [19, 14], [19, 28], [23, 34], [28, 38], [31.5, 40]], "g");
-  rect(G, 29, 8, 3, 28, "l");
-  // asas
-  poly(G, [[20, 13], [9, 17], [4, 22], [4, 27], [12, 28], [20, 29]], "g");
-  line(G, 8, 23, 19, 23, "d");
-  line(G, 11, 26, 19, 26, "d");
-  // casulos laterais com canhão
-  rect(G, 1, 15, 5, 16, "l");
-  rect(G, 2, 31, 3, 3, "d");
-  set(G, 3, 34, "r");
-  line(G, 3, 16, 3, 29, "w");
-  // núcleo (ponto fraco)
-  ellipse(G, 31.5, 21, 6.2, 6.2, "R");
-  ellipse(G, 31.5, 21, 4.6, 4.6, "r");
-  ellipse(G, 31.5, 21, 2.6, 2.6, flame);
-  // torretas e canhão da proa
-  stamp(G, TORRETA, 10, 18);
-  stamp(G, TORRETA, 15, 22);
-  rect(G, 30, 37, 2, 4, "d");
-  set(G, 31, 40, "r");
-  return finish(G);
-}
-
-const PERNAS = [
-  [
-    [[22, 19], [12, 11], [4, 4]],
-    [[21, 23], [9, 19], [2, 25]],
-    [[21, 26], [10, 30], [4, 38]],
-    [[24, 29], [16, 36], [14, 44]],
-  ],
-  [
-    [[22, 19], [13, 9], [6, 3]],
-    [[21, 23], [9, 21], [2, 27]],
-    [[21, 26], [9, 28], [3, 36]],
-    [[24, 29], [17, 37], [16, 44]],
-  ],
-];
-
-function aranha(frame) {
-  const G = grid(59, 46);
-  for (const [hip, knee, foot] of PERNAS[frame]) {
-    line(G, hip[0], hip[1], knee[0], knee[1], "V", 2);
-    line(G, knee[0], knee[1], foot[0], foot[1], "V", 2);
-    set(G, knee[0], knee[1], "v");
-  }
-  ellipse(G, 29.5, 11, 10.5, 9.5, "V"); // abdômen
-  for (const y of [5, 9, 13]) line(G, 22, y, 29, y, "U");
-  ellipse(G, 29.5, 24, 9.5, 8, "v"); // tórax
-  ellipse(G, 29.5, 34, 6.5, 5.5, "v"); // cabeça
-  ellipse(G, 26.5, 33, 1.7, 1.7, "p");
-  ellipse(G, 24.5, 35.5, 1.2, 1.2, "p");
-  set(G, 26, 32, "w");
-  rect(G, 27, 38, 1, 4, "w"); // presas
-  ellipse(G, 29.5, 22, 3.6, 3.6, "r"); // núcleo
-  ellipse(G, 29.5, 22, 1.8, 1.8, frame ? "Y" : "y");
-  return finish(G);
-}
-
-// lid: 0 aberto, 1 semicerrado (vai atirar), 2 fechado (invulnerável)
-function olho(lid) {
-  const G = grid(49, 47);
-  for (let k = 0; k < 12; k++) {
-    const a = (k / 12) * Math.PI * 2 + Math.PI / 12;
-    const tip = [24.5 + Math.cos(a) * 23.5, 23.5 + Math.sin(a) * 22.5];
-    const l = [24.5 + Math.cos(a - 0.2) * 18, 23.5 + Math.sin(a - 0.2) * 18];
-    const r = [24.5 + Math.cos(a + 0.2) * 18, 23.5 + Math.sin(a + 0.2) * 18];
-    poly(G, [tip, l, r], "R");
-  }
-  ellipse(G, 24.5, 23.5, 20, 19.5, "R");
-  ellipse(G, 24.5, 23.5, 17.5, 16, "r");
-  ellipse(G, 24.5, 24, 14.5, 12.5, "k");
-  ellipse(G, 24.5, 24, 13.5, 11.5, "w");
-  ellipse(G, 24.5, 27, 12, 8.5, "l");
-  ellipse(G, 24.5, 24.5, 12.5, 10, "w");
-  line(G, 12, 26, 17, 23, "q");
-  line(G, 13, 20, 17, 21, "q");
-  if (lid) {
-    const bottom = lid === 2 ? 37 : 22;
-    for (let y = 10; y <= bottom; y++) {
-      for (let x = 0; x < 49; x++) if (G[y][x] === "w" || G[y][x] === "l" || G[y][x] === "q") G[y][x] = "r";
-    }
-    line(G, 11, bottom, 24, bottom, "R");
-  }
-  return finish(G);
-}
-
-const IRIS = [
-  "...NNNNN...",
-  ".NNbbbbbNN.",
-  ".NbBBBBBbN.",
-  "NbBBkkkBBbN",
-  "NbBkkkkkBbN",
-  "NbBkkkkwBbN",
-  "NbBkkkkkBbN",
-  "NbBBkkkBBbN",
-  ".NbBBBBBbN.",
-  ".NNbbbbbNN.",
-  "...NNNNN...",
-];
-
 // ---------- itens, tiros e efeitos ----------
 
 // Cápsula: casca arredondada com a letra no meio (5x5).
@@ -490,10 +377,6 @@ export const SPRITES = {
   pedra_m: spin4(rock(11, 8)),
   pedra_p: spin4(rock(7, 5)),
   mina: [MINA_A, MINA_B],
-  colosso: [colosso(0), colosso(1)],
-  aranha: [aranha(0), aranha(1)],
-  olho: [olho(0), olho(1), olho(2)],
-  iris: [IRIS],
   cap_M: [capsule("M", "y", "O", "Y"), capsule("M", "Y", "y", "w")],
   cap_F: [capsule("F", "o", "R", "y"), capsule("F", "y", "o", "Y")],
   cap_D: [capsule("D", "e", "E", "m"), capsule("D", "m", "e", "w")],
@@ -555,6 +438,15 @@ export const HD_SPRITES = {
   couracado: [couracadoHD(0), couracadoHD(1)],
   portador: [portadorHD(0), portadorHD(1)],
   pedra_g: [pedraHD(0), pedraHD(1), pedraHD(2), pedraHD(3)],
+  colosso: [0, 1, 2, 3].map((f) => colossoHD(f)),
+  aranha: [0, 1, 2, 3].map((f) => aranhaHD(f)),
+  olho: [0, 1, 2].map((lid) => olhoHD(lid)),
+  iris: [irisHD()],
+  serpente: [serpenteHD(0), serpenteHD(1)],
+  serpente_gomo: [serpenteGomoHD(0), serpenteGomoHD(1)],
+  serpente_cauda: [serpenteCaudaHD()],
+  forja: [0, 1, 2, 3].map((f) => forjaHD(f)),
+  rainha: [0, 1, 2, 3].map((f) => rainhaHD(f)),
 };
 
 export const isHd = (name) => Object.hasOwn(HD_SPRITES, name);

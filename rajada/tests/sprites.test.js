@@ -10,7 +10,7 @@ const fingerprint = (o) => createHash("sha256").update(JSON.stringify(o)).digest
 // Impressão digital dos sprites de baixa resolução que não foram redesenhados
 // (os que passaram para alta definição saem da conta).
 test("editor movido sem mudar nenhum sprite", () => {
-  assert.equal(fingerprint(SPRITES), "59e56b92c725abf82a423575d578d7ce3d04ede194dfd89d1d9b52c0f025fc7b");
+  assert.equal(fingerprint(SPRITES), "1064bd70b6fe284b901812c0b95cd1c56f0c0a12b259fd7d317b25fe47ad8901");
 });
 
 test("sprite HD mede metade da grade no mundo", () => {
@@ -68,4 +68,22 @@ test("inimigos grandes em alta definição mantêm o tamanho no mundo", () => {
     assert.equal(distinct.size, frames, `${name}: quadros diferentes entre si`);
   }
   assert.deepEqual(validateSprites(), []);
+});
+
+const checkHd = (expected) => {
+  for (const [name, [w, h, frames]] of Object.entries(expected)) {
+    assert.ok(isHd(name), name);
+    assert.deepEqual(sizeOf(name), { w, h }, name);
+    assert.equal(HD_SPRITES[name].length, frames, name);
+    if (frames > 1) assert.equal(new Set(HD_SPRITES[name].map((f) => f.join("\n"))).size, frames, `${name}: quadros diferentes`);
+  }
+  assert.deepEqual(validateSprites(), []);
+};
+
+test("chefes atuais em alta definição mantêm tamanho e caixas", () => {
+  checkHd({ colosso: [63, 41, 4], aranha: [59, 46, 4], olho: [49, 47, 3], iris: [11, 11, 1] });
+});
+
+test("arte dos chefes novos: Serpente, Forja e Rainha", () => {
+  checkHd({ serpente: [26, 22, 2], serpente_gomo: [16, 14, 2], serpente_cauda: [12, 12, 1], forja: [70, 40, 4], rainha: [64, 44, 4] });
 });
