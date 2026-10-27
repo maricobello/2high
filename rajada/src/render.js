@@ -313,7 +313,8 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     const b = g.boss;
     if (!b) return;
     // a versão quebrada nasce enquanto o chefe entra (sem engasgo na fase 2)
-    if (b.entering && !b.broken) for (const part of b.id === "olho" ? ["olho", "iris"] : [b.def.sprite]) {
+    const parts = { olho: ["olho", "iris"], serpente: ["serpente", "serpente_gomo", "serpente_cauda"] }[b.id] ?? [b.def.sprite];
+    if (b.entering && !b.broken) for (const part of parts) {
       const name = bossSprite({ ...b, broken: true }, part);
       if (!sprites[name]) sprites.make(name);
     }
@@ -329,6 +330,15 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         const iy = b.lid === 1 ? 3 : 0;
         spr(bossSprite(b, "iris"), 0, b.x + (dx / d) * k, b.y + 0.5 + (dy / d) * k * 0.7 + iy);
       }
+    } else if (b.segments) {
+      // Serpente: da cauda para a cabeça; boca aberta quando solta o anel
+      const bodyGlow = b.lap > LAPS.glowAfter ? LAPS.glow : 0;
+      for (let i = b.segments.length - 1; i >= 0; i--) {
+        const s = b.segments[i];
+        const part = i === b.segments.length - 1 ? "serpente_cauda" : "serpente_gomo";
+        spr(bossSprite(b, part), anim(5, i * 0.5), s.x, s.y, { glow: bodyGlow });
+      }
+      spr(bossSprite(b), b.attack?.mouth ? 1 : 0, b.x, b.y, { glow });
     } else {
       spr(bossSprite(b), anim(6), b.x, b.y, { glow });
     }
@@ -601,6 +611,8 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         break;
       case "boss_kill": {
         fx.ghosts.push({ name: d.sprite, x: d.x, y: d.y, t: 0, dur: 1.3 });
+        // Serpente: o corpo explode gomo a gomo, da cabeça para a cauda
+        (d.segments ?? []).forEach((s, i) => boom(s.x, s.y, 0.06 * i));
         for (let i = 0; i < 14; i++) boom(d.x + (Math.random() - 0.5) * d.w * 0.8, d.y + (Math.random() - 0.5) * d.h * 0.8, i * 0.09);
         later(1.25, () => {
           burst(d.x, d.y, DEBRIS.chefe, 60, 140, 1);

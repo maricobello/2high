@@ -116,6 +116,18 @@ const ATTACKS = {
     every: 0.8,
     fire: (b, g, i) => ring(g, b.x, b.y, 14, 58, "bala", i * 0.22),
   },
+
+  // ----- Serpente -----
+  // os gomos atiram em ordem, da cabeça para a cauda
+  gomos: {
+    dur: 2.4,
+    every: 0.2,
+    fire: (b, g, i) => {
+      const s = b.segments[i % b.segments.length];
+      g.fire(s.x, s.y, g.aimAngle(s.x, s.y), 100, "bala");
+    },
+  },
+  anel_serpente: { dur: 1.2, every: 0.4, mouth: true, fire: (b, g, i) => ring(g, b.x, b.y + 4, 16, 70, "bolha", i * 0.2) },
 };
 
 const SCRIPTS = {
@@ -130,6 +142,10 @@ const SCRIPTS = {
   olho: [
     ["olhar", "laser", "pausa", "orbes", "piscar", "pausa"],
     ["laser2", "orbes", "olhar", "piscar", "olhar"],
+  ],
+  serpente: [
+    ["gomos", "pausa", "gomos", "pausa"],
+    ["gomos", "anel_serpente", "gomos", "anel_serpente"],
   ],
 };
 
@@ -169,6 +185,10 @@ export function makeBoss(n, H, hpScale) {
     lap,
     skin: lapSkin(lap), // paleta da volta (0 na primeira)
     broken: false, // armadura quebrada (fase 2)
+    moveT: 0, // relógio do movimento (corre 1,5× na fase 2 da Serpente)
+    // Serpente: gomos e o rastro da cabeça (mais novo primeiro)
+    segments: def.segments ? Array.from({ length: def.segments }, () => ({ x: W / 2, y: -size.h / 2 })) : null,
+    trail: [],
   };
 }
 
@@ -189,9 +209,11 @@ export function updateBoss(b, dt, g) {
       b.vulnerable = true;
       b.t = 0;
     }
+    if (b.segments) followHead(b);
     return null;
   }
   move(b, dt, g);
+  if (b.segments) followHead(b);
 
   let event = null;
   if (b.phase === 1 && b.hp < b.maxHp / 2) {
@@ -236,6 +258,10 @@ function move(b, dt, g) {
   if (b.id === "colosso") {
     b.x = g.W / 2 + Math.sin(t * 0.5) * 52;
     b.y = b.ty + Math.sin(t * 0.9) * 3;
+  } else if (b.id === "serpente") {
+    b.moveT += dt * (b.phase === 2 ? 1.5 : 1);
+    b.x = g.W / 2 + Math.sin(b.moveT * 0.9) * (g.W / 2 - 30);
+    b.y = b.ty + Math.sin(b.moveT * 1.7) * 26;
   } else if (b.id === "aranha") {
     if (!b.wander || t >= b.wander.until) {
       b.wander = { x: g.rng.range(44, g.W - 44), y: b.ty + g.rng.range(-8, 22), until: t + 2.4 };
@@ -248,9 +274,46 @@ function move(b, dt, g) {
   }
 }
 
+// Gomos seguem o caminho da cabeça: cada um fica `spacing` adiante do outro
+// ao longo do rastro (os que ainda não cabem esperam no começo dele).
+function followHead(b) {
+  const head = b.trail[0];
+  if (!head || Math.hypot(b.x - head.x, b.y - head.y) >= 1) b.trail.unshift({ x: b.x, y: b.y });
+  const pts = b.trail;
+  const gap = b.def.spacing;
+  let k = 0;
+  let need = gap;
+  // a cabeça pode estar a menos de 1 do ponto mais novo: o pedaço já conta
+  let acc = Math.hypot(b.x - pts[0].x, b.y - pts[0].y);
+  for (let i = 1; i < pts.length && k < b.segments.length; i++) {
+    const a = pts[i - 1];
+    const c = pts[i];
+    const d = Math.hypot(c.x - a.x, c.y - a.y);
+    while (k < b.segments.length && acc + d >= need) {
+      const u = d > 0 ? (need - acc) / d : 0;
+      b.segments[k].x = a.x + (c.x - a.x) * u;
+      b.segments[k].y = a.y + (c.y - a.y) * u;
+      k += 1;
+      need += gap;
+    }
+    acc += d;
+    if (k >= b.segments.length) pts.length = i + 1;
+  }
+  const end = pts[pts.length - 1];
+  for (; k < b.segments.length; k++) {
+    b.segments[k].x = end.x;
+    b.segments[k].y = end.y;
+  }
+}
+
 // Caixa de acerto do chefe (centrada).
 export function bossHit(b, x, y, pad = 0) {
   return Math.abs(x - b.x) <= b.box[0] / 2 + pad && Math.abs(y - b.y) <= b.box[1] / 2 + pad;
+}
+
+// Acertou um gomo da Serpente (bloqueia o tiro, sem dano).
+export function bossBlocks(b, x, y, pad = 0) {
+  return !!b.segments?.some((s) => Math.abs(x - s.x) <= 7 + pad && Math.abs(y - s.y) <= 6 + pad);
 }
 
 export { ATTACKS, SCRIPTS };

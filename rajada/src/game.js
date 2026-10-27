@@ -33,7 +33,7 @@ import { bandOf } from "./power.js";
 import { skillAdjust, threatCap, pickWave, waveGap, isStrong } from "./director.js";
 import { makeEnemy, moveEnemy, enemyFire, onEnemyDeath } from "./enemies.js";
 import { buildWave, carrierEntry } from "./waves.js";
-import { makeBoss, updateBoss, bossHit, bossSprite } from "./bosses.js";
+import { makeBoss, updateBoss, bossHit, bossBlocks, bossSprite } from "./bosses.js";
 
 export const DEFAULT_LOADOUT = {
   ship: "faisca",
@@ -540,6 +540,10 @@ export function createGame(opts = {}) {
         b.dead = true;
         if (b0.vulnerable) damageBoss(b.dmg);
         else emit("deflect", { x: b.x, y: b.y });
+      } else if (bossBlocks(b0, b.x, b.y)) {
+        // gomo da Serpente: bloqueia o tiro, só a cabeça leva dano
+        b.dead = true;
+        emit("deflect", { x: b.x, y: b.y });
       }
     }
 
@@ -554,7 +558,8 @@ export function createGame(opts = {}) {
         }
       }
       const onBoss = !hit && g.boss && !g.boss.entering && bossHit(g.boss, r.x, r.y);
-      if (!hit && !onBoss) continue;
+      const onBody = !hit && !onBoss && g.boss && !g.boss.entering && bossBlocks(g.boss, r.x, r.y);
+      if (!hit && !onBoss && !onBody) continue;
       r.dead = true;
       // área da explosão decidida antes do impacto: pedaços de pedra que nascem
       // agora não levam o mesmo estouro
@@ -620,7 +625,7 @@ export function createGame(opts = {}) {
       }
     }
     if (g.status !== "playing") return;
-    if (p.inv <= 0 && g.boss && !g.boss.entering && bossHit(g.boss, p.x, p.y, -4)) hurt("chefe");
+    if (p.inv <= 0 && g.boss && !g.boss.entering && (bossHit(g.boss, p.x, p.y, -4) || bossBlocks(g.boss, p.x, p.y, -3))) hurt("chefe");
     if (g.status !== "playing") return;
 
     for (const l of g.lasers) {
@@ -741,7 +746,7 @@ export function createGame(opts = {}) {
     g.phase = "after";
     g.phaseT = 0;
     g.hitstop = 0.2;
-    emit("boss_kill", { name: b.name, sprite: bossSprite(b), x: b.x, y: b.y, w: b.w, h: b.h, score: pts });
+    emit("boss_kill", { name: b.name, sprite: bossSprite(b), x: b.x, y: b.y, w: b.w, h: b.h, score: pts, segments: b.segments?.map((s) => ({ ...s })) });
     emit("sector_clear", { sector: g.sector, bonus, noHit });
   }
 

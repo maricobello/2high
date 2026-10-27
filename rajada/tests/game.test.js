@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createGame, DEFAULT_LOADOUT } from "../src/game.js";
 import { createBot } from "../src/bot.js";
-import { makeBoss, updateBoss, bossSprite, SCRIPTS, ATTACKS } from "../src/bosses.js";
+import { makeBoss, updateBoss, bossSprite, bossBlocks, SCRIPTS, ATTACKS } from "../src/bosses.js";
 import { buildWave } from "../src/waves.js";
 import { createRng } from "../src/rng.js";
 import { WAVES, BOSSES } from "../src/config.js";
@@ -463,6 +463,62 @@ test("chefes: roteiros só usam ataques existentes e mudam de fase em 50%", () =
     for (let i = 0; i < 1200; i++) updateBoss(b, DT, g);
   }
   assert.ok(g.shots.length > 0 || g.lasers.length >= 0);
+});
+
+test("todos os roteiros só usam ataques que existem", () => {
+  for (const { id } of BOSSES) {
+    assert.equal(SCRIPTS[id]?.length, 2, `${id}: roteiro das duas fases`);
+    for (const list of SCRIPTS[id]) for (const name of list) assert.ok(ATTACKS[name], `${id}: ${name}`);
+  }
+});
+
+const serpente = (g) => {
+  const n = BOSSES.findIndex((b) => b.id === "serpente");
+  assert.ok(n >= 0, "Serpente está na lista de chefes");
+  return makeBoss(n, g.H, 1);
+};
+
+test("gomos seguem a cabeça mantendo a distância", () => {
+  const { g } = play();
+  const b = serpente(g);
+  assert.equal(b.segments.length, 10);
+  for (let i = 0; i < 5 * 60; i++) updateBoss(b, DT, g);
+  const chain = [{ x: b.x, y: b.y }, ...b.segments];
+  for (let i = 1; i < chain.length; i++) {
+    const d = Math.hypot(chain[i].x - chain[i - 1].x, chain[i].y - chain[i - 1].y);
+    assert.ok(Math.abs(d - 9) <= 1.5, `gomo ${i}: ${d.toFixed(2)}`);
+  }
+});
+
+test("gomos ficam dentro da tela", () => {
+  const { g } = play();
+  const b = serpente(g);
+  for (let i = 0; i < 30 * 60; i++) {
+    if (i === 15 * 60) b.hp = b.maxHp * 0.4; // fase 2: anda mais rápido
+    updateBoss(b, DT, g);
+    for (const s of b.segments) assert.ok(s.x >= 0 && s.x <= g.W && s.y >= -20 && s.y <= g.H / 2, `${s.x.toFixed(1)}, ${s.y.toFixed(1)}`);
+  }
+});
+
+test("tiro no gomo é bloqueado; na cabeça dá dano", () => {
+  const { g, count } = play();
+  quiet(g);
+  g.boss = serpente(g);
+  run(g, 4, (gg) => (gg.player.inv = 1));
+  const b = g.boss;
+  assert.equal(b.entering, false);
+  const seg = b.segments[6];
+  assert.ok(bossBlocks(b, seg.x, seg.y));
+  assert.ok(!bossBlocks(b, seg.x + 40, seg.y + 40));
+  const hp = b.hp;
+  const deflects = count("deflect");
+  g.bullets.push({ x: seg.x, y: seg.y + 2, vx: 0, vy: -1, dmg: 5, pierce: 0, hits: [], band: 0 });
+  g.update(DT);
+  assert.equal(b.hp, hp, "gomo não leva dano");
+  assert.ok(count("deflect") > deflects, "o tiro bate no gomo");
+  g.bullets.push({ x: b.x, y: b.y + 2, vx: 0, vy: -1, dmg: 5, pierce: 0, hits: [], band: 0 });
+  g.update(DT);
+  assert.ok(b.hp < hp, "a cabeça leva dano");
 });
 
 test("segundo ciclo de chefes é mais forte", () => {
