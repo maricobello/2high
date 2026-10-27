@@ -97,6 +97,8 @@ async function run(label, context) {
   // chefe
   await page.evaluate(() => window.__rajada.skipToBoss());
   await page.waitForFunction(() => window.__rajada.game().boss && !window.__rajada.game().boss.entering, null, { timeout: 15000 });
+  // vida alta: com as armas sem teto o chefe cairia antes das checagens abaixo
+  await game(page, (g) => (g.boss.hp = g.boss.maxHp = g.boss.maxHp * 50));
   await page.waitForTimeout(2500);
   assert.equal(await page.isVisible("#hud-boss"), true, "barra de vida do chefe");
   await snap("4-chefe");
