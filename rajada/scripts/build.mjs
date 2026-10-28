@@ -78,7 +78,9 @@ if (!email) console.warn("aviso: store/config.json sem e-mail. Preencha antes de
 // O nome do cache muda quando qualquer página muda: o modo offline nunca fica com a versão velha.
 const pagesCss = await read("paginas.css");
 const hash = createHash("sha256").update(site).update(pagesCss).update(Object.values(pages).join("")).digest("hex").slice(0, 10);
-await writeFile(join(dist, "sw.js"), (await read("sw.js")).replace("__CACHE__", `rajada-${hash}`));
+const sw = (await read("sw.js")).replace("__CACHE__", `rajada-${hash}`);
+if (!sw.includes(`const CACHE = "rajada-${hash}"`)) throw new Error("sw.js: o nome do cache não foi trocado");
+await writeFile(join(dist, "sw.js"), sw);
 await writeFile(join(dist, "paginas.css"), pagesCss);
 for (const file of ["manifest.webmanifest", "icon.svg", "og.png"]) {
   if (await exists(file)) await cp(join(root, file), join(dist, file));
