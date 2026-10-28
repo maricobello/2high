@@ -1,7 +1,8 @@
 // Simulador de balanceamento: pilotos automáticos de três níveis jogam
 // dezenas de partidas sem tela, em paralelo (uma por núcleo). Mostra duração,
 // setor, cristais, cápsulas, nível da metralhadora e o que mais derruba, e
-// confere os critérios da especificação (S4, S7, S8, S9).
+// confere os critérios da especificação (S4, S7, S8, S9). No modo longo, S7
+// vale também para o piloto médio com melhorias do hangar.
 // Uso: npm run balance [-- partidas]   ·   npm run balance -- longo
 import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
 import { availableParallelism } from "node:os";
@@ -33,7 +34,10 @@ if (!isMainThread) {
   const LIMIT = (long ? 60 : 15) * 60; // s
 
   const groups = long
-    ? [{ label: "piloto 0.9 (longo)", skill: 0.9, seedBase: 3000 }]
+    ? [
+        { label: "piloto 0.9 (longo)", skill: 0.9, seedBase: 3000 },
+        { label: "piloto 0.6 com hangar (longo)", skill: 0.6, seedBase: 4000, upgraded: true, gameSkill: 0.6 },
+      ]
     : [
         { label: "piloto 0.3 sem melhorias", skill: 0.3, seedBase: 1000 },
         { label: "piloto 0.6 sem melhorias", skill: 0.6, seedBase: 1000 },
@@ -91,9 +95,12 @@ if (!isMainThread) {
   console.log("");
   const check = (name, ok, text) => console.log(`${ok ? "ok " : "NÃO"} ${name}: ${text}`);
   if (long) {
-    const runs = byGroup[0];
-    const before30 = runs.filter((r) => !r.timeout && r.sector < 30).length / runs.length;
-    check("S7", before30 >= 0.95, `${Math.round(before30 * 100)}% das partidas do piloto 0.9 acabam antes do setor 30 (meta ≥ 95%)`);
+    // partidas não ficam eternas: nem para o melhor piloto, nem para quem já tem melhorias no hangar
+    groups.forEach((gr, gi) => {
+      const runs = byGroup[gi];
+      const before30 = runs.filter((r) => !r.timeout && r.sector < 30).length / runs.length;
+      check("S7", before30 >= 0.95, `${Math.round(before30 * 100)}% das partidas do ${gr.label} acabam antes do setor 30 (meta ≥ 95%)`);
+    });
   } else {
     const [p3, p6] = byGroup;
     const s1 = percentile(p6.filter((r) => r.s1Time > 0).map((r) => (r.s1Spawns / r.s1Time) * 60), 0.5);

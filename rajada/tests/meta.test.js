@@ -16,7 +16,7 @@ import {
   shipUnlockMet,
   upgradeCost,
 } from "../src/progress.js";
-import { upgradesPanel, collectionData, collectionPanel } from "../src/ui.js";
+import { upgradesPanel, collectionData, collectionPanel, causeBy } from "../src/ui.js";
 
 const run = (over = {}) => ({
   score: 3000,
@@ -218,7 +218,19 @@ test("save antigo abre sem perder nada", () => {
   assert.equal(p.upgrades.canhao, 3);
   assert.equal(p.stats.best.score, 900);
   assert.equal(p.stats.best.gun, 0);
-  assert.deepEqual(p.stats.bossKills, {});
+  assert.deepEqual(p.stats.bossKills, { colosso: 1, aranha: 1 }, "setor 3 na 1.0: Colosso e Aranha derrotados");
+});
+
+test("save da 1.0 mostra na Coleção os chefes já derrotados", () => {
+  // na 1.0 o chefe de cada setor vinha sempre na ordem Colosso, Aranha, Olho
+  const vet = sanitizeStats({ runs: 40, bosses: 25, best: { score: 50000, sector: 9, combo: 6 } });
+  assert.deepEqual(vet.bossKills, { colosso: 23, aranha: 1, olho: 1 });
+  assert.deepEqual(Object.keys(vet.bossSeen).sort(), ["aranha", "colosso", "olho"]);
+  assert.deepEqual(sanitizeStats({ runs: 3, bosses: 2, best: { sector: 2 } }).bossKills, { colosso: 2 });
+  assert.deepEqual(sanitizeStats({ runs: 1, bosses: 0, best: { sector: 1 } }).bossKills, {});
+  assert.deepEqual(sanitizeStats(JSON.parse(JSON.stringify(emptyStats()))).bossKills, {}, "save da 1.1 não ganha nada");
+  const col = collectionData(sanitizeProfile({ stats: { runs: 40, bosses: 25, best: { sector: 9 } } }));
+  assert.equal(col.bosses.filter((b) => b.kills).length, 3);
 });
 
 test("hangar sem fim: preço cresce 1,5× depois da tabela", () => {
@@ -270,6 +282,22 @@ test("missões de forma, raridade e chefe aparecem para quem já chegou perto", 
   assert.equal(kinds.boss_kill_total.type, "aranha", "o chefe visto e ainda não derrotado");
 });
 
+test("perfil novo nunca recebe a missão da forma inicial (Rajada)", () => {
+  const kinds = Object.fromEntries(missionOptions(emptyStats()).map((o) => [o.kind, o]));
+  assert.equal(kinds.form_run?.n, 5, "a primeira forma a alcançar é o Leque");
+});
+
+test("meta de nível da metralhadora segue o percentil 65 das últimas partidas", () => {
+  let s = emptyStats();
+  for (const gun of [8, 10, 12, 14, 30]) s = recordRun(s, run({ maxGun: gun }), "d");
+  const kinds = Object.fromEntries(missionOptions(s).map((o) => [o.kind, o]));
+  assert.equal(kinds.gun_level_run.n, Math.round(percentile([8, 10, 12, 14, 30], 0.65)) + 1);
+  const again = sanitizeStats(JSON.parse(JSON.stringify(s)));
+  assert.deepEqual(again.recent.map((r) => r.gun), [8, 10, 12, 14, 30], "o nível de cada partida fica salvo");
+  const fresh = Object.fromEntries(missionOptions(emptyStats()).map((o) => [o.kind, o]));
+  assert.equal(fresh.gun_level_run.n, 6, "no começo, pelo menos o nível 6");
+});
+
 test("hangar: Canhão, Foguetes e Sorte nunca ficam no máximo", () => {
   const base = defaultProfile();
   const html = upgradesPanel({ ...base, cristais: 0, upgrades: { ...base.upgrades, canhao: 9, sorte: 5, foguetes: 7, casco: 2 } }, () => "x");
@@ -298,4 +326,11 @@ test("coleção: chefe não visto é silhueta; forma liberada pelo recorde", () 
   assert.ok(html.includes("Nível 20"), "forma bloqueada mostra só o nível");
   assert.ok(!html.includes("Caçadora"), "nome da forma bloqueada fica escondido");
   assert.ok(html.includes("Derrotado 2×"));
+});
+
+test("tela de resultado: quem derrubou, com a preposição certa", () => {
+  assert.equal(causeBy("laser_rainha"), "pelo raio da Rainha");
+  assert.equal(causeBy("laser_olho"), "pelo laser do Olho");
+  assert.equal(causeBy("mina"), "por uma Mina");
+  assert.equal(causeBy("zangao"), "por um Zangão");
 });

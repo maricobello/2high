@@ -45,7 +45,7 @@ primeiro minuto), com 3 s de calma para a dica de arrastar.
 |---|---|---|
 | Metralhadora | M, amarela | sobe o nível: mais canos, cadência e dano; forma nova a cada 5 níveis |
 | Foguetes | F, laranja | foguetes teleguiados com explosão; salva maior e estilhaços nos marcos |
-| Drone | D, verde | até 4 naves de apoio; do nível 10 em diante atiram um raio curto |
+| Drone | D, verde | até 4 naves de apoio; do nível 10 em diante atiram um raio fino até o alto da tela |
 | Escudo | E, azul | absorve um tiro |
 | Reparo | coração, rosa | +1 de casco |
 | Pulso | estrela, violeta | limpa os tiros da tela e fere todos os inimigos |
@@ -85,9 +85,10 @@ nível de cada arma na cor dela e uma barra "faltam N para PERFURANTE" (depois d
 A chance depende de quem solta. Cápsulas comuns: 88% das de inimigo comum, 60%
 das do Portador, 30% das de elite e nenhuma das do Couraçado e da 1ª cápsula do
 chefe. Garantias contra azar: depois de 6 comuns seguidas vem rara ou melhor; a
-cada 3 chefes, pelo menos uma lendária. Rara ou melhor brilha com anel e pontos girando; a
-lendária solta faíscas e dá 0,3 s de câmera lenta. Os sorteios são só dentro
-do jogo: não há compra de item aleatório.
+cada 3 chefes, pelo menos uma lendária. Rara ou melhor brilha com anel e pontos
+girando; a lendária solta faíscas e dá 0,3 s de câmera lenta. Com o TURBO já
+ligado, o bônus de TURBO da cápsula estica o tempo dele (a lendária volta a
+encher). Os sorteios são só dentro do jogo: não há compra de item aleatório.
 
 **TURBO:** destruir inimigos e raspar nos tiros inimigos enche a barra do
 TURBO. Cheia, ela dispara sozinha: 6 segundos de tiro dobrado, pontos em dobro
@@ -110,9 +111,10 @@ e enche o TURBO. A área que machuca é só o centro da nave (3 px): passar rasp
 | Portador | brilha e cruza a tela; destruído, solta cápsula |
 
 O começo é cheio (o dobro de inimigos por minuto da 1.0) e cada setor deixa os
-inimigos 35% mais resistentes, sem teto. Do setor 4 em diante aparecem
-**elites** (8%, crescendo até 50%): contorno dourado, vida ×3, cristais em dobro
-e loot melhor.
+inimigos 35% mais resistentes, sem teto; a cada volta, a vida dos inimigos comuns
+ainda é multiplicada por 1,5, para acompanhar o dano das armas sem teto. Do
+setor 4 em diante aparecem **elites** (8%, crescendo até 50%): contorno dourado,
+vida ×3, cristais em dobro e loot melhor.
 
 **Seis chefes**, em alta definição (o dobro de pixels, com volume, brilho e
 animação): **Colosso** (leques, gêmeos, torretas e espirais), **Aranha** (teias,
@@ -324,7 +326,7 @@ O que isso mostra:
 | Som | Medido no navegador: música e efeitos tocam; no pior caso (12 explosões, chefe e Pulso juntos) o pico fica em 0,6, sem distorção. |
 | Acessibilidade | Botões de 44 px ou mais (conferido no teste da Coleção), foco visível no teclado, textos de leitor de tela no casco e nas missões, sem pisca-pisca rápido em áreas grandes, cápsulas com letra além da cor. |
 | Legibilidade | Na fonte pixel o 5 parecia S e o 2 parecia Z: os números vêm de outra fonte (Jersey 10). No canvas, a fonte de 3×5 ganhou "·" e uma ★ de 5 pixels. |
-| Saves antigos | Abrem sem perder nada (testado): recordes e chefes novos começam vazios. |
+| Saves antigos | Abrem sem perder nada (testado): cristais, melhorias e recordes ficam; os chefes que a pessoa já derrotou na 1.0 (deduzidos do melhor setor) aparecem na Coleção. |
 | Privacidade | Nenhuma chamada de rede no build padrão; progresso e estatísticas só no aparelho. |
 | Lojas | Ícone sem transparência para o iPhone, ícone adaptativo e abertura para o Android, só retrato, tela cheia, voltar do Android pausa o jogo, iPhone adia o gesto da borda de baixo. Páginas de privacidade e suporte com contato. Envio às lojas pelo GitHub, sem computador: chave de envio, AAB assinado (testado a cada push com chave descartável) e TestFlight. |
 | Dependências | Nenhuma vulnerabilidade nas dependências do app. As ferramentas de linha de comando do Capacitor (só usadas no computador e no CI) têm alertas do `npm audit` sem correção disponível na versão 8; não entram no app. |

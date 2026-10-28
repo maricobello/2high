@@ -129,7 +129,7 @@ export const ROCKETS = {
 };
 
 // Drones: até 4 (um por nível); depois do 4 a cadência sobe 5% por nível (até
-// 2×) e do 10 em diante cada drone atira um raio curto (beam).
+// 2×) e do 10 em diante cada drone atira um raio fino até o alto da tela (beam).
 export const DRONES = {
   max: 4,
   every: 0.18,
@@ -137,7 +137,7 @@ export const DRONES = {
   speedMax: 2,
   dmg: 0.8,
   fanFrom: 5, // dois tiros em leque de ±6°
-  beam: { from: 10, len: 40, mult: 1.5, tick: 0.1 },
+  beam: { from: 10, mult: 1.5, tick: 0.1 },
   offset: [[-18, 6], [18, 6], [-28, 14], [28, 14]],
 };
 
@@ -221,7 +221,10 @@ export const SECTORS = [
 // Voltas: a cada 6 setores (um por cenário) os inimigos trocam de paleta
 // (1 carmesim, 2 dourado, 3 sombra; depois repete com mais brilho) e um tipo
 // ganha um ataque novo (volta 1 Atirador, 2 Couraçado, 3 Mina).
-export const LAPS = { glowAfter: 3, glow: 0.15 };
+// enemyHp: a cada volta a vida dos inimigos comuns (não a dos chefes, que têm o
+// bônus de volta deles) é multiplicada por este valor, para a vida acompanhar o
+// dano das armas sem teto (ajustado pelos bots com melhorias do hangar).
+export const LAPS = { glowAfter: 3, glow: 0.15, enemyHp: 1.5 };
 export const lapOf = (sector) => Math.floor((sector - 1) / SECTORS.length);
 export const lapSkin = (lap) => (lap > 0 ? ((lap - 1) % 3) + 1 : 0);
 
@@ -256,6 +259,9 @@ export function sectorScale(n) {
     shotSpeed: Math.min(1.6, 1 + 0.07 * s),
   };
 }
+
+// Vida dos inimigos comuns no setor n: escala do setor × multiplicador da volta.
+export const enemyHpScale = (n) => sectorScale(n).hp * LAPS.enemyHp ** lapOf(n);
 
 export const WAVES = [
   { id: "fila", min: 1, weight: 3, threat: 8 },

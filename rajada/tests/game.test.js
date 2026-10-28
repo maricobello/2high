@@ -5,7 +5,7 @@ import { createBot } from "../src/bot.js";
 import { makeBoss, updateBoss, bossSprite, bossBlocks, SCRIPTS, ATTACKS } from "../src/bosses.js";
 import { buildWave } from "../src/waves.js";
 import { createRng } from "../src/rng.js";
-import { WAVES, BOSSES } from "../src/config.js";
+import { WAVES, BOSSES, TURBO, RARITY, LAPS, ENEMIES, sectorScale } from "../src/config.js";
 import { makeEnemy, enemyFire } from "../src/enemies.js";
 import { rocketSpec } from "../src/weapons.js";
 import { lootSource } from "../src/loot.js";
@@ -177,19 +177,39 @@ test("nível 200 em tudo: 30 s sem erro e no máximo 260 tiros da nave", () => {
   assert.ok(most <= 260);
 });
 
-test("drones no nível 10 trocam o tiro por um raio curto", () => {
+test("drones no nível 10 trocam o tiro por um raio fino até o alto da tela", () => {
   const { g } = play();
   quiet(g);
   Object.assign(g.player, { drones: 10, inv: 99 }); // sem levar dano (perderia um nível de drone)
   run(g, 0.3);
   const d = g.player.dronePos[0];
   const near = addEnemy(g, d.x, d.y - 25);
-  const far = addEnemy(g, d.x, d.y - 90);
+  const far = addEnemy(g, d.x, d.y - 150);
   run(g, 0.5, (game) => (game.player.gunT = 99));
   assert.equal(g.droneBeams.length, 4);
-  assert.ok(near.hp < 100, "inimigo dentro do raio leva dano");
-  assert.equal(far.hp, 100, "fora do alcance não leva");
+  assert.ok(near.hp < 100, "inimigo perto leva dano");
+  assert.ok(far.hp < 100, "inimigo longe também: o raio vai até o alto da tela");
   assert.equal(g.bullets.filter((b) => b.drone).length, 0, "com raio o drone não atira");
+});
+
+test("drones no nível 10 não batem menos que no 9 num alvo longe", () => {
+  const dealt = (level) => {
+    const { g } = play();
+    quiet(g);
+    Object.assign(g.player, { drones: level, inv: 99 });
+    run(g, 0.3);
+    const d = g.player.dronePos[0];
+    const [x, y] = [d.x, d.y - 150];
+    const e = addEnemy(g, x, y, 1e6);
+    run(g, 2, (game) => {
+      game.player.gunT = 99;
+      Object.assign(e, { x, y });
+    });
+    return 1e6 - e.hp;
+  };
+  const [nine, ten] = [dealt(9), dealt(10)];
+  assert.ok(nine > 0, "no 9 os tiros chegam");
+  assert.ok(ten >= nine, `no 10 o raio bate pelo menos o mesmo (${nine.toFixed(1)} → ${ten.toFixed(1)})`);
 });
 
 test("acima de 260 tiros da nave, os mais antigos somem primeiro", () => {
@@ -393,6 +413,19 @@ test("câmera lenta da lendária dura 0,3 s e a velocidade volta ao normal", () 
 
 test("com reduzir movimento não há câmera lenta", () => {
   for (const d of legendaryAndTime({ reducedMotion: true })) assert.ok(Math.abs(d - 0.1) <= 1 / 120 + 1e-9, d.toFixed(4));
+});
+
+test("bônus de TURBO da cápsula rara ou lendária vale com o TURBO já ligado", () => {
+  const { g } = play({ reducedMotion: true });
+  g.turboT = 1;
+  g.items.push({ kind: "cap", type: "E", rarity: "lendaria", x: g.player.x, y: g.player.y, t: 0 });
+  g.update(DT);
+  assert.ok(g.turboT > TURBO.dur - 0.05, `lendária enche o TURBO ligado (${g.turboT})`);
+  g.turboT = 1;
+  g.items.push({ kind: "cap", type: "E", rarity: "rara", x: g.player.x, y: g.player.y, t: 0 });
+  g.update(DT);
+  const extra = (TURBO.dur * RARITY.rara.turbo) / TURBO.full;
+  assert.ok(Math.abs(g.turboT - (1 + extra)) < 0.05, `rara estica o TURBO em ${extra} s (${g.turboT})`);
 });
 
 test("resumo da partida traz recordes de arma, raridade e chefes", () => {
@@ -630,6 +663,34 @@ test("raio em leque sempre avisa por 1 s antes", () => {
   assert.equal(count("hurt"), 0, "no aviso não fere");
   run(g, 0.2, center);
   assert.equal(count("hurt"), 1, "depois do aviso fere");
+});
+
+test("o raio da Rainha derruba em nome da Rainha", () => {
+  const { g, events } = play();
+  quiet(g);
+  const b = bossById(g, "rainha");
+  b.x = g.W / 2;
+  b.y = b.ty - 50;
+  g.boss = b;
+  const center = (gg) => (gg.player.x = gg.W / 2);
+  center(g);
+  g.laser(b, Math.PI / 2, Math.PI / 2, 1, 1.6, 6);
+  run(g, 1.2, center);
+  assert.equal(events.find((e) => e.type === "hurt").data.cause, "laser_rainha");
+});
+
+test("a cada volta os inimigos comuns ganham vida; os chefes ficam como estavam", () => {
+  assert.ok(LAPS.enemyHp > 1, "multiplicador de vida por volta");
+  const { g } = play();
+  quiet(g);
+  g.jumpTo(7); // volta 1
+  g.spawnWave("fila");
+  run(g, 3);
+  const z = g.enemies.find((e) => e.type === "zangao" && !e.elite);
+  assert.ok(z, "um Zangão comum entrou");
+  assert.ok(Math.abs(z.maxHp - ENEMIES.zangao.hp * sectorScale(7).hp * LAPS.enemyHp) < 1e-9, `${z.maxHp}`);
+  const b = makeBoss(6, 400, sectorScale(7).hp);
+  assert.equal(b.maxHp, Math.round(BOSSES[0].hp * sectorScale(7).hp * 1.5), "chefe: só o bônus de volta de sempre");
 });
 
 test("enxame não passa do teto de 60 inimigos", () => {

@@ -26,7 +26,7 @@ import {
   localDay,
   struggling,
 } from "./progress.js";
-import { $, fmt, installIcons, missionItem, upgradesPanel, shipsPanel, statsPanel, causeName, collectionData, collectionPanel } from "./ui.js";
+import { $, fmt, installIcons, missionItem, upgradesPanel, shipsPanel, statsPanel, causeBy, collectionData, collectionPanel } from "./ui.js";
 
 const TAP_GUARD_MS = 700;
 const TOUCH_SENS = 1.1;
@@ -89,14 +89,16 @@ function layout() {
 // ---------- telas ----------
 
 const OVERLAYS = ["missions", "hangar", "settings", "collection", "pause", "result"];
+// painéis abertos pela tela inicial: Esc e o voltar do Android fecham todos
+const PANELS = ["hangar", "missions", "settings", "collection"];
 
 function setScreen(name) {
   screen = name;
   const playing = name === "game" || name === "pause" || name === "result";
-  $("home").hidden = playing || !["home", "hangar", "missions", "settings", "collection"].includes(name);
+  $("home").hidden = playing || !(name === "home" || PANELS.includes(name));
   $("hud").hidden = !(name === "game" || name === "pause");
   for (const id of OVERLAYS) $(id).hidden = name !== id;
-  if (["home", "hangar", "missions", "settings", "collection"].includes(name)) $("home").hidden = false;
+  if (name === "home" || PANELS.includes(name)) $("home").hidden = false;
   if (name !== "game") $("hint").hidden = true;
   if (name === "home") renderHome();
 }
@@ -374,7 +376,7 @@ function showResult(run, result, before) {
   if (record) sub = `Você passou o recorde por ${fmt(run.score - prevBest)} pontos.`;
   else if (!firstRun && prevBest && run.score >= prevBest * 0.6) sub = `Faltaram ${fmt(prevBest - run.score)} pontos para o recorde.`;
   else if (close && close.after.progress / close.m.n >= 0.5) sub = `Quase lá: ${missionText(close.m).toLowerCase()} (${fmt(close.after.progress)} de ${fmt(close.m.n)}).`;
-  else sub = `Derrubado por ${causeName(run.cause)}.`;
+  else sub = `Derrubado ${causeBy(run.cause)}.`;
   $("res-sub").textContent = sub;
 
   const meter = $("res-meter");
@@ -760,7 +762,7 @@ document.addEventListener("keydown", (e) => {
   } else if (e.code === "Escape" || e.code === "KeyP") {
     if (screen === "game") pause();
     else if (screen === "pause") act(resume);
-    else if (["hangar", "missions", "settings"].includes(screen)) closeOverlay();
+    else if (PANELS.includes(screen)) closeOverlay();
   } else if (e.code === "KeyM") {
     toggleSetting("music");
   }
@@ -866,7 +868,7 @@ if (native) {
   App.addListener("backButton", () => {
     if (screen === "game") pause();
     else if (screen === "pause") resume();
-    else if (["hangar", "missions", "settings"].includes(screen)) closeOverlay();
+    else if (PANELS.includes(screen)) closeOverlay();
     else if (screen === "result") goHome();
     else App.exitApp();
   });

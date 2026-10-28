@@ -1,7 +1,7 @@
 // O Diretor decide o ritmo das ondas: ciclo de tensão (sobe, pico, alívio),
 // misericórdia depois de dano e um ajuste leve pela habilidade do jogador.
 // Funções puras, testadas em tests/director.test.js.
-import { DIRECTOR, WAVES, sectorScale, sectorInfo } from "./config.js";
+import { DIRECTOR, WAVES, sectorScale, sectorInfo, enemyHpScale } from "./config.js";
 import { clamp } from "./rng.js";
 import { estimateDps } from "./weapons.js";
 
@@ -31,7 +31,7 @@ export function skillAdjust(skill, struggling = false) {
 
 // Armas fortes para o setor: o dano por segundo estimado da nave contra a
 // vida média dos inimigos dele (6 × o multiplicador de vida do setor).
-export const isStrong = (p, sector) => estimateDps(p) / (sectorScale(sector).hp * 6) >= DIRECTOR.strongRatio;
+export const isStrong = (p, sector) => estimateDps(p) / (enemyHpScale(sector) * 6) >= DIRECTOR.strongRatio;
 
 // Ameaça máxima que pode estar viva agora.
 // strong: armas fortes; sinceHit: segundos sem levar dano.

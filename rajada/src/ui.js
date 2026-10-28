@@ -122,8 +122,18 @@ export function causeName(cause) {
       portador: "um Portador",
       chefe: "um chefe",
       laser: "o laser do Olho",
+      laser_olho: "o laser do Olho",
+      laser_rainha: "o raio da Rainha",
     }[cause] ?? "tiro inimigo"
   );
+}
+
+// Com a preposição certa: "por um Zangão", "pelo laser do Olho", "pela ...".
+export function causeBy(cause) {
+  const name = causeName(cause);
+  if (name.startsWith("o ")) return `pelo ${name.slice(2)}`;
+  if (name.startsWith("a ")) return `pela ${name.slice(2)}`;
+  return `por ${name}`;
 }
 
 // ---------- coleção ----------

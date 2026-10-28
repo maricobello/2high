@@ -39,6 +39,19 @@ const counts = (o) => {
   return out;
 };
 
+// Save da 1.0 (sem bossSeen): lá o chefe de cada setor vinha sempre na ordem
+// Colosso, Aranha, Olho, então o melhor setor diz quem já foi derrotado. Aranha e
+// Olho ficam com 1 vitória (o mínimo certo) e o Colosso, que abria toda partida,
+// com o resto do total.
+const ROTATION_10 = ["colosso", "aranha", "olho"];
+function seedBosses10(s) {
+  const beaten = ROTATION_10.slice(0, Math.max(s.best.sector - 1, s.bosses > 0 ? 1 : 0));
+  for (const id of beaten) {
+    s.bossSeen[id] = true;
+    s.bossKills[id] = id === "colosso" ? Math.max(1, s.bosses - (beaten.length - 1)) : 1;
+  }
+}
+
 export function sanitizeStats(raw) {
   const s = emptyStats();
   if (!raw || typeof raw !== "object") return s;
@@ -54,6 +67,7 @@ export function sanitizeStats(raw) {
   if (raw.best && typeof raw.best === "object") {
     for (const k of Object.keys(s.best)) s.best[k] = num(raw.best[k], k === "combo" ? 1 : 0);
   }
+  if (!("bossSeen" in raw)) seedBosses10(s);
   if (Array.isArray(raw.recent)) {
     s.recent = raw.recent
       .filter((r) => r && typeof r === "object")
@@ -69,6 +83,7 @@ export function sanitizeStats(raw) {
         dur: num(r.dur),
         rockets: num(r.rockets),
         turbos: num(r.turbos),
+        gun: num(r.gun),
       }));
   }
   s.skill = clamp(Number.isFinite(Number(raw.skill)) ? Number(raw.skill) : 0.3, 0, 1);
@@ -123,6 +138,7 @@ export function recordRun(stats, run, today) {
       dur: Math.round(run.dur),
       rockets: run.killsBy?.rockets ?? 0,
       turbos: run.turbos,
+      gun: run.maxGun ?? 0,
     },
   ].slice(-RECENT);
   // média móvel: cada partida pesa 25% na habilidade estimada

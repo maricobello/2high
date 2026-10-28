@@ -252,7 +252,9 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
 
   // glow: em vez de pintar tudo de branco, sobrepõe o branco translúcido
   // (usado nos chefes e inimigos grandes).
-  function spr(name, frame, x, y, { flash = false, flip = false, alpha = 1, glow = 0 } = {}) {
+  const NO_OPTS = {};
+  function spr(name, frame, x, y, opts = NO_OPTS) {
+    const { flash = false, flip = false, alpha = 1, glow = 0 } = opts;
     const s = sprites[name] ?? sprites.make(name);
     const set = flash ? s.flash : flip && s.flipped ? s.flipped : s.frames;
     const i = ((frame % set.length) + set.length) % set.length;
@@ -351,8 +353,13 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     }
   }
 
+  // caminho direto: até 220 tiros por quadro, sem as opções de spr()
   function drawShots(g) {
-    for (const s of g.shots) spr(SHOTS[s.kind].sprite, anim(10, s.t * 3), s.x, s.y);
+    for (const s of g.shots) {
+      const sp = sprites[SHOTS[s.kind].sprite];
+      const set = sp.frames;
+      ctx.drawImage(set[anim(10, s.t * 3) % set.length], Math.round(s.x - sp.w / 2), Math.round(s.y - sp.h / 2));
+    }
   }
 
   function drawLasers(g) {
@@ -421,6 +428,9 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     }
   }
 
+  const SHOT_NAMES = ["tiro", "tiro_max", "tiro_drone"];
+  const shotSprites = [[], [], []];
+  const sprite = (name) => sprites[name] ?? sprites.make(name);
   function drawPlayerShots(g) {
     drawBeams(g);
     // rampa de cada faixa calculada uma vez por quadro
@@ -429,7 +439,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     // rastro da faixa 6 em diante (mais longo do 7, as estrelas): uma passada
     // por pedaço do rastro, para trocar o estado do canvas poucas vezes
     if (!reducedMotion) {
-      for (let k = 1; k <= 3; k++) {
+      for (let k = 1, passes = crowded ? 1 : 3; k <= passes; k++) {
         ctx.globalAlpha = 0.6 - k * 0.15;
         let fill = null;
         for (const b of g.bullets) {
@@ -452,7 +462,10 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         ctx.fillRect(Math.round(b.x) - 1, Math.round(b.y) - 1, 1, 1);
         continue;
       }
-      spr(`${b.drone ? "tiro_drone" : b.big ? "tiro_max" : "tiro"}@${i}`, 0, b.x, b.y);
+      // sprite da faixa guardado por tipo, sem montar o nome a cada tiro
+      const kind = b.drone ? 2 : b.big ? 1 : 0;
+      const sp = shotSprites[kind][i] ?? (shotSprites[kind][i] = sprite(`${SHOT_NAMES[kind]}@${i}`));
+      ctx.drawImage(sp.frames[0], Math.round(b.x - sp.w / 2), Math.round(b.y - sp.h / 2));
     }
     for (const r of g.rockets) {
       const cx = Math.round(r.x);
@@ -519,7 +532,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
   }
 
   function particle(x, y, vx, vy, life, color, size = 1, drag = 3) {
-    if (fx.parts.length > 450) return;
+    if (fx.parts.length > partCap) return;
     fx.parts.push({ x, y, vx, vy, life, max: life, color, size, drag });
   }
 
@@ -795,7 +808,13 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
 
   // ---------- quadro ----------
 
+  // tela lotada (mais de 300 tiros): menos partículas e rastro mais curto,
+  // para o quadro caber em 16 ms num celular modesto
+  let partCap = 450;
+  let crowded = false;
   function draw(g, dt) {
+    crowded = g.shots.length + g.bullets.length > 300;
+    partCap = crowded ? 250 : 450;
     if (dt > 0) t += dt;
     if (dt > 0) updateFx(dt);
     const p = g.player;

@@ -25,6 +25,7 @@ import {
   BOSSES,
   sectorLength,
   sectorScale,
+  enemyHpScale,
   sectorInfo,
 } from "./config.js";
 import { createRng, clamp } from "./rng.js";
@@ -212,7 +213,7 @@ export function createGame(opts = {}) {
   // Para os chefes: solta um inimigo na hora (respeita o teto de inimigos).
   g.spawnEnemy = (type, params) => {
     if (g.enemies.length >= PERF.enemies) return null;
-    const e = makeEnemy(type, params, g.scale.hp);
+    const e = makeEnemy(type, params, enemyHpScale(g.sector));
     g.enemies.push(e);
     return e;
   };
@@ -343,7 +344,8 @@ export function createGame(opts = {}) {
     const drones = droneSpec(p.drones);
     g.droneBeams.length = 0;
     if (drones.count > 0) {
-      if (drones.beam) for (let i = 0; i < drones.count; i++) g.droneBeams.push({ x: p.dronePos[i].x, y: p.dronePos[i].y - 4, len: DRONES.beam.len });
+      // raio fino até o alto da tela, como o Raio da metralhadora
+      if (drones.beam) for (let i = 0; i < drones.count; i++) g.droneBeams.push({ x: p.dronePos[i].x, y: p.dronePos[i].y - 4, len: p.dronePos[i].y + 16 });
       p.droneT -= dt;
       if (p.droneT <= 0) {
         if (drones.beam) {
@@ -453,7 +455,7 @@ export function createGame(opts = {}) {
       if (g.enemies.length >= PERF.enemies) break; // teto: o resto espera na fila
       // elites: a partir do setor 4 (nunca o Portador nem os do roteiro)
       const elite = g.sector >= ELITE.from && q.type !== "portador" && !q.cap && rng.chance(eliteChance(g.sector));
-      const e = makeEnemy(q.type, q.params, g.scale.hp, elite);
+      const e = makeEnemy(q.type, q.params, enemyHpScale(g.sector), elite);
       if (q.cap) e.cap = q.cap;
       g.enemies.push(e);
       if (g.sector === 1) g.stats.s1Spawns += 1;
@@ -539,22 +541,33 @@ export function createGame(opts = {}) {
 
   // ---------- colisões ----------
 
+  // Colunas de 16 px (de -32 a W + 32): cada inimigo entra nas colunas que a
+  // caixa dele cobre, na ordem da lista; cada tiro só olha a própria coluna.
+  const COL = 16;
+  const cols = Array.from({ length: Math.ceil((g.W + 64) / COL) }, () => []);
+  const colOf = (x) => Math.min(cols.length - 1, Math.max(0, Math.floor((x + 32) / COL)));
   function collide() {
     const b0 = g.boss;
+    for (const c of cols) c.length = 0;
+    for (const e of g.enemies) {
+      if (e.gone || e.y < -e.h / 2) continue;
+      const hw = e.def.box[0] / 2 + 1;
+      for (let c = colOf(e.x - hw), last = colOf(e.x + hw); c <= last; c++) cols[c].push(e);
+    }
     for (const b of g.bullets) {
       if (b.dead) continue;
-      for (const e of g.enemies) {
-        if (e.dead || e.gone || e.y < -e.h / 2 || b.hits.includes(e)) continue;
-        if (Math.abs(b.x - e.x) <= e.def.box[0] / 2 + 1 && Math.abs(b.y - e.y) <= e.def.box[1] / 2 + 3) {
-          damageEnemy(e, b.dmg, b.drone ? "drones" : b.shard ? "rockets" : "gun");
-          // perfurante: atravessa `pierce` inimigos e para no seguinte
-          if (b.hits.length < (b.pierce ?? 0)) {
-            b.hits.push(e);
-            continue;
-          }
-          b.dead = true;
-          break;
+      for (const e of cols[colOf(b.x)]) {
+        // caixa primeiro: quase todo par sai aqui, antes de olhar a lista de perfurados
+        if (e.dead || Math.abs(b.x - e.x) > e.def.box[0] / 2 + 1 || Math.abs(b.y - e.y) > e.def.box[1] / 2 + 3) continue;
+        if (b.hits.length && b.hits.includes(e)) continue;
+        damageEnemy(e, b.dmg, b.drone ? "drones" : b.shard ? "rockets" : "gun");
+        // perfurante: atravessa `pierce` inimigos e para no seguinte
+        if (b.hits.length < (b.pierce ?? 0)) {
+          b.hits.push(e);
+          continue;
         }
+        b.dead = true;
+        break;
       }
       if (b.dead || !b0 || b0.entering) continue;
       if (bossHit(b0, b.x, b.y)) {
@@ -656,7 +669,7 @@ export function createGame(opts = {}) {
       const along = dx * Math.cos(l.angle) + dy * Math.sin(l.angle);
       const across = Math.abs(-dx * Math.sin(l.angle) + dy * Math.cos(l.angle));
       if (along > 0 && across < l.width / 2 + p.hitR) {
-        hurt("laser");
+        hurt(`laser_${l.boss.id}`);
         break;
       }
     }
@@ -727,7 +740,7 @@ export function createGame(opts = {}) {
           makeEnemy(
             e.def.split,
             { x: e.x + side * 3, y: e.y, vx: side * rng.range(18, 34) + (e.vx ?? 0) * 0.5, vy: Math.max(24, e.vy * 0.9), spin: side * 4 },
-            g.scale.hp,
+            enemyHpScale(g.sector),
           ),
         );
       }
@@ -806,7 +819,12 @@ export function createGame(opts = {}) {
     const rarity = it.rarity ?? "comum";
     const r = applyCapsule(p, it.type, rarity);
     if (rarity === "lendaria" && !reducedMotion) g.slowT = SLOW.dur;
-    if (r.turbo) addTurbo(r.turbo === "cheio" ? TURBO.full : r.turbo);
+    if (r.turbo) {
+      const v = r.turbo === "cheio" ? TURBO.full : r.turbo;
+      // com o TURBO ligado, o bônus da cápsula estica o tempo dele
+      if (g.turboT > 0) g.turboT = Math.min(TURBO.dur, g.turboT + (TURBO.dur * v) / TURBO.full);
+      else addTurbo(v);
+    }
     st.maxGun = Math.max(st.maxGun, p.gun);
     st.maxRockets = Math.max(st.maxRockets, p.rockets);
     st.maxDrones = Math.max(st.maxDrones, p.drones);

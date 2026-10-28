@@ -206,6 +206,13 @@ async function run(label, context) {
   await snap("colecao");
   await page.click("#btn-collection-close");
   await screenIs(page, "home");
+  // Esc fecha qualquer painel da tela inicial (o voltar do Android usa a mesma lista)
+  for (const id of ["hangar", "missions", "settings", "collection"]) {
+    await page.click(`#btn-${id}`);
+    await screenIs(page, id);
+    await page.keyboard.press("Escape");
+    await screenIs(page, "home", 3000).catch(() => assert.fail(`Esc não fechou ${id}`));
+  }
 
   // progresso sobrevive ao recarregar
   await page.reload();

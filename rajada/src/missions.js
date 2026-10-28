@@ -88,8 +88,8 @@ export function missionOptions(stats, owned = ["faisca"]) {
   if (stats.bosses >= 2) add("nohit_boss", 1, 1);
   // armas sem teto: próximo nível, próxima forma e cápsulas raras
   const best = stats.best.gun ?? 0;
-  add("gun_level_run", 2, Math.max(6, best + 3));
-  const nextForm = GUN_FORMS.find((f) => f.at > best && f.at <= 30);
+  add("gun_level_run", 2, Math.max(6, Math.round(p65(stats, "gun", best)) + 1));
+  const nextForm = GUN_FORMS.find((f) => f.at > Math.max(best, 1) && f.at <= 30);
   if (nextForm) add("form_run", 2.5, nextForm.at);
   const rarity = stats.best.rarity ?? 0;
   add("rarity_run", rarity < 3 ? 1.5 : 0.6, rarity < 2 ? 2 : 3);
