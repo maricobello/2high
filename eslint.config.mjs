@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // jogo RAJADA: projeto à parte, com testes próprios (rajada/README.md)
+    "rajada/**",
     // estúdio de vídeos (Remotion) tem dependências e checagem próprias
     "studio/**",
     // jogo PRUMO: projeto à parte, com testes próprios (jogo/README.md)

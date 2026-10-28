@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>RAJADA</title>
+<meta name="description" content="Nave retrô de um dedo: arraste para desviar, pegue cápsulas para turbinar as armas e enfrente chefes. Só mais uma rajada.">
+<meta name="theme-color" content="#05070f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RAJADA">
+<meta property="og:title" content="RAJADA">
+<meta property="og:description" content="Nave retrô de um dedo. Pegue cápsulas, enfrente chefes. Só mais uma rajada.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+  <div id="frame">
+    <canvas id="stage" aria-hidden="true"></canvas>
+
+    <header id="hud" class="hud" hidden>
+      <div class="hud-row">
+        <div class="hud-left">
+          <div id="hud-hearts" class="hearts" role="img" aria-label="Casco"></div>
+          <div id="hud-weapons" class="weapons" aria-hidden="true"></div>
+          <div id="hud-next" class="hud-next" aria-hidden="true"></div>
+        </div>
+        <div class="hud-center">
+          <div id="hud-score" class="score">0</div>
+          <div id="hud-mult" class="mult" hidden>×2</div>
+        </div>
+        <div class="hud-right">
+          <button id="btn-pause" class="icon-btn" type="button" aria-label="Pausar">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3" width="3" height="10"/><rect x="9" y="3" width="3" height="10"/></svg>
+          </button>
+          <div class="hud-cristais"><i class="ico ico-cristal"></i><span id="hud-cristais">0</span></div>
+        </div>
+      </div>
+      <div class="hud-bars">
+        <div id="hud-sector" class="bar sector-bar" aria-hidden="true"><span class="fill"></span><i class="boss-mark"></i></div>
+        <div id="hud-boss" class="bar boss-bar" hidden><b id="hud-boss-name">COLOSSO</b><span class="fill"></span></div>
+        <div id="hud-turbo" class="bar turbo-bar" aria-hidden="true"><span class="fill"></span></div>
+      </div>
+    </header>
+
+    <div id="banner" class="banner" hidden>
+      <span id="banner-eyebrow" class="eyebrow">Setor 1</span>
+      <strong id="banner-title" class="banner-title">Órbita Baixa</strong>
+      <span id="banner-hint" class="banner-hint"></span>
+    </div>
+
+    <div id="hint" class="drag-hint" hidden>
+      <span class="hand" aria-hidden="true"></span>
+      <span id="hint-text">Arraste para mover.<br>A nave atira sozinha.</span>
+    </div>
+
+    <section id="home" class="screen home" aria-label="Início">
+      <div class="home-top">
+        <button id="rank-chip" class="chip rank" type="button"></button>
+        <div class="chip cristais"><i class="ico ico-cristal"></i><span id="home-cristais">0</span></div>
+        <button id="btn-settings" class="icon-btn" type="button" aria-label="Ajustes">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M4 3h8v1h1v8h-1v1H4v-1H3V4h1zm3 3v4h2V6z"/><rect x="7" y="0" width="2" height="3"/><rect x="7" y="13" width="2" height="3"/><rect x="0" y="7" width="3" height="2"/><rect x="13" y="7" width="3" height="2"/><rect x="2" y="2" width="2" height="2"/><rect x="12" y="2" width="2" height="2"/><rect x="2" y="12" width="2" height="2"/><rect x="12" y="12" width="2" height="2"/></svg>
+        </button>
+      </div>
+      <div id="brand" class="brand">
+        <h1 class="wordmark">RAJADA</h1>
+        <p class="tagline">Só mais uma rajada.</p>
+      </div>
+      <div id="home-bottom" class="home-bottom">
+        <p id="daily-chip" class="daily" hidden>Bônus do dia: cristais em dobro na próxima partida</p>
+        <button id="btn-play" class="primary" type="button">
+          <span>Jogar</span>
+          <small id="play-sub">Primeiro voo</small>
+        </button>
+        <div class="row">
+          <button id="btn-hangar" class="secondary stacked" type="button">
+            <span>Hangar</span><small id="hangar-sub">Melhorias e naves</small><i id="hangar-badge" class="badge" hidden></i>
+          </button>
+          <button id="btn-missions" class="secondary stacked" type="button">
+            <span>Missões</span><small id="missions-sub">0 de 3</small>
+          </button>
+        </div>
+        <button id="btn-collection" class="secondary slim" type="button">
+          <span>Coleção</span><small id="collection-sub">Chefes e formas</small>
+        </button>
+      </div>
+    </section>
+
+    <section id="missions" class="screen overlay" aria-label="Missões" hidden>
+      <div class="card">
+        <p class="eyebrow">Patente</p>
+        <h2 id="rank-name" class="card-title">Cadete</h2>
+        <div id="rank-meter" class="meter"><span></span></div>
+        <p id="rank-sub" class="card-sub"></p>
+        <ol id="mission-list" class="mission-list"></ol>
+        <div class="actions">
+          <button id="btn-missions-close" class="secondary" type="button">Fechar</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="hangar" class="screen overlay" aria-label="Hangar" hidden>
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Hangar</h2>
+          <div class="chip cristais"><i class="ico ico-cristal"></i><span id="hangar-cristais">0</span></div>
+        </div>
+        <div class="tabs" role="tablist">
+          <button id="tab-btn-melhorias" class="tab" role="tab" type="button" data-tab="melhorias" aria-selected="true" aria-controls="tab-melhorias">Melhorias</button>
+          <button id="tab-btn-naves" class="tab" role="tab" type="button" data-tab="naves" aria-selected="false" aria-controls="tab-naves">Naves</button>
+          <button id="tab-btn-registro" class="tab" role="tab" type="button" data-tab="registro" aria-selected="false" aria-controls="tab-registro">Registro</button>
+        </div>
+        <div id="tab-melhorias" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-melhorias"></div>
+        <div id="tab-naves" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-naves" hidden></div>
+        <div id="tab-registro" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-registro" hidden></div>
+        <div class="actions">
+          <button id="btn-hangar-close" class="secondary" type="button">Fechar</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="collection" class="screen overlay" aria-label="Coleção" hidden>
+      <div class="card">
+        <h2 class="card-title">Coleção</h2>
+        <p id="collection-count" class="card-sub"></p>
+        <div id="collection-list" class="collection"></div>
+        <div class="actions">
+          <button id="btn-collection-close" class="secondary" type="button">Fechar</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="settings" class="screen overlay" aria-label="Ajustes" hidden>
+      <div class="card">
+        <h2 class="card-title">Ajustes</h2>
+        <div class="toggles">
+          <button class="toggle" type="button" data-key="sfx" aria-pressed="true">Efeitos</button>
+          <button class="toggle" type="button" data-key="music" aria-pressed="true">Música</button>
+          <button class="toggle" type="button" data-key="vibration" aria-pressed="true">Vibração</button>
+          <button class="toggle" type="button" data-key="analytics" aria-pressed="false" hidden>Enviar estatísticas anônimas</button>
+        </div>
+        <button id="btn-install" class="secondary" type="button" hidden>Instalar como app</button>
+        <p id="install-ios" class="card-sub" hidden>Para instalar no iPhone: toque em Compartilhar e depois em "Adicionar à Tela de Início".</p>
+        <p class="card-sub">Seu progresso fica salvo só neste aparelho. Controles no computador: mouse ou setas, Esc pausa.</p>
+        <div class="actions">
+          <button id="btn-settings-close" class="secondary" type="button">Fechar</button>
+          <div class="row links">
+            <a class="link" href="privacidade.html">Privacidade</a>
+            <button id="btn-reset" class="link danger" type="button">Apagar progresso</button>
+          </div>
+        </div>
+        <p class="version">RAJADA {{VERSAO}}</p>
+      </div>
+    </section>
+
+    <section id="pause" class="screen overlay" aria-label="Pausa" hidden>
+      <div class="card">
+        <p id="pause-eyebrow" class="eyebrow"></p>
+        <h2 class="card-title">Pausa</h2>
+        <ul id="pause-missions" class="mission-list compact"></ul>
+        <div class="actions">
+          <button id="btn-resume" class="primary" type="button"><span>Continuar</span></button>
+          <div class="row">
+            <button id="btn-restart" class="secondary" type="button">Recomeçar</button>
+            <button id="btn-pause-home" class="secondary" type="button">Início</button>
+          </div>
+          <div class="row toggles-inline">
+            <button class="toggle small" type="button" data-key="sfx" aria-pressed="true">Efeitos</button>
+            <button class="toggle small" type="button" data-key="music" aria-pressed="true">Música</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="result" class="screen overlay" aria-label="Resultado" hidden>
+      <div class="card" role="status">
+        <p id="res-eyebrow" class="eyebrow"></p>
+        <h2 id="res-title" class="card-title"></h2>
+        <div class="res-score">
+          <span id="res-score">0</span>
+          <small id="res-best"></small>
+        </div>
+        <div id="res-meter" class="meter"><span></span></div>
+        <p id="res-sub" class="card-sub"></p>
+        <div class="res-cristais">
+          <span>+<b id="res-cristais">0</b></span><i class="ico ico-cristal"></i>
+          <small id="res-cristais-detail"></small>
+        </div>
+        <ul id="res-missions" class="mission-list compact"></ul>
+        <p id="res-extra" class="res-extra" hidden></p>
+        <div class="actions">
+          <button id="res-again" class="primary" type="button"><span>Jogar de novo</span><small>ou toque fora do cartão</small></button>
+          <div class="row">
+            <button id="res-hangar" class="secondary" type="button"><span>Hangar</span><i id="res-hangar-badge" class="badge" hidden></i></button>
+            <button id="res-home" class="secondary" type="button">Início</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="toast" class="toast" role="status" hidden></div>
+  </div>
+</main>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

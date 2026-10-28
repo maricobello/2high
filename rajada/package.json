@@ -1,0 +1,33 @@
+{
+  "name": "rajada",
+  "version": "1.1.0",
+  "private": true,
+  "description": "RAJADA: nave retrô de rolagem vertical, com upgrades. Fora do build do site.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build.mjs && node scripts/serve.mjs dist",
+    "test": "node --test tests/*.test.js",
+    "build": "node scripts/build.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "balance": "node tests/balance.mjs",
+    "perf": "node tests/perf.mjs",
+    "sprites": "node scripts/sprites-sheet.mjs && node scripts/sprites-sheet.mjs chefes && node scripts/sprites-sheet.mjs voltas",
+    "icons": "node scripts/icons.mjs",
+    "store": "node scripts/store.mjs",
+    "cap:android": "npm run build && npx cap sync android && npx cap open android",
+    "cap:ios": "npm run build && npx cap sync ios && npx cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.3",
+    "esbuild": "0.25.10",
+    "playwright": "1.63.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.3"
+  }
+}
