@@ -941,6 +941,7 @@ if (qa) {
       if (g) g.items.push({ kind: "cap", type, rarity, x: g.player.x, y: g.player.y - 2, t: 0 });
     },
     fx: () => renderer.fxStats(),
+    spriteMs: renderer.spriteMs,
     // põe a metralhadora (M), os foguetes (F) ou os drones (D) no nível n
     level(weapon, n) {
       const g = session?.game;

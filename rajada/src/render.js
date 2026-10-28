@@ -68,7 +68,9 @@ const makeCanvas = (w, h) => {
 
 export function createRenderer(canvas, { reducedMotion = false } = {}) {
   const ctx = canvas.getContext("2d");
+  const t0 = performance.now();
   const sprites = buildSprites(makeCanvas);
+  const spriteMs = performance.now() - t0; // medido em tests/perf.mjs (meta: até 300 ms)
   let H = 400;
   let t = 0;
   let sectorShown = 0;
@@ -226,15 +228,20 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
       ctx.drawImage(nb.c, Math.round(nb.x), Math.round(nb.y));
     }
     const color = sectorInfo(g.sector).star;
+    let fill = null;
+    let alpha = 1;
     for (const s of stars) {
       s.y += s.speed * scroll * dt;
       if (s.y > H) {
         s.y -= H + 4;
         s.x = Math.random() * W;
       }
+      // brilho em degraus de 5%: o estado do canvas só muda quando precisa
       const tw = s.layer === 0 ? 0.6 + 0.4 * Math.sin(t * 3 + s.tw) : 1;
-      ctx.globalAlpha = s.alpha * tw;
-      ctx.fillStyle = s.layer === 2 ? "#ffffff" : color;
+      const a = Math.round(s.alpha * tw * 20) / 20;
+      if (a !== alpha) ctx.globalAlpha = alpha = a;
+      const c = s.layer === 2 ? "#ffffff" : color;
+      if (c !== fill) ctx.fillStyle = fill = c;
       const len = Math.max(1, Math.round(s.speed * scroll * 0.035));
       ctx.fillRect(Math.round(s.x), Math.round(s.y), 1, s.layer === 0 ? 1 : len);
     }
@@ -416,19 +423,27 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
 
   function drawPlayerShots(g) {
     drawBeams(g);
-    for (const b of g.bullets) {
-      const i = rampIndex(b.band ?? 0, g.t);
-      // rastro da faixa 6 em diante (mais longo do 7, as estrelas)
-      if (!reducedMotion && (b.band ?? 0) >= 6) {
-        const [, mid, dark] = POWER.ramps[i];
-        const steps = b.band >= 7 ? 3 : 2;
-        for (let k = 1; k <= steps; k++) {
-          ctx.globalAlpha = 0.6 - k * 0.15;
-          ctx.fillStyle = k === 1 ? mid : dark;
+    // rampa de cada faixa calculada uma vez por quadro
+    const ramps = [];
+    const rampAt = (band) => ramps[band] ?? (ramps[band] = rampIndex(band, g.t));
+    // rastro da faixa 6 em diante (mais longo do 7, as estrelas): uma passada
+    // por pedaço do rastro, para trocar o estado do canvas poucas vezes
+    if (!reducedMotion) {
+      for (let k = 1; k <= 3; k++) {
+        ctx.globalAlpha = 0.6 - k * 0.15;
+        let fill = null;
+        for (const b of g.bullets) {
+          const band = b.band ?? 0;
+          if (band < 6 || b.shard || (k === 3 && band < 7)) continue;
+          const color = POWER.ramps[rampAt(band)][k === 1 ? 1 : 2];
+          if (color !== fill) ctx.fillStyle = fill = color;
           ctx.fillRect(Math.round(b.x - b.vx * 0.011 * k) - 0.5, Math.round(b.y - b.vy * 0.011 * k), 1, 2);
         }
-        ctx.globalAlpha = 1;
       }
+      ctx.globalAlpha = 1;
+    }
+    for (const b of g.bullets) {
+      const i = rampAt(b.band ?? 0);
       if (b.shard) {
         const [light, mid] = POWER.ramps[i];
         ctx.fillStyle = mid;
@@ -504,7 +519,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
   }
 
   function particle(x, y, vx, vy, life, color, size = 1, drag = 3) {
-    if (fx.parts.length > 700) return;
+    if (fx.parts.length > 450) return;
     fx.parts.push({ x, y, vx, vy, life, max: life, color, size, drag });
   }
 
@@ -535,6 +550,21 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
 
   // Textos que sobem; um novo no mesmo lugar de outro recente vai para cima
   // dele (ex.: "LENDÁRIA · ESCUDO" e "TURBO" juntos).
+  // Cada texto vira uma imagem pequena uma vez só: desenhar letra por letra,
+  // com contorno, a cada quadro pesava quando muitos "+pontos" sobem juntos.
+  const textCache = new Map();
+  function textImage(str, color, scale) {
+    const key = `${str}|${color}|${scale}`;
+    let c = textCache.get(key);
+    if (!c) {
+      if (textCache.size > 200) textCache.clear();
+      c = makeCanvas(textWidth(str, scale) + 2, 5 * scale + 2);
+      drawText(c.getContext("2d"), str, 1, 1, color, { scale, align: "left" });
+      textCache.set(key, c);
+    }
+    return c;
+  }
+
   function text(str, x, y, color = "#f4f7ff", dur = 0.8, scale = 1) {
     for (let k = 0; k < 4; k++) {
       const hit = fx.texts.find((o) => o.t < 0.5 && Math.abs(o.x - x) < 60 && Math.abs(o.y - y) < (5 * o.scale + 5 * scale) / 2 + 2);
@@ -731,9 +761,14 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
       if (b.t < 0) continue;
       spr("boom", Math.floor(b.t / b.frameDur), b.x, b.y);
     }
+    // transparência em 4 degraus e estado do canvas só trocado quando muda
+    // (trocar cor e transparência a cada partícula pesa mais que desenhar)
+    let alpha = 1;
+    let fill = null;
     for (const p of fx.parts) {
-      ctx.globalAlpha = Math.min(1, (p.life / p.max) * 1.6);
-      ctx.fillStyle = p.color;
+      const a = Math.min(1, Math.ceil((p.life / p.max) * 6.4) / 4);
+      if (a !== alpha) ctx.globalAlpha = alpha = a;
+      if (p.color !== fill) ctx.fillStyle = fill = p.color;
       ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
     }
     ctx.globalAlpha = 1;
@@ -753,7 +788,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
       ctx.globalAlpha = u > 0.7 ? (1 - u) / 0.3 : 1;
       const half = textWidth(x.str, x.scale) / 2;
       const cx = Math.max(half + 2, Math.min(W - half - 2, x.x));
-      drawText(ctx, x.str, cx, x.y - rise, x.color, { scale: x.scale });
+      ctx.drawImage(textImage(x.str, x.color, x.scale), Math.round(cx - half) - 1, Math.round(x.y - rise) - 1);
     }
     ctx.globalAlpha = 1;
   }
@@ -801,7 +836,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     }
   }
 
-  return { resize, draw, event, sprites, setSector, fxStats: () => ({ flashes: fx.flashes }) };
+  return { resize, draw, event, sprites, spriteMs, setSector, fxStats: () => ({ flashes: fx.flashes }) };
 }
 
 const easeOut = (u) => 1 - (1 - u) * (1 - u);

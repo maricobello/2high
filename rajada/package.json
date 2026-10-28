@@ -10,6 +10,7 @@
     "build": "node scripts/build.mjs",
     "smoke": "node tests/smoke.mjs",
     "balance": "node tests/balance.mjs",
+    "perf": "node tests/perf.mjs",
     "sprites": "node scripts/sprites-sheet.mjs && node scripts/sprites-sheet.mjs chefes && node scripts/sprites-sheet.mjs voltas",
     "icons": "node scripts/icons.mjs",
     "store": "node scripts/store.mjs",
