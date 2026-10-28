@@ -30,7 +30,7 @@ sozinha. Esc ou P pausa, M liga e desliga a música.
 ```bash
 npm test             # regras do jogo e partidas simuladas (node --test)
 npm run balance      # bots jogam 30 partidas por nível e conferem os critérios
-npm run balance -- longo   # o melhor bot joga até 60 min: até onde vai a curva
+npm run balance -- longo   # até 60 min, o melhor bot e o médio com hangar: as partidas acabam
 npm run build
 npm run smoke        # joga no navegador, no computador e no celular; prints em tests/prints/
 npm run perf         # pior caso num celular simulado (CPU 4× mais lenta): meta 58 qps

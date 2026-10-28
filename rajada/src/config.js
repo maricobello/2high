@@ -224,7 +224,7 @@ export const SECTORS = [
 // enemyHp: a cada volta a vida dos inimigos comuns (não a dos chefes, que têm o
 // bônus de volta deles) é multiplicada por este valor, para a vida acompanhar o
 // dano das armas sem teto (ajustado pelos bots com melhorias do hangar).
-export const LAPS = { glowAfter: 3, glow: 0.15, enemyHp: 1.5 };
+export const LAPS = { glowAfter: 3, glow: 0.15, enemyHp: 1.85 };
 export const lapOf = (sector) => Math.floor((sector - 1) / SECTORS.length);
 export const lapSkin = (lap) => (lap > 0 ? ((lap - 1) % 3) + 1 : 0);
 

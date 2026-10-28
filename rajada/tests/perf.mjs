@@ -1,10 +1,10 @@
 // Desempenho no pior caso, num celular modesto simulado (CPU 4× mais lenta):
-// Forja na fase 2 (setor 11), metralhadora 40, foguetes 20, drones 9, ondas de
-// inimigos que não morrem (repostas quando sobram menos de 35) e nave sem levar
-// dano, até a tela encher de tiros (teto de 220 tiros inimigos). Mede quadros
-// por segundo por 10 s e o tempo de buildSprites. Falha se a cena não chegar ao
-// pior caso (200 tiros inimigos, 150 da nave, 40 inimigos), se a média ficar
-// abaixo de 58 qps ou se os sprites passarem de 300 ms (S10).
+// Forja na fase 2 (setor 11, o chefe que mais enche a tela), metralhadora 40,
+// foguetes 20, drones 9, um lote de sete ondas que não morrem e a nave parada
+// sem levar dano, até a tela encher de tiros (tetos de 220 tiros inimigos e 260
+// da nave). Mede quadros por segundo por 10 s e o tempo de buildSprites. Falha se
+// a cena não chegar ao pior caso (200 tiros inimigos, 200 da nave, 20 inimigos),
+// se a média ficar abaixo de 58 qps ou se os sprites passarem de 300 ms (S10).
 // Uso: npm run build && npm run perf
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
@@ -46,7 +46,7 @@ try {
     const r = window.__rajada;
     r.jumpTo(11, 10); // Forja: ondas de fogo na fase 2
     r.skipToBoss();
-    r.autopilot(true, 0.9);
+    // sem piloto automático: a nave não leva dano e o robô não existe numa partida de verdade
     r.level("M", 40);
     r.level("F", 20);
     r.level("D", 9); // drones ainda com tiro (do 10 em diante viram raio): mais tiros na tela
@@ -58,18 +58,15 @@ try {
     g.boss.maxHp *= 100;
     g.boss.hp = g.boss.maxHp * 0.45; // fase 2, e sem morrer durante a medida
     g.player.hp = g.player.maxHp = 99;
-    // inimigos que não morrem, ondas novas quando sobram menos de 35 e nave sem
-    // levar dano: a tela enche e fica cheia
-    const waves = ["enxame", "couracado", "atiradores", "minas", "pedras", "chuva", "pinca"];
-    let last = -9;
+    // Na luta de verdade não entram ondas: só sobram os inimigos que o setor
+    // deixou (a fase "clear" espera até 6 s) e os que o chefe chama. Aqui entra um
+    // lote de sete ondas que não morrem, bem mais do que sobra numa partida, e a
+    // nave fica parada sem levar dano (os tiros dela chegam ao teto de 260).
+    for (const id of ["enxame", "couracado", "atiradores", "minas", "pedras", "chuva", "pinca"]) r.wave(id);
     const keep = () => {
       const now = r.game();
       if (!now) return;
       now.player.inv = 5;
-      if (now.enemies.length < 35 && now.t - last > 1.5) {
-        last = now.t;
-        for (const id of waves) r.wave(id);
-      }
       for (const e of now.enemies) if (e.hp < 500) e.hp = e.maxHp = 1e6;
       requestAnimationFrame(keep);
     };
@@ -109,7 +106,7 @@ try {
   const worst = Math.min(...perSecond);
   console.log(`fps médio ${avg.toFixed(1)} · pior segundo ${worst} · spriteMs ${spriteMs.toFixed(0)} · pico ${JSON.stringify(peak)} · ${JSON.stringify(state)}`);
   if (errors.length) console.log("erros:", errors);
-  const full = peak.shots >= 200 && peak.bullets >= 150 && peak.enemies >= 40;
+  const full = peak.shots >= 200 && peak.bullets >= 200 && peak.enemies >= 20;
   if (!full) console.log("a cena não chegou ao pior caso (tela cheia de tiros)");
   failed = !full || avg < 58 || spriteMs > 300 || errors.length > 0;
   console.log(failed ? "FALHOU (meta: tela cheia, média ≥ 58 qps e sprites ≤ 300 ms)" : "ok desempenho");

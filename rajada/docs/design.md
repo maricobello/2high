@@ -112,7 +112,7 @@ e enche o TURBO. A área que machuca é só o centro da nave (3 px): passar rasp
 
 O começo é cheio (o dobro de inimigos por minuto da 1.0) e cada setor deixa os
 inimigos 35% mais resistentes, sem teto; a cada volta, a vida dos inimigos comuns
-ainda é multiplicada por 1,5, para acompanhar o dano das armas sem teto. Do
+ainda é multiplicada por 1,85, para acompanhar o dano das armas sem teto. Do
 setor 4 em diante aparecem **elites** (8%, crescendo até 50%): contorno dourado,
 vida ×3, cristais em dobro e loot melhor.
 
@@ -275,7 +275,7 @@ mesma partida, o que permite testar e balancear com bots sem navegador.
 
 ## Testes
 
-- `node --test` (133 testes): armas e formas, raridade e garantias, Diretor,
+- `node --test` (141 testes): armas e formas, raridade e garantias, Diretor,
   missões, hangar, estatísticas, chefes e partidas inteiras com semente.
 - `npm run balance`: bots de três níveis de habilidade jogam em paralelo e o
   relatório confere os critérios de balanceamento; `-- longo` deixa o melhor
@@ -290,18 +290,23 @@ mesma partida, o que permite testar e balancear com bots sem navegador.
 
 ## Balanceamento (simulação)
 
-`npm run balance -- 30` (limite de 15 min) e `npm run balance -- longo`. Os bots
+`npm run balance` (30 partidas por linha, limite de 15 min) e `npm run balance --
+longo` (20 partidas por linha, limite de 60 min, com outras sementes). Os bots
 desviam com mais precisão que uma pessoa (veem todos os tiros próximos e não têm
 o dedo na frente da tela), então servem para comparar versões e enxergar a curva,
 não para prever o tempo exato de uma pessoa.
 
-| Piloto | Duração (mediana) | Setor | Metralhadora | Mais derruba |
-|---|---|---|---|---|
-| Iniciante, sem melhorias | 5,5 min | 4 | nível 10 | chefe (70%) |
-| Médio, sem melhorias | 8,9 min | 6 | nível 23 | chefe (40%) |
-| Experiente, sem melhorias | 14,5 min | 10 | nível 33 | tempo (50%) |
-| Médio, com hangar | 15 min (limite) | 11 | nível 51 | tempo (100%) |
-| Experiente, até 60 min | 12 min | 8 (máx. 24) | nível 35 | chefe (45%) |
+| Piloto | Limite | Duração (mediana) | Setor | Metralhadora | Mais derruba |
+|---|---|---|---|---|---|
+| Iniciante, sem melhorias | 15 min | 5 min | 4 | nível 13 | chefe (60%) |
+| Médio, sem melhorias | 15 min | 13,4 min | 9 | nível 28 | tempo (40%) |
+| Experiente, sem melhorias | 15 min | 14,2 min | 10 | nível 33 | tempo (47%) |
+| Médio, com hangar | 15 min | 15 min (limite) | 11 | nível 58 | tempo (100%) |
+| Experiente, sem melhorias | 60 min | 14,5 min | 10 (máx. 18) | nível 32 | chefe (45%) |
+| Médio, com hangar | 60 min | 30 min | 20 (máx. 25) | nível 101 | Atirador (50%) |
+
+"Com hangar" é casco, canhão, foguetes, escudo que volta, ímã e sorte, cerca de
+3.300 cristais de melhorias.
 
 O que isso mostra:
 
@@ -310,18 +315,26 @@ O que isso mostra:
   melhor bot chegava ao setor 40 com a metralhadora no nível 209). Ajustes: dano
   de 2% por nível (as formas, os canos e as estrelas carregam o ganho de força),
   cápsulas 40% mais raras a cada setor (o chefe ainda solta 2), elites crescendo
-  até 50% e chefes do fim da volta mais duros. Hoje todas as partidas do melhor
-  bot acabam antes do setor 30.
+  até 50% e chefes do fim da volta mais duros.
+- Mesmo assim, com melhorias do hangar o dano crescia mais rápido que a vida dos
+  inimigos: 85% das partidas do piloto médio chegavam a 60 minutos (setor 39,
+  metralhadora no nível 199). Agora a vida dos inimigos comuns é multiplicada por
+  1,85 a cada volta (os chefes mantêm o bônus de volta deles) e todas as partidas,
+  com ou sem hangar, acabam antes do setor 30.
 - Ao entrar na Raio a metralhadora nunca bate menos que na forma anterior (o
-  feixe tem 2,4× de dano por tique).
+  feixe tem 2,4× de dano por tique), e os drones no nível 10 também não (o raio
+  deles vai até o alto da tela). Com os drones acertando de novo, o piloto médio
+  dura mais: 13,4 min, dentro da meta de 8 a 14.
+- O tempo do iniciante varia com as sementes (de 2,7 a 5 min nas que testamos,
+  igual antes destas mudanças): a maioria cai no primeiro chefe.
 
 ## Auditoria técnica
 
 | Área | Resultado |
 |---|---|
-| Testes | 133 testes de regras e partidas simuladas; teste de ponta a ponta no navegador (computador, celular e "reduzir movimento") sem erro no console. |
-| Desempenho | Pior caso (setor 12, chefe na fase 2, metralhadora 40, foguetes 20, drones 12, quatro ondas) a 59 a 60 quadros por segundo com CPU 4 vezes mais lenta; sprites prontos em menos de 200 ms (meta: 300). Variações de volta, elite e armadura são geradas só quando aparecem. Jogo inteiro em um HTML de 188 KB. |
-| Revisão de código | Versão 1.0: 10 problemas achados e corrigidos (ex.: modo offline podia guardar versão antiga, foguete perseguia inimigo fora da tela, botão pulava a proteção contra toque acidental, `versionCode` fixo travaria a Google Play). |
+| Testes | 141 testes de regras e partidas simuladas; teste de ponta a ponta no navegador (computador, celular e "reduzir movimento") sem erro no console. |
+| Desempenho | Pior caso com a tela cheia (Forja na fase 2, 220 tiros inimigos e 260 da nave, metralhadora 40, foguetes 20, drones 9, mais um lote de sete ondas que não morrem) a 60 quadros por segundo de média com CPU 4 vezes mais lenta em 5 de 6 medições (a outra, 57). Tiros simples saem em lote (um preenchimento por cor em vez de um desenho por tiro), os tiros inimigos são copiados já em 2×, a colisão olha só a coluna de cada tiro e, com mais de 300 tiros na tela, o rastro e as partículas diminuem e as nebulosas do fundo somem. Sprites do jogo prontos em menos de 200 ms (meta: 300; a arte em alta definição dos chefes é montada ao carregar e não entra nessa conta). Variações de volta, elite e armadura são geradas só quando aparecem. Jogo inteiro em um HTML de 191 KB. |
+| Revisão de código | Versão 1.0: 10 problemas achados e corrigidos (ex.: modo offline podia guardar versão antiga, foguete perseguia inimigo fora da tela, botão pulava a proteção contra toque acidental, `versionCode` fixo travaria a Google Play). Versão 1.1: revisão do código novo inteiro achou 7 problemas importantes e 11 menores; os 7 e mais 2 menores que pesavam para quem joga foram corrigidos, cada um com um teste que falhava antes (ex.: voltar do Android na Coleção fechava o app, drones paravam de acertar no nível 10, meta de nível da metralhadora quase impossível, partidas sem fim com melhorias do hangar); os outros 9 menores ficaram anotados. |
 | Fotossensibilidade | Clarão de tela inteira no máximo 3 vezes por segundo (contado no teste); "reduzir movimento" desliga clarões, tremores, rastros e câmera lenta. |
 | Som | Medido no navegador: música e efeitos tocam; no pior caso (12 explosões, chefe e Pulso juntos) o pico fica em 0,6, sem distorção. |
 | Acessibilidade | Botões de 44 px ou mais (conferido no teste da Coleção), foco visível no teclado, textos de leitor de tela no casco e nas missões, sem pisca-pisca rápido em áreas grandes, cápsulas com letra além da cor. |

@@ -225,7 +225,7 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
         nb.y = -nb.c.height - Math.random() * H;
         nb.x = Math.random() * (W - nb.c.width + 40) - 20;
       }
-      ctx.drawImage(nb.c, Math.round(nb.x), Math.round(nb.y));
+      if (!crowded) ctx.drawImage(nb.c, Math.round(nb.x), Math.round(nb.y)); // lotada: sem nebulosa
     }
     const color = sectorInfo(g.sector).star;
     let fill = null;
@@ -353,13 +353,99 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
     }
   }
 
-  // caminho direto: até 220 tiros por quadro, sem as opções de spr()
+  // Tiros aos montes (até 220 inimigos e 260 da nave): cada quadro de sprite vira
+  // retângulos por cor, guardados uma vez, e todos os tiros iguais saem num
+  // caminho só por cor (um fill em vez de um drawImage por tiro, que é o que
+  // pesa num celular modesto). Sprite com muitos retângulos (as bolhas e balas
+  // inimigas) sai mais barato como imagem: esse continua com drawImage.
+  const BATCH_MAX_RECTS = 8;
+  const rectsCache = new Map();
+  function rectsOf(img) {
+    let out = rectsCache.get(img);
+    if (out !== undefined) return out;
+    const { width: w, height: h } = img;
+    const px = img.getContext("2d").getImageData(0, 0, w, h).data;
+    const byColor = new Map(); // cor → { rects: [x, y, w, h, ...], open: "x,w" → índice do retângulo que ainda cresce }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; ) {
+        const i = (y * w + x) * 4;
+        if (!px[i + 3]) {
+          x++;
+          continue;
+        }
+        let x2 = x + 1;
+        for (let j = i + 4; x2 < w && px[j] === px[i] && px[j + 1] === px[i + 1] && px[j + 2] === px[i + 2] && px[j + 3] === px[i + 3]; j += 4) x2++;
+        const fill = `rgba(${px[i]},${px[i + 1]},${px[i + 2]},${px[i + 3] / 255})`;
+        const c = byColor.get(fill) ?? byColor.set(fill, { rects: [], open: new Map() }).get(fill);
+        const key = `${x},${x2 - x}`;
+        const k = c.open.get(key);
+        // mesma faixa na linha de cima: o retângulo de lá cresce para baixo
+        if (k !== undefined && c.rects[k + 1] + c.rects[k + 3] === y) c.rects[k + 3] += 1;
+        else {
+          c.open.set(key, c.rects.length);
+          c.rects.push(x, y, x2 - x, 1);
+        }
+        x = x2;
+      }
+    }
+    out = [...byColor].map(([fill, c]) => ({ fill, rects: c.rects }));
+    if (out.reduce((n, c) => n + c.rects.length / 4, 0) > BATCH_MAX_RECTS) out = null;
+    rectsCache.set(img, out);
+    return out;
+  }
+  // cópia já em RES× para desenhar sem escala: a cópia 1:1 é bem mais barata de
+  // rasterizar que esticar o sprite a cada vez
+  const bigCache = new Map();
+  function bigOf(img) {
+    let c = bigCache.get(img);
+    if (!c) {
+      c = makeCanvas(img.width * RES, img.height * RES);
+      const cx = c.getContext("2d");
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(img, 0, 0, c.width, c.height);
+      bigCache.set(img, c);
+    }
+    return c;
+  }
+  const batch = new Map(); // imagem → [esquerda, topo, ...] deste quadro
+  function batchAdd(img, left, top) {
+    const list = batch.get(img);
+    if (list) list.push(left, top);
+    else batch.set(img, [left, top]);
+  }
+  function batchDraw() {
+    const m = ctx.getTransform();
+    for (const [img, pos] of batch) {
+      if (!pos.length) continue;
+      const colors = rectsOf(img);
+      if (!colors) {
+        // sem escala, só o deslocamento do tremor (inteiro): cópia 1:1
+        const big = bigOf(img);
+        ctx.setTransform(1, 0, 0, 1, m.e, m.f);
+        for (let k = 0; k < pos.length; k += 2) ctx.drawImage(big, pos[k] * RES, pos[k + 1] * RES);
+        ctx.setTransform(m);
+        pos.length = 0;
+        continue;
+      }
+      for (const { fill, rects } of colors) {
+        ctx.beginPath();
+        for (let k = 0; k < pos.length; k += 2) {
+          for (let r = 0; r < rects.length; r += 4) ctx.rect(pos[k] + rects[r], pos[k + 1] + rects[r + 1], rects[r + 2], rects[r + 3]);
+        }
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      pos.length = 0;
+    }
+  }
+
   function drawShots(g) {
     for (const s of g.shots) {
       const sp = sprites[SHOTS[s.kind].sprite];
       const set = sp.frames;
-      ctx.drawImage(set[anim(10, s.t * 3) % set.length], Math.round(s.x - sp.w / 2), Math.round(s.y - sp.h / 2));
+      batchAdd(set[anim(10, s.t * 3) % set.length], Math.round(s.x - sp.w / 2), Math.round(s.y - sp.h / 2));
     }
+    batchDraw();
   }
 
   function drawLasers(g) {
@@ -465,8 +551,9 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
       // sprite da faixa guardado por tipo, sem montar o nome a cada tiro
       const kind = b.drone ? 2 : b.big ? 1 : 0;
       const sp = shotSprites[kind][i] ?? (shotSprites[kind][i] = sprite(`${SHOT_NAMES[kind]}@${i}`));
-      ctx.drawImage(sp.frames[0], Math.round(b.x - sp.w / 2), Math.round(b.y - sp.h / 2));
+      batchAdd(sp.frames[0], Math.round(b.x - sp.w / 2), Math.round(b.y - sp.h / 2));
     }
+    batchDraw();
     for (const r of g.rockets) {
       const cx = Math.round(r.x);
       const cy = Math.round(r.y);
@@ -808,13 +895,13 @@ export function createRenderer(canvas, { reducedMotion = false } = {}) {
 
   // ---------- quadro ----------
 
-  // tela lotada (mais de 300 tiros): menos partículas e rastro mais curto,
-  // para o quadro caber em 16 ms num celular modesto
+  // tela lotada (mais de 300 tiros): menos partículas, rastro mais curto e sem
+  // as nebulosas do fundo, para o quadro caber em 16 ms num celular modesto
   let partCap = 450;
   let crowded = false;
   function draw(g, dt) {
     crowded = g.shots.length + g.bullets.length > 300;
-    partCap = crowded ? 250 : 450;
+    partCap = crowded ? 150 : 450;
     if (dt > 0) t += dt;
     if (dt > 0) updateFx(dt);
     const p = g.player;
