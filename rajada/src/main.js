@@ -134,8 +134,10 @@ function renderHome() {
   fitDemo();
 }
 
-function showToast(text) {
-  toasts.push(text);
+// urgente: passa à frente da fila (sai logo depois do aviso que está na tela)
+function showToast(text, urgent = false) {
+  if (urgent) toasts.unshift(text);
+  else toasts.push(text);
   if (!toastBusy) nextToast();
 }
 const toasts = [];
@@ -320,7 +322,7 @@ function gunRecord(s) {
   const level = s.game.player.gun;
   if (s.gunRecord || best <= 0 || level <= best) return;
   s.gunRecord = true;
-  showToast(`Recorde: metralhadora nível ${level}`);
+  showToast(`Recorde: metralhadora nível ${level}`, true);
   audio.mission();
   vibrate(15);
 }
