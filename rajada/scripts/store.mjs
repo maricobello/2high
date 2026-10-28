@@ -16,7 +16,7 @@ const out = join(root, "store");
 const PORT = 5182;
 
 const SHOTS = [
-  { id: "1-armas", caption: "Pegue cápsulas e turbine as armas" },
+  { id: "1-armas", caption: "Armas que evoluem sem limite" },
   { id: "2-chefe", caption: "Um chefe no fim de cada setor" },
   { id: "3-turbo", caption: "Combos, raspões e TURBO" },
   { id: "4-hangar", caption: "Melhorias e naves novas" },
@@ -73,6 +73,15 @@ async function scene(page, id) {
     const r = window.__rajada;
     for (const t of list) r.capsule(t);
   }, caps);
+  // armas evoluídas: metralhadora no Raio (tiro violeta), salva de 8 e esquadrilha
+  if (id === "1-armas") {
+    await qa(() => {
+      const r = window.__rajada;
+      r.level("M", 27);
+      r.level("F", 10);
+      r.level("D", 4);
+    });
+  }
   if (id === "2-chefe") {
     // o Olho, com o laser: o chefe mais vistoso
     await qa(() => {
@@ -83,9 +92,9 @@ async function scene(page, id) {
     await page.waitForFunction(() => window.__rajada.game().lasers.some((l) => l.t > l.warn), null, { timeout: 30000 });
     await page.waitForTimeout(250);
   } else {
-    await qa((sector) => window.__rajada.jumpTo(sector), id === "1-armas" ? 2 : 4);
+    await qa((sector) => window.__rajada.jumpTo(sector), id === "1-armas" ? 8 : 4);
     await page.waitForTimeout(2500);
-    const waves = id === "1-armas" ? ["v", "atiradores", "pedras"] : ["pinca", "couracado", "dardos"];
+    const waves = id === "1-armas" ? ["v", "atiradores", "couracado"] : ["pinca", "couracado", "dardos"];
     if (id === "3-turbo") {
       await qa(() => {
         const g = window.__rajada.game();

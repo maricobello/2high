@@ -5,6 +5,10 @@ arrasta para desviar e mirar. Cápsulas dão upgrades na hora (mais metralhadora
 foguetes teleguiados, drones, escudo), cada setor termina com um chefe e os
 cristais coletados compram melhorias permanentes no hangar. Só mais uma rajada.
 
+Versão 1.1: armas sem nível máximo (forma nova e cor de tiro nova a cada 5
+níveis), cápsulas com raridade, inimigos mais resistentes a cada setor e 6
+chefes em alta definição que voltam com paleta nova a cada volta.
+
 - Design, mecânicas de retenção e auditoria: [docs/design.md](docs/design.md)
 - Site, Google Play e App Store, passo a passo: [docs/lancamento.md](docs/lancamento.md)
 
@@ -25,9 +29,11 @@ sozinha. Esc ou P pausa, M liga e desliga a música.
 
 ```bash
 npm test             # regras do jogo e partidas simuladas (node --test)
-npm run balance      # bots jogam dezenas de partidas: duração, setor, cristais
+npm run balance      # bots jogam 30 partidas por nível e conferem os critérios
+npm run balance -- longo   # o melhor bot joga até 60 min: até onde vai a curva
 npm run build
 npm run smoke        # joga no navegador, no computador e no celular; prints em tests/prints/
+npm run perf         # pior caso num celular simulado (CPU 4× mais lenta): meta 58 qps
 ```
 
 ## Build
@@ -70,10 +76,11 @@ projeto no Xcode.
 
 ## Arte e imagens
 
-Toda a pixel art está em `src/sprites.js` (texto, um caractere por pixel).
+A pixel art está em `src/sprites.js` (texto, um caractere por pixel); chefes e
+inimigos grandes, em alta definição, em `src/art-chefes.js` e `src/art-grandes.js`.
 
 ```bash
-npm run sprites      # folha com todos os sprites ampliados (tests/prints/sprites.png)
+npm run sprites      # folhas ampliadas: sprites.png, chefes.png e voltas.png em tests/prints/
 npm run icons        # ícone, abertura e og.png a partir da nave
 npx capacitor-assets generate --android --ios   # leva ícone e abertura para os apps
 npm run store        # capturas das lojas e imagem de destaque em store/

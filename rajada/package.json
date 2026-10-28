@@ -1,6 +1,6 @@
 {
   "name": "rajada",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "RAJADA: nave retrô de rolagem vertical, com upgrades. Fora do build do site.",
   "type": "module",

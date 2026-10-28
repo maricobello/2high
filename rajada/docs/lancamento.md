@@ -287,11 +287,11 @@ o texto. Mande para o Claude junto com a pergunta.
 **Subtítulo (App Store, até 30 caracteres):** Atire, desvie e evolua
 
 **Texto promocional (App Store, até 170 caracteres):**
-Nave retrô de um dedo: pegue cápsulas, turbine as armas e derrube chefes. Sem
-anúncios, sem compras e funciona offline.
+Nave retrô de um dedo: armas que evoluem sem limite, cápsulas raras e 6 chefes.
+Sem anúncios, sem compras e funciona offline.
 
 **Descrição curta (Google Play, até 80 caracteres):**
-Nave retrô de um dedo: pegue cápsulas, turbine as armas e derrube chefes.
+Nave retrô de um dedo: armas que evoluem sem limite, cápsulas raras e 6 chefes.
 
 **Descrição completa:**
 
@@ -300,8 +300,14 @@ Nave retrô de um dedo: pegue cápsulas, turbine as armas e derrube chefes.
 >
 > • Cápsulas mudam a arma na hora: mais metralhadoras, foguetes teleguiados,
 > drones de apoio, escudo e o Pulso que limpa a tela.
-> • Cada setor termina com um chefe: o Colosso, a Aranha e o Olho, cada um com
-> dois padrões de ataque.
+> • Armas sem nível máximo: a cada 5 níveis a metralhadora ganha uma forma nova
+> (Leque, Pesada, Perfurante, Caçadora, Raio, Tempestade, Estelar) e o tiro
+> muda de cor.
+> • Cápsulas comuns, raras, épicas e lendárias, com garantia contra azar.
+> • Seis chefes em pixel art de alta definição: Colosso, Aranha, Olho, Serpente,
+> Forja e Rainha. Abaixo da metade da vida a armadura quebra e o ataque muda.
+> • Setores sem fim: os inimigos ficam mais resistentes e, a cada volta pelos 6
+> setores, ganham cores e ataques novos.
 > • Combos, raspões e TURBO: passe raspando nos tiros para encher a barra e
 > dobrar o poder de fogo.
 > • Hangar com melhorias permanentes e quatro naves para liberar.
@@ -311,6 +317,14 @@ Nave retrô de um dedo: pegue cápsulas, turbine as armas e derrube chefes.
 >
 > Sem anúncios, sem compras, sem cadastro. Funciona offline e o progresso fica
 > no seu aparelho.
+
+**Novidades da versão 1.1 (Google Play e App Store, até 500 caracteres):**
+
+> Evolução infinita: as armas não têm mais nível máximo, com forma nova e tiro
+> de outra cor a cada 5 níveis. Cápsulas raras, épicas e lendárias. Três chefes
+> novos (Serpente, Forja e Rainha) e todos os seis em alta definição. Começo com
+> mais inimigos, elites a partir do setor 4 e a Coleção, com os chefes e as
+> formas das armas que você já viu.
 
 **Palavras-chave (App Store, até 100 caracteres):**
 nave,tiro,arcade,retrô,espacial,pixel,chefe,offline,shooter,shmup
