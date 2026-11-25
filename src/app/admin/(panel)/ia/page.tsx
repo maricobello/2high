@@ -14,6 +14,7 @@ const TASK_LABELS: Record<string, string> = {
   assistente_chat: "Assistente do site",
   classificar_mensagem: "Classificar mensagem",
   mensagem_follow_up: "Mensagem de follow-up",
+  parecer_rateio: "Parecer de rateio GD",
   outros: "Outros",
 };
 const REPORT_TASKS = new Set(["leitura_fatura_texto", "leitura_fatura_imagem", "explicacao_relatorio"]);

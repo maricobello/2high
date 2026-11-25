@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, KanbanSquare, LogOut, PlugZap, Rows3, ShieldCheck, Users } from "lucide-react";
+import { Bot, ChartPie, KanbanSquare, LogOut, PlugZap, Rows3, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/site/logo";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/admin", label: "Pipeline", icon: KanbanSquare, exact: true },
   { href: "/admin/leads", label: "Leads", icon: Rows3 },
+  { href: "/admin/rateio", label: "Rateio GD", icon: ChartPie },
   { href: "/admin/ia", label: "Uso da IA", icon: Bot },
   { href: "/admin/parceiros", label: "Parceiros", icon: Users },
   { href: "/admin/lgpd", label: "LGPD", icon: ShieldCheck },

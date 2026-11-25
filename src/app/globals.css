@@ -35,6 +35,10 @@
   --analysis-soft: #2a1f0c;
   --opportunity: #3ecf8e;
   --opportunity-soft: #0f2a1d;
+  /* Séries de gráfico (validadas para daltonismo sobre --card) */
+  --viz-1: #338ced;
+  --viz-2: #e76624;
+  --viz-3: #00a888;
 }
 
 /*
@@ -89,6 +93,9 @@
   --color-analysis-soft: var(--analysis-soft);
   --color-opportunity: var(--opportunity);
   --color-opportunity-soft: var(--opportunity-soft);
+  --color-viz-1: var(--viz-1);
+  --color-viz-2: var(--viz-2);
+  --color-viz-3: var(--viz-3);
   --font-sans: var(--font-geist-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
