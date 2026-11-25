@@ -21,7 +21,14 @@ geração distribuída e entregar o estudo em Excel.
      excedente distribuído (o que de fato vai para o rateio), consumo da usina e saldo da
      geradora. Lê qualquer layout em camadas: tabelas mês a mês (CELESC), histórico em gráfico de
      barras (RGE/CPFL), valores soltos do mês ("kWh Injetado", saldo por posto, leitura do
-     medidor) e itens em kW. Fatura com só o mês de referência é conferida com a leitura do
+     medidor) e itens em kW. **IA com aprendizado**: quando as regras e o layout aprendido não
+     chegam à nota 70 (ou em "Reler com IA"), a Groq lê o texto da fatura anonimizado (sem CNPJ,
+     CPF, instalação, chaves, endereço e contatos). Só vale número que aparece na fatura; quando
+     regras e IA leem a mesma injetada, conta como conferência. Em cada leitura com IA o sistema
+     guarda, por distribuidora, o rótulo que vem antes de cada valor (ex.: "kwh injetado fponta")
+     em `rateio/layouts-fatura.json` no armazenamento privado (só rótulos, nenhum dado de cliente).
+     Na próxima fatura da mesma distribuidora, o layout aprendido lê sem IA; a tela mostra "IA em
+     X de Y leituras". Fatura com só o mês de referência é conferida com a leitura do
      medidor e não substitui a média de um período maior da tela do Orange. Meses zerados e o
      mês de entrada em operação ficam fora da média. "Usar no estudo" define a injeção mensal (e a sazonalidade,
      quando há 12 meses de operação). Também lê a **demanda** (contratada, registrada, ultrapassagem
@@ -167,6 +174,7 @@ Casas decimais aceitas variam por distribuidora (CPFL: até 2); confirme com a C
 | Modelo de otimização (MILP) e worker do HiGHS | `src/modules/rateio/otimizador.ts`, `src/modules/rateio/otimizador.worker.ts` |
 | Leitura de tabelas (cabeçalhos, calendário, planilha modelo) | `src/modules/rateio/grid.ts` |
 | Fatura da usina (PDF), demanda e tela do Orange | `src/modules/rateio/pdf.ts`, `fatura.ts`, `demanda.ts`, `painel.ts`, `src/components/admin/rateio/fontes.tsx` |
+| Fatura com IA e layouts aprendidos | `src/modules/rateio/fatura-ia.ts`, `layout.ts`, `src/app/api/admin/rateio/fatura`, `.../layouts` |
 | Excel (leitura e exportação, no navegador) | `src/modules/rateio/xlsx.ts` |
 | Parecer (resumo agregado e texto padrão) | `src/modules/rateio/parecer.ts`, `src/modules/llm/tasks/rateio.ts` |
 | Tela | `src/components/admin/rateio/` |

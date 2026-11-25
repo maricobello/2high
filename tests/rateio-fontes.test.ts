@@ -227,3 +227,75 @@ describe("fatura em outros formatos (RGE/CPFL)", () => {
     expect(comPainel.fonteInjecao).toBeNull();
   });
 });
+
+describe("leitura adaptativa: IA + layout aprendido", () => {
+  // layout fictício de uma distribuidora que as regras não conhecem
+  const fatura = (inj: number, saldo: number, mes: string) => [
+    "DISTRIBUIDORA EXEMPLO DE ENERGIA S.A.",
+    `Mês de referência: ${mes}`,
+    `Geração própria entregue à rede (Inj FP) kWh ${inj.toLocaleString("pt-BR")}`,
+    "Geração própria entregue à rede (Inj P) kWh 120",
+    `Créditos de energia disponíveis (saldo) kWh ${saldo.toLocaleString("pt-BR")}`,
+    "Leitura anterior 123456 Leitura atual 125000",
+  ];
+
+  it("só aceita da IA números que estão na fatura", async () => {
+    const { validarIa } = await import("@/modules/rateio/fatura-ia");
+    const v = validarIa({ distribuidora: "EXEMPLO", mesReferencia: "2026-07", injetada: [98765, 120], saldo: [5555], demandaContratada: [999999] }, fatura(98765, 4321, "07/2026"));
+    expect(v.componentes.injetada).toEqual([98765, 120]);
+    expect(v.componentes.saldo).toBeUndefined();
+    expect(v.descartados).toEqual(["saldo", "demandaContratada"]);
+  });
+
+  it("aprende o layout com a IA e lê a próxima fatura sem IA", async () => {
+    const { lerFaturaTexto, scoreFatura } = await import("@/modules/rateio/fatura");
+    const { validarIa, mesclarIa } = await import("@/modules/rateio/fatura-ia");
+    const { aprenderLayout } = await import("@/modules/rateio/layout");
+    // 1ª fatura: regras não acham a injetada; a IA lê
+    const l1 = fatura(98765, 4321, "07/2026");
+    const f1 = lerFaturaTexto(l1, "a.pdf");
+    expect(Object.keys(f1.injetada)).toHaveLength(0);
+    const ia = validarIa({ distribuidora: "EXEMPLO", mesReferencia: "2026-07", injetada: [98765, 120], saldo: [4321] }, l1);
+    const f1b = mesclarIa(f1, ia);
+    expect(f1b.injetada["2026-07"]).toBe(98885);
+    expect(f1b.saldoKwh).toBe(4321);
+    expect(f1b.camposIa).toContain("injetada");
+    const layout = aprenderLayout(null, "EXEMPLO", l1, ia.componentes, true);
+    expect(layout.campos.injetada?.[0]).toHaveLength(2);
+    expect(layout.leiturasIa).toBe(1);
+    // 2ª fatura, outros números: o layout aprendido lê tudo, sem IA
+    const f2 = lerFaturaTexto(fatura(87654, 1234, "08/2026"), "b.pdf", [layout]);
+    expect(f2.mesReferencia).toBe("2026-08");
+    expect(f2.injetada["2026-08"]).toBe(87774);
+    expect(f2.saldoKwh).toBe(1234);
+    expect(f2.camposAprendidos).toEqual(expect.arrayContaining(["injetada", "saldo"]));
+    expect(f2.distribuidora).toBe("EXEMPLO");
+    expect(scoreFatura(f2).score).toBeGreaterThanOrEqual(70);
+  });
+
+  it("regras e IA concordando contam como conferência; divergindo, avisam", async () => {
+    const { lerFaturaTexto, scoreFatura } = await import("@/modules/rateio/fatura");
+    const { validarIa, mesclarIa } = await import("@/modules/rateio/fatura-ia");
+    const linhas = ["RGE SUL", "JUL/2026  13/08/2026  R$ 1,00", "Máximo  24.255  kWh Injetado FPonta  124.580", "Mínimo 21.483 kWh Injetado Ponta  7"];
+    const f = lerFaturaTexto(linhas, "r.pdf");
+    const ok = mesclarIa(f, validarIa({ injetada: [124580, 7] }, linhas));
+    expect(ok.conferenciaIa).toBe("ok");
+    expect(scoreFatura(ok).itens.some((i) => /Regras e IA leram a mesma/.test(i.texto) && i.ok)).toBe(true);
+    const div = mesclarIa(f, validarIa({ injetada: [24255] }, linhas));
+    expect(div.conferenciaIa).toBe("divergente");
+    expect(div.avisos.some((a) => /confira/.test(a))).toBe(true);
+  });
+
+  it("anonimiza documento, instalação, chave e contato antes de mandar para a IA", async () => {
+    const { anonimizarFatura } = await import("@/modules/rateio/fatura-ia");
+    const out = anonimizarFatura([
+      "INSC.EST: 0962780502 / CNPJ: 02.421.421/0007-07",
+      "Número da UC 3.523.206.001-62",
+      "43260802016440000162660001645246671016561392",
+      "contato@exemplo.com.br (49) 3551-5052",
+      "kWh Injetado FPonta 124.580",
+    ]);
+    expect(out.join("\n")).not.toMatch(/02\.421\.421|3\.523\.206\.001-62|4326080201644|exemplo\.com|3551-5052/);
+    expect(out).toContain("kWh Injetado FPonta 124.580");
+  });
+});

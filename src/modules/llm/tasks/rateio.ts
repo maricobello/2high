@@ -2,6 +2,7 @@ import "server-only";
 import { parecerPadrao, type ResumoParecer } from "@/modules/rateio/parecer";
 import { collectAllowedNumbers, guardGeneratedText } from "../guards";
 import { getLLM, parseJsonResponse } from "../provider";
+import { anonimizarFatura } from "@/modules/rateio/fatura-ia";
 
 /**
  * IA como redatora do parecer de rateio: recebe números já calculados pelo motor
@@ -72,5 +73,39 @@ export async function lerPainelImagem(dataUrl: string): Promise<{ valores: Recor
     return { valores: parseJsonResponse<Record<string, number | null>>(raw) };
   } catch (err) {
     return { valores: null, erro: err instanceof Error ? err.message : "falha" };
+  }
+}
+
+const SYSTEM_FATURA = `Você lê o texto extraído (PDF) da fatura de energia de uma usina de geração distribuída (UC geradora) de qualquer distribuidora brasileira.
+Devolva SOMENTE números que aparecem no texto, sem calcular, sem somar e sem arredondar: quando um valor vem separado por posto (ponta e fora ponta), devolva cada parte numa lista. Converta o formato brasileiro para número JSON ("124.580" -> 124580; "35.220,0000" -> 35220; "2,45" -> 2.45).
+Campos (null quando não houver; listas com as partes como aparecem):
+- distribuidora: nome curto (ex.: "RGE", "CELESC", "CEMIG").
+- mesReferencia: mês de referência da fatura, "AAAA-MM".
+- injetada: energia ativa injetada na rede pela usina no mês de referência, em kWh (todas as partes: ponta, fora ponta).
+- consumoUsina: consumo próprio da usina no mês, em kWh (partes).
+- excedente: energia excedente distribuída / alocada às UCs beneficiárias no mês, em kWh (partes).
+- saldo: saldo de créditos de energia da própria usina, em kWh (partes).
+- demandaContratada: demanda contratada de injeção/geração em kW (se não houver, a de consumo).
+- demandaRegistrada: demanda medida/registrada de injeção/geração em kW (partes por posto).
+- ultrapassagemKw: kW de ultrapassagem de demanda faturados.
+- despesaUltrapassagem: valor em R$ cobrado por ultrapassagem de demanda.
+- historico: lista de meses do histórico da fatura [{"mes":"AAAA-MM","injetada":[partes],"consumo":[partes],"excedente":[partes]}]; vazia se não houver.
+Não confunda leituras do medidor (números de registro) com energia. Responda só com o objeto JSON.`;
+
+/** Lê a fatura da usina com a IA (texto anonimizado). Os números são conferidos no navegador. */
+export async function lerFaturaIa(linhas: string[]): Promise<{ leitura: unknown; erro?: string }> {
+  const llm = getLLM();
+  if (!llm.available) return { leitura: null, erro: "IA não configurada" };
+  try {
+    const raw = await llm.chat(
+      [
+        { role: "system", content: SYSTEM_FATURA },
+        { role: "user", content: anonimizarFatura(linhas).join("\n").slice(0, 60_000) },
+      ],
+      { tier: "text", json: true, temperature: 0, maxTokens: 2000, task: "fatura_usina" },
+    );
+    return { leitura: parseJsonResponse<unknown>(raw) };
+  } catch (err) {
+    return { leitura: null, erro: err instanceof Error ? err.message : "falha" };
   }
 }

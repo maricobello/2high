@@ -6,6 +6,7 @@
  * Tudo o que é lido aparece na tela para conferência antes de ir para o estudo.
  */
 import { lerDemanda, type Demanda } from "./demanda";
+import { aplicarLayout, type LayoutFatura } from "./layout";
 import { norm, toNumber, ucKey } from "./normalize";
 
 export interface SerieMensal {
@@ -45,6 +46,16 @@ export interface FaturaUsina {
   demanda?: Demanda | null;
   /** Injetada no mês de referência pela leitura do medidor (conferência). */
   injetadaMedidor?: number | null;
+  /** Campos completados pelo layout aprendido da distribuidora (sem IA). */
+  camposAprendidos?: string[];
+  /** Quantas leituras o layout aprendido já tem (confiança). */
+  layoutLeituras?: number;
+  /** A IA participou desta leitura; campos que ela completou; se confere com as regras. */
+  leituraIa?: boolean;
+  camposIa?: string[];
+  conferenciaIa?: "ok" | "divergente";
+  /** Layout da distribuidora depois desta leitura (quantas leituras e quantas com IA). */
+  layoutResumo?: { distribuidora: string; leituras: number; leiturasIa: number; campos: number };
   /** Texto da fatura (linhas), para reler quando a leitura melhora sem precisar reenviar o PDF. */
   linhas?: string[];
 }
@@ -199,7 +210,7 @@ function serie(tabelas: TabelaMensal[], incluir: RegExp, excluir?: RegExp): Seri
   return out;
 }
 
-export function lerFaturaTexto(linhasBrutas: string[], arquivo = "fatura.pdf"): FaturaUsina {
+export function lerFaturaTexto(linhasBrutas: string[], arquivo = "fatura.pdf", layouts: LayoutFatura[] = []): FaturaUsina {
   const linhas = linhasBrutas.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
   const texto = norm(linhas.join("\n"));
   const tabelas = [...lerTabelasMensais(linhas), ...lerHistoricoGrafico(linhas)];
@@ -277,6 +288,42 @@ export function lerFaturaTexto(linhasBrutas: string[], arquivo = "fatura.pdf"): 
     f.rateio.push({ instalacao: m[1], key, pct });
   }
 
+  // layout aprendido (de leituras anteriores com IA): completa o que as regras não acharam
+  const layout = escolherLayout(linhas, layouts);
+  if (layout) {
+    const v = aplicarLayout(linhas, layout);
+    const aprendidos: string[] = [];
+    const ref = f.mesReferencia;
+    if (ref && v.injetada != null && !(f.injetada[ref] > 0)) {
+      f.injetada[ref] = v.injetada;
+      aprendidos.push("injetada");
+    }
+    if (ref && v.consumoUsina != null && f.consumo[ref] == null) {
+      f.consumo[ref] = v.consumoUsina;
+      aprendidos.push("consumoUsina");
+    }
+    if (ref && v.excedente != null && f.excedente[ref] == null) {
+      f.excedente[ref] = v.excedente;
+      aprendidos.push("excedente");
+    }
+    if (f.saldoKwh == null && v.saldo != null) {
+      f.saldoKwh = v.saldo;
+      aprendidos.push("saldo");
+    }
+    const dv = { contratadaKw: v.demandaContratada, registradaKw: v.demandaRegistrada, ultrapassagemKw: v.ultrapassagemKw, despesaUltrapassagem: v.despesaUltrapassagem };
+    if (Object.values(dv).some((x) => x != null)) {
+      f.demanda ??= { contratadaKw: null, contratadaConsumoKw: null, registradaKw: null, registradaConsumoKw: null, ultrapassagemKw: null, despesaUltrapassagem: null, itens: [] };
+      for (const k of ["contratadaKw", "registradaKw", "ultrapassagemKw", "despesaUltrapassagem"] as const)
+        if (f.demanda[k] == null && dv[k] != null) {
+          f.demanda[k] = dv[k]!;
+          aprendidos.push(k);
+        }
+    }
+    if (!f.distribuidora) f.distribuidora = layout.distribuidora;
+    f.camposAprendidos = aprendidos;
+    f.layoutLeituras = layout.leituras;
+  }
+
   if (!Object.keys(f.injetada).length) f.avisos.push("Não encontrei a energia injetada na fatura.");
   if (!Object.keys(f.excedente).length && Object.keys(f.injetada).length) f.avisos.push("Sem o excedente distribuído: o estudo usa a injeção menos o consumo da usina.");
   return f;
@@ -290,6 +337,22 @@ export function mesesEmOperacao(s: SerieMensal): [string, number][] {
   const mediana = pos[Math.floor(pos.length / 2)];
   const inicio = pares.findIndex(([, v]) => v >= mediana * 0.5);
   return pares.slice(inicio).filter(([, v]) => v > 0);
+}
+
+/** Layout aprendido que mais combina com o texto (mais campos encontrados); a distribuidora desempata. */
+export function escolherLayout(linhas: string[], layouts: LayoutFatura[]): LayoutFatura | null {
+  if (!layouts.length) return null;
+  const dist = distribuidoraDoTexto(linhas.join("\n"));
+  let melhor: LayoutFatura | null = null;
+  let pontos = 0;
+  for (const l of layouts) {
+    const n = Object.keys(aplicarLayout(linhas, l)).length + (dist && l.distribuidora === dist ? 0.5 : 0);
+    if (n > pontos) {
+      pontos = n;
+      melhor = l;
+    }
+  }
+  return pontos >= 1 ? melhor : null;
 }
 
 /** Distribuidora pelo texto da fatura. */
@@ -413,6 +476,13 @@ export function scoreFatura(f: FaturaUsina, injetadaPainel?: { kwh: number; mese
     // conferência independente: resumo da fatura × leitura do medidor
     const dif = Math.abs(f.injetada[f.mesReferencia] - f.injetadaMedidor) / f.injetada[f.mesReferencia];
     add(dif <= 0.01, `Injetada confere com a leitura do medidor (${(dif * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% de diferença)`, 20, dif <= 0.01 ? 20 : dif <= 0.05 ? 10 : 0);
+  } else if (f.conferenciaIa) {
+    // duas leituras independentes (regras e IA) da injetada do mês
+    add(f.conferenciaIa === "ok", f.conferenciaIa === "ok" ? "Regras e IA leram a mesma injetada" : "Regras e IA leram injetadas diferentes", 20, f.conferenciaIa === "ok" ? 20 : 0);
+  } else if (f.camposAprendidos?.includes("injetada") || f.camposIa?.includes("injetada")) {
+    // valor ao lado de um rótulo de energia injetada na própria fatura (layout aprendido / IA conferida no texto)
+    const aprendido = f.camposAprendidos?.includes("injetada");
+    add(true, aprendido ? `Injetada pelo layout aprendido da distribuidora (${f.layoutLeituras ?? 1} leitura${(f.layoutLeituras ?? 1) > 1 ? "s" : ""} anteriores)` : "Injetada lida pela IA e conferida no texto da fatura", 20, 20);
   } else add(false, "Sem meses para conferir injetada × excedente", 20, 8);
   const coerente = op.every(([m, v]) => (f.excedente[m] ?? 0) <= v * 1.001);
   add(coerente, coerente ? "Excedente nunca passa da injetada" : "Excedente maior que a injetada em algum mês", 10);

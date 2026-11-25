@@ -1,24 +1,74 @@
 "use client";
 
-import { ChevronDown, CircleCheck, FileText, ImageIcon, Loader2, TriangleAlert } from "lucide-react";
+import { ChevronDown, CircleCheck, FileText, ImageIcon, Loader2, Sparkles, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { autoAplicar, NOTA_AUTOMATICA } from "@/modules/rateio/automacao";
 import { aplicacaoDaFatura, lerFaturaTexto, scoreFatura, type FaturaUsina, type ScoreLeitura } from "@/modules/rateio/fatura";
+import { anonimizarFatura, mesclarIa, validarIa, type FaturaIa, type LeituraIaValidada } from "@/modules/rateio/fatura-ia";
+import { aprenderLayout, type LayoutFatura } from "@/modules/rateio/layout";
 import { CAMPOS_PAINEL, checarPainel, lerPainelTexto, scorePainel, type CampoPainel, type ValoresPainel } from "@/modules/rateio/painel";
 import type { Usina } from "@/modules/rateio/types";
 import { kwh, MESES_CURTOS } from "./format";
 import { EntradaNumero } from "./numero";
 
+let layoutsCache: LayoutFatura[] | null = null;
+async function carregarLayouts(): Promise<LayoutFatura[]> {
+  if (layoutsCache) return layoutsCache;
+  try {
+    const r = await fetch("/api/admin/rateio/layouts");
+    const j = (await r.json()) as { layouts?: LayoutFatura[] };
+    layoutsCache = r.ok && Array.isArray(j.layouts) ? j.layouts : [];
+  } catch {
+    layoutsCache = [];
+  }
+  return layoutsCache;
+}
+
+/**
+ * Lê a fatura pelas linhas de texto: regras → layout aprendido → IA (só quando a nota não
+ * chega a 70 ou quando pedido) → aprende o layout da distribuidora para a próxima vez.
+ */
+export async function lerFaturaLinhas(linhas: string[], arquivo: string, opcoes: { forcarIa?: boolean } = {}): Promise<FaturaUsina> {
+  const layouts = await carregarLayouts();
+  let f = lerFaturaTexto(linhas, arquivo, layouts);
+  const precisaIa = opcoes.forcarIa || scoreFatura(f).score < NOTA_AUTOMATICA || !Object.keys(f.injetada).length;
+  let validada: LeituraIaValidada | null = null;
+  if (precisaIa) {
+    try {
+      const res = await fetch("/api/admin/rateio/fatura", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ linhas: anonimizarFatura(linhas) }) });
+      const j = (await res.json()) as { leitura?: FaturaIa; error?: string };
+      if (!res.ok || !j.leitura) throw new Error(j.error ?? "falha");
+      validada = validarIa(j.leitura, linhas);
+      f = mesclarIa(f, validada);
+    } catch (e) {
+      f.avisos.push(`Leitura pela IA indisponível (${e instanceof Error ? e.message : "falha"}): ficou só a leitura por regras.`);
+    }
+  }
+  // aprende com a leitura conferida e registra o uso, por distribuidora
+  const dist = f.distribuidora || validada?.distribuidora?.toUpperCase();
+  if (dist) {
+    const atual = layouts.find((l) => l.distribuidora === dist) ?? null;
+    const novo = aprenderLayout(atual, dist, linhas, validada?.componentes ?? {}, !!validada);
+    layoutsCache = [...layouts.filter((l) => l.distribuidora !== dist), novo];
+    f.layoutResumo = { distribuidora: dist, leituras: novo.leituras, leiturasIa: novo.leiturasIa, campos: Object.keys(novo.campos).length };
+    fetch("/api/admin/rateio/layouts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ layout: novo }) }).catch(() => {});
+  }
+  return f;
+}
+
 /** Lê a fatura da usina (PDF com texto) no navegador. */
 export async function lerFaturaArquivo(file: File): Promise<FaturaUsina> {
   const { lerPdf } = await import("@/modules/rateio/pdf");
   const t = await lerPdf(await file.arrayBuffer());
-  const f = lerFaturaTexto(t.linhas, file.name);
-  if (t.semTexto) f.avisos.unshift("O PDF não tem texto (parece digitalizado). Baixe a 2ª via em PDF da agência virtual.");
-  return f;
+  if (t.semTexto) {
+    const f = lerFaturaTexto(t.linhas, file.name);
+    f.avisos.unshift("O PDF não tem texto (parece digitalizado). Baixe a 2ª via em PDF da agência virtual.");
+    return f;
+  }
+  return lerFaturaLinhas(t.linhas, file.name);
 }
 
 /** Reduz a imagem (máx. 1600 px) e devolve data URL JPEG, para enviar à leitura. */
@@ -42,6 +92,41 @@ export async function lerPainelImagemArquivo(file: Blob): Promise<ValoresPainel>
 }
 
 const mesLabel = (iso: string) => `${MESES_CURTOS[Number(iso.slice(5, 7)) - 1]}/${iso.slice(2, 4)}`;
+
+const NOMES_CAMPOS: Record<string, string> = {
+  injetada: "injetada",
+  consumoUsina: "consumo da usina",
+  excedente: "excedente",
+  saldo: "saldo",
+  contratadaKw: "demanda contratada",
+  registradaKw: "demanda registrada",
+  ultrapassagemKw: "ultrapassagem",
+  despesaUltrapassagem: "despesa com ultrapassagem",
+};
+
+/** Como a fatura foi lida: regras, layout aprendido da distribuidora ou IA (e quanto a IA ainda é usada). */
+function ComoFoiLida({ f, lendo, onRelerIa }: { f: FaturaUsina; lendo: boolean; onRelerIa?: () => void }) {
+  const nomes = (l?: string[]) => (l ?? []).map((c) => NOMES_CAMPOS[c] ?? c).join(", ");
+  const r = f.layoutResumo;
+  const partes: string[] = [];
+  if (f.leituraIa) partes.push(f.camposIa?.length ? `IA completou: ${nomes(f.camposIa)}` : f.conferenciaIa === "ok" ? "IA conferiu a leitura (concorda)" : f.conferenciaIa === "divergente" ? "IA leu diferente: confira" : "IA consultada");
+  if (f.camposAprendidos?.length) partes.push(`layout aprendido: ${nomes(f.camposAprendidos)}`);
+  if (!partes.length) partes.push("lida pelas regras, sem IA");
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-subtle/50 px-3 py-2 text-xs">
+      <span className="min-w-0 text-muted">
+        <Sparkles className="mr-1 inline size-3.5 text-primary-text" />
+        {partes.join(" · ")}
+        {r && r.leituras > 0 && ` · ${r.distribuidora}: IA em ${r.leiturasIa} de ${r.leituras} leitura${r.leituras > 1 ? "s" : ""}${r.campos ? `, ${r.campos} campo${r.campos > 1 ? "s" : ""} aprendido${r.campos > 1 ? "s" : ""}` : ""}`}
+      </span>
+      {onRelerIa && (
+        <button type="button" onClick={onRelerIa} disabled={lendo} className="font-semibold text-primary-text hover:underline disabled:opacity-50">
+          {lendo ? "Lendo…" : "Reler com IA"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 function Nota({ s, aplicado, rotulo }: { s: ScoreLeitura; aplicado: boolean; rotulo: string }) {
   const [aberto, setAberto] = useState(false);
@@ -98,6 +183,20 @@ export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; 
     } finally {
       setLendo(null);
       if (pdfRef.current) pdfRef.current.value = "";
+    }
+  }
+
+  async function relerComIa(fat: FaturaUsina) {
+    if (!fat.linhas?.length) return;
+    setLendo("fatura");
+    setErro(null);
+    try {
+      const nova = await lerFaturaLinhas(fat.linhas, fat.arquivo, { forcarIa: true });
+      onTransformar((u) => autoAplicar({ ...u, fatura: nova, fonteInjecao: u.fonteInjecao === "manual" ? null : u.fonteInjecao }));
+    } catch (e) {
+      setErro(`Fatura: ${e instanceof Error ? e.message : "falha na leitura"}`);
+    } finally {
+      setLendo(null);
     }
   }
 
@@ -187,7 +286,7 @@ export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; 
         <div className="border-b border-border p-4 xl:border-r xl:border-b-0">
           <p className="mb-2 text-sm font-semibold">Fatura da usina</p>
           {!f ? (
-            <p className="text-sm text-muted">PDF da fatura da UC geradora (2ª via com texto, qualquer distribuidora). Lemos injeção, excedente distribuído, consumo da usina, saldo e demanda: do histórico mês a mês quando a fatura traz (CELESC), ou do mês de referência conferido com a leitura do medidor (RGE, CPFL e afins).</p>
+            <p className="text-sm text-muted">PDF da fatura da UC geradora (2ª via com texto, qualquer distribuidora). Lemos injeção, excedente distribuído, consumo da usina, saldo e demanda. Quando as regras não bastam, a IA lê (só vale número que está na fatura) e o sistema aprende o layout da distribuidora: na próxima, lê sem IA.</p>
           ) : (
             <div className="space-y-3">
               {sFatura && <Nota s={sFatura} aplicado={faturaAplicada} rotulo="Injeção" />}
@@ -195,6 +294,7 @@ export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; 
                 {f.arquivo} · {f.distribuidora || "distribuidora não identificada"} · referência {f.mesReferencia ? mesLabel(f.mesReferencia) : "—"}
                 {f.saldoKwh != null && ` · saldo da geradora ${kwh(f.saldoKwh)} kWh`}
               </p>
+              <ComoFoiLida f={f} lendo={lendo === "fatura"} onRelerIa={f.linhas?.length ? () => relerComIa(f) : undefined} />
               {aplic?.descricao.map((d) => (
                 <p key={d} className="text-xs text-foreground/85">
                   {d}
