@@ -78,7 +78,7 @@ export async function exportarPdf(usinas: Usina[], resultado: ResultadoProjeto, 
 
   const marca: MarcaEstudo = { ...MARCA_PADRAO, ...opcoes.marca };
   const corHex = /^#?[0-9a-f]{6}$/i.test(marca.cor) ? marca.cor : MARCA_PADRAO.cor;
-  const C = { marca: hex(corHex), texto: misturar(hex(corHex), 0, 0.22), claro: misturar(hex(corHex), 255, 0.92), medio: misturar(hex(corHex), 255, 0.7), barra: misturar(hex(corHex), 255, 0.78) };
+  const C = { marca: hex(corHex), texto: misturar(hex(corHex), 0, 0.22), claro: misturar(hex(corHex), 255, 0.92), medio: misturar(hex(corHex), 255, 0.7), barra: misturar(hex(corHex), 255, 0.45) };
   const emissao = new Date().toLocaleDateString("pt-BR");
   const alvo = resultado.usinas.filter((r) => !opcoes.usinas?.length || opcoes.usinas.includes(r.usinaId));
   const rodapes: Record<number, string> = {};
@@ -381,16 +381,20 @@ function paginasAnexo(doc: JsPDF, autoTable: AutoTable, u: Usina, r: ResultadoUs
         d.cell.styles.textColor = Math.abs(dv) < 10 ** -casas / 2 ? MUDO : dv > 0 ? OK : ATENCAO;
       }
     },
-    willDrawCell: (d: { section: string; column: { index: number }; row: { index: number }; cell: { x: number; y: number; width: number; height: number } }) => {
-      // barra proporcional ao consumo compensável, atrás do número
+    didDrawCell: (d: { section: string; column: { index: number }; row: { index: number }; cell: { x: number; y: number; width: number; height: number } }) => {
+      // barra fina proporcional ao consumo compensável, à esquerda do número (sem sobrepor)
       if (d.section === "body" && d.column.index === 8) {
         const l = linhas[d.row.index];
-        const w = Math.max(0, (l.compensavelKwh / maxComp) * (d.cell.width - 2));
+        const zonaNumero = 12;
+        const max = d.cell.width - zonaNumero - 2.4;
+        const w = Math.max(0.6, (Math.max(0, l.compensavelKwh) / maxComp) * max);
+        const h = Math.min(2.2, d.cell.height * 0.42);
+        const by = d.cell.y + (d.cell.height - h) / 2;
+        doc.setFillColor(...C.claro);
+        doc.roundedRect(d.cell.x + 1.4, by, max, h, h / 2, h / 2, "F");
         doc.setFillColor(...C.barra);
-        doc.rect(d.cell.x + 1, d.cell.y + 0.8, w, d.cell.height - 1.6, "F");
+        doc.roundedRect(d.cell.x + 1.4, by, w, h, h / 2, h / 2, "F");
       }
-    },
-    didDrawCell: (d: { section: string; row: { index: number }; cell: { x: number; y: number; width: number; height: number } }) => {
       if (d.section === "head") {
         doc.setDrawColor(...C.marca);
         doc.setLineWidth(0.5);
