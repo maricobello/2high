@@ -143,14 +143,18 @@ export function scorePainel(p: PainelOrange, injetadaFatura?: Record<string, num
   const coer = v.injetada != null && v.geracaoRealizada != null && v.compensada != null ? v.injetada <= v.geracaoRealizada * 1.02 && v.compensada <= v.injetada * 1.001 + (v.saldoUtilizado ?? 0) : null;
   add(coer === true, coer == null ? "Faltam geração, injetada ou compensada" : coer ? "Geração ≥ injetada ≥ compensada" : "Ordem geração ≥ injetada ≥ compensada não fecha", 15, coer == null ? 5 : coer ? 15 : 0);
   const inf = inferirMeses(v.injetada, injetadaFatura);
-  if (injetadaFatura && Object.keys(injetadaFatura).length) {
+  // fatura com só 1 mês (RGE/CPFL) não serve para conferir um período: fica neutro, sem trava
+  const mesesFatura = Object.values(injetadaFatura ?? {}).filter((x) => x > 0).length;
+  if (injetadaFatura && mesesFatura === 1) {
+    add(false, "Fatura traz só 1 mês: sem como conferir o período da tela", 30, 12);
+  } else if (injetadaFatura && Object.keys(injetadaFatura).length) {
     add(!!inf, inf ? `Injetada bate com ${inf.meses} meses da fatura (${(inf.diferenca * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%)` : "Injetada não bate com nenhum período da fatura", 30, inf ? (inf.diferenca <= 0.01 ? 30 : 22) : 0);
   } else add(false, "Sem a fatura para conferir a injetada", 30, 12);
   const max = itens.reduce((a, i) => a + i.max, 0);
   let score = Math.round((itens.reduce((a, i) => a + i.pontos, 0) / max) * 100);
   // travas: saldo que não fecha ou injetada que não bate com a fatura indicam dígito lido errado
   const saldoFalhou = temSaldo && !itens[1].ok;
-  const faturaFalhou = !!injetadaFatura && Object.keys(injetadaFatura).length > 0 && !inf;
+  const faturaFalhou = mesesFatura >= 2 && !inf;
   if (saldoFalhou) score = Math.min(score, 55);
   if (faturaFalhou) score = Math.min(score, 65);
   return { score, nivel: score >= 80 ? "alta" : score >= 60 ? "media" : "baixa", itens };

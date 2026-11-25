@@ -22,12 +22,14 @@ export function autoAplicar(u: Usina): Usina {
   }
   const painel = out.painel ?? null;
 
-  if (painel && painel.meses && out.fontePeriodo !== "manual") {
+  // Estimada → energia contratada do período; Injetada → energia injetada do período.
+  // Entram mesmo sem saber os meses (o número de meses vem da fatura, da planilha ou digitado).
+  if (painel && out.fontePeriodo !== "manual") {
     const s = scorePainel(painel, f?.injetada);
     if (s.score >= NOTA_AUTOMATICA) {
       out = {
         ...out,
-        meses: painel.meses,
+        ...(painel.meses ? { meses: painel.meses } : {}),
         energiaContratadaPeriodo: painel.valores.estimada ?? out.energiaContratadaPeriodo,
         energiaGeradaPeriodo: painel.valores.geracaoRealizada ?? out.energiaGeradaPeriodo,
         energiaInjetadaPeriodo: painel.valores.injetada ?? out.energiaInjetadaPeriodo,
@@ -40,7 +42,8 @@ export function autoAplicar(u: Usina): Usina {
     const s = scoreFatura(f, painel?.valores.injetada && painel.meses ? { kwh: painel.valores.injetada, meses: painel.meses } : null);
     const a = aplicacaoDaFatura(f);
     // fatura com só 1 ou 2 meses não substitui a média de um período maior da tela do Orange
-    const poucoHistorico = a.mesesUsados.length < 3 && out.fontePeriodo === "painel" && (painel?.meses ?? 0) >= 3;
+    // (período conhecido por qualquer fonte: recorte, planilha ou meses digitados)
+    const poucoHistorico = a.mesesUsados.length < 3 && out.meses >= 3 && out.energiaInjetadaPeriodo > 0;
     if (poucoHistorico) {
       if (out.fonteInjecao === "fatura") out = { ...out, injecaoMensalProjetada: null, fonteInjecao: null };
       out = { ...out, distribuidora: out.distribuidora || f.distribuidora };

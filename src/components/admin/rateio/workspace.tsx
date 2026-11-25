@@ -352,7 +352,9 @@ export function RateioWorkspace() {
   const abaAtual = aba === "inicio" ? (estado.calendario.length ? "calendario" : (estado.usinas[0]?.id ?? "inicio")) : aba;
 
   function atualizarUsina(id: string, patch: Partial<Usina>) {
-    setEstado((e) => ({ ...e, usinas: e.usinas.map((u) => (u.id === id ? { ...u, ...patch } : u)) }));
+    // mudou o período: a injeção da fatura (se veio de 1 mês só) cede para a média do período
+    const periodo = "meses" in patch || "energiaInjetadaPeriodo" in patch || "periodoInicio" in patch || "periodoFim" in patch;
+    setEstado((e) => ({ ...e, usinas: e.usinas.map((u) => (u.id === id ? (periodo ? autoAplicar({ ...u, ...patch }) : { ...u, ...patch }) : u)) }));
   }
   /** Atualiza a usina a partir do estado mais recente (para leituras assíncronas). */
   function transformarUsina(id: string, fn: (u: Usina) => Usina) {
@@ -1233,9 +1235,9 @@ function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<U
             <CampoMes label="Início do período" value={usina.periodoInicio} onChange={(v) => onChange(periodo(usina, v, usina.periodoFim))} />
             <CampoMes label="Fim do período" value={usina.periodoFim} onChange={(v) => onChange(periodo(usina, usina.periodoInicio, v))} />
             <CampoNumero label="Meses da análise" value={usina.meses || null} onChange={(v) => onChange({ meses: n0(v), fontePeriodo: "manual" })} step="1" />
-            <CampoNumero label="Energia contratada no período" sufixo="kWh" value={usina.energiaContratadaPeriodo || null} onChange={(v) => onChange({ energiaContratadaPeriodo: n0(v), fontePeriodo: "manual" })} />
-            <CampoNumero label="Energia gerada no período" sufixo="kWh" value={usina.energiaGeradaPeriodo || null} onChange={(v) => onChange({ energiaGeradaPeriodo: n0(v), fontePeriodo: "manual" })} />
-            <CampoNumero label="Energia injetada no período" sufixo="kWh" value={usina.energiaInjetadaPeriodo || null} onChange={(v) => onChange({ energiaInjetadaPeriodo: n0(v), fontePeriodo: "manual" })} />
+            <CampoNumero label="Energia contratada no período" sufixo="kWh" value={usina.energiaContratadaPeriodo || null} onChange={(v) => onChange({ energiaContratadaPeriodo: n0(v), fontePeriodo: "manual" })} dica="No recorte do Orange: Estimada" />
+            <CampoNumero label="Energia gerada no período" sufixo="kWh" value={usina.energiaGeradaPeriodo || null} onChange={(v) => onChange({ energiaGeradaPeriodo: n0(v), fontePeriodo: "manual" })} dica="No recorte do Orange: Geração Realizada" />
+            <CampoNumero label="Energia injetada no período" sufixo="kWh" value={usina.energiaInjetadaPeriodo || null} onChange={(v) => onChange({ energiaInjetadaPeriodo: n0(v), fontePeriodo: "manual" })} dica="No recorte do Orange: Injetada" />
             <CampoNumero
               label="Injeção mensal projetada"
               sufixo="kWh"

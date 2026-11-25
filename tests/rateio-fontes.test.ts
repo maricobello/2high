@@ -299,3 +299,35 @@ describe("leitura adaptativa: IA + layout aprendido", () => {
     expect(out).toContain("kWh Injetado FPonta 124.580");
   });
 });
+
+describe("recorte do Orange com fatura de 1 mês (RGE)", () => {
+  it("aplica Estimada → contratada e Injetada → injetada do período, sem travar a nota", async () => {
+    const { autoAplicar } = await import("@/modules/rateio/automacao");
+    const { scorePainel } = await import("@/modules/rateio/painel");
+    const { usinaVazia } = await import("@/modules/rateio/grid");
+    const valores = { estimada: 4389840, injetada: 3239006, compensada: 2708182, saldoInicial: 477803, saldoUtilizado: 15161, saldoVencido: 0, saldoAdicionado: 28074, saldoAcumulado: 490716, geracaoRealizada: 3799256, consumoUsina: 24770, divergencia: -535480, balancoInjetada: 1499343 };
+    const painel = { valores, meses: null, fonte: "imagem" as const, lidoEm: "" };
+    const umMes = { "2026-07": 124587 };
+    const s = scorePainel(painel, umMes);
+    expect(s.score).toBeGreaterThanOrEqual(70);
+    const u = autoAplicar({ ...usinaVazia("U"), painel, fatura: { injetada: umMes, excedente: {}, consumo: {} } as never });
+    expect(u.energiaContratadaPeriodo).toBe(4389840);
+    expect(u.energiaInjetadaPeriodo).toBe(3239006);
+    expect(u.energiaGeradaPeriodo).toBe(3799256);
+    expect(u.fontePeriodo).toBe("painel");
+  });
+});
+
+describe("período do Orange × fatura de 1 mês", () => {
+  it("com os meses informados, usa a média do período e não o mês isolado", async () => {
+    const { autoAplicar } = await import("@/modules/rateio/automacao");
+    const { injecaoMensal } = await import("@/modules/rateio/engine");
+    const { usinaVazia } = await import("@/modules/rateio/grid");
+    const fatura = { injetada: { "2026-07": 124587 }, excedente: {}, consumo: { "2026-07": 1330 }, mesReferencia: "2026-07", distribuidora: "RGE", avisos: [], rateio: [], tabelas: [], saldoKwh: null, injetadaMedidor: 124584, arquivo: "", lidaEm: "" };
+    const so = autoAplicar({ ...usinaVazia("U"), fatura } as never);
+    expect(injecaoMensal(so)).toBe(124587 - 1330);
+    const comPeriodo = autoAplicar({ ...so, meses: 6, energiaInjetadaPeriodo: 720000, fontePeriodo: "manual" });
+    expect(comPeriodo.injecaoMensalProjetada).toBeNull();
+    expect(injecaoMensal(comPeriodo)).toBe(120000);
+  });
+});

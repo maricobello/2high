@@ -38,7 +38,10 @@ geração distribuída e entregar o estudo em Excel.
      visão da Groq; dá para colar com Ctrl+V) ou texto copiado da tela. Confere se o saldo
      fecha, se o saldo acumulado bate com a soma das UCs, se a injetada bate com a fatura e a
      divergência de faturamento. "Usar no estudo" preenche meses, energia contratada
-     (Estimada), gerada e injetada do período.
+     (Estimada), gerada (Geração Realizada) e injetada (Injetada) do período. Os valores entram
+     mesmo sem saber os meses (vêm da fatura, da planilha ou digitados); com fatura de 1 mês só
+     (RGE/CPFL), a conferência do período fica neutra e, quando os meses são conhecidos, a
+     injeção do estudo usa a média do período do Orange.
    - **Automático**: cada leitura recebe uma nota de confiança (0 a 100) com os critérios à
      vista (o que foi encontrado e se os números fecham entre si e com a outra fonte). Com nota
      70 ou mais, entra no estudo sozinha; os meses do período da tela são descobertos cruzando
