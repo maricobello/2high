@@ -39,7 +39,12 @@ export function autoAplicar(u: Usina): Usina {
   if (f && out.fonteInjecao !== "manual") {
     const s = scoreFatura(f, painel?.valores.injetada && painel.meses ? { kwh: painel.valores.injetada, meses: painel.meses } : null);
     const a = aplicacaoDaFatura(f);
-    if (s.score >= NOTA_AUTOMATICA && a.injecaoMensal) {
+    // fatura com só 1 ou 2 meses não substitui a média de um período maior da tela do Orange
+    const poucoHistorico = a.mesesUsados.length < 3 && out.fontePeriodo === "painel" && (painel?.meses ?? 0) >= 3;
+    if (poucoHistorico) {
+      if (out.fonteInjecao === "fatura") out = { ...out, injecaoMensalProjetada: null, fonteInjecao: null };
+      out = { ...out, distribuidora: out.distribuidora || f.distribuidora };
+    } else if (s.score >= NOTA_AUTOMATICA && a.injecaoMensal) {
       out = {
         ...out,
         injecaoMensalProjetada: Math.round(a.injecaoMensal),

@@ -19,8 +19,11 @@ geração distribuída e entregar o estudo em Excel.
 3. **Fatura e tela do Orange** (na aba da usina, ou arrastando o arquivo com a usina aberta):
    - **Fatura da usina (PDF)**: lida no navegador. Traz, mês a mês, energia injetada,
      excedente distribuído (o que de fato vai para o rateio), consumo da usina e saldo da
-     geradora. Calibrada na fatura CELESC Grupo A de GD; meses zerados e o mês de entrada em
-     operação ficam fora da média. "Usar no estudo" define a injeção mensal (e a sazonalidade,
+     geradora. Lê qualquer layout em camadas: tabelas mês a mês (CELESC), histórico em gráfico de
+     barras (RGE/CPFL), valores soltos do mês ("kWh Injetado", saldo por posto, leitura do
+     medidor) e itens em kW. Fatura com só o mês de referência é conferida com a leitura do
+     medidor e não substitui a média de um período maior da tela do Orange. Meses zerados e o
+     mês de entrada em operação ficam fora da média. "Usar no estudo" define a injeção mensal (e a sazonalidade,
      quando há 12 meses de operação). Também lê a **demanda** (contratada, registrada, ultrapassagem
      e a despesa com ultrapassagem), que vai para "Dados da usina", para a planilha modelo (N4:N6) e
      vira ponto de atenção quando há ultrapassagem (não muda o rateio; é custo da usina).

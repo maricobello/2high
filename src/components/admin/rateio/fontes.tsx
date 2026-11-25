@@ -187,7 +187,7 @@ export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; 
         <div className="border-b border-border p-4 xl:border-r xl:border-b-0">
           <p className="mb-2 text-sm font-semibold">Fatura da usina</p>
           {!f ? (
-            <p className="text-sm text-muted">PDF da fatura da UC geradora (2ª via com texto). Lemos injeção, excedente distribuído, consumo da usina e saldo, mês a mês.</p>
+            <p className="text-sm text-muted">PDF da fatura da UC geradora (2ª via com texto, qualquer distribuidora). Lemos injeção, excedente distribuído, consumo da usina, saldo e demanda: do histórico mês a mês quando a fatura traz (CELESC), ou do mês de referência conferido com a leitura do medidor (RGE, CPFL e afins).</p>
           ) : (
             <div className="space-y-3">
               {sFatura && <Nota s={sFatura} aplicado={faturaAplicada} rotulo="Injeção" />}
@@ -207,7 +207,7 @@ export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; 
               ))}
               {mesesFatura.length > 0 && (
                 <details className="text-xs">
-                  <summary className="cursor-pointer text-primary-text">Ver os {mesesFatura.length} meses lidos</summary>
+                  <summary className="cursor-pointer text-primary-text">{mesesFatura.length === 1 ? "Ver o mês lido" : `Ver os ${mesesFatura.length} meses lidos`}</summary>
                   <div className="mt-2 overflow-x-auto">
                     <table className="w-full min-w-[420px]">
                       <thead className="text-left text-muted">

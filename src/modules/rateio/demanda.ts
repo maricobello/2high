@@ -37,14 +37,31 @@ export function lerDemanda(linhas: string[]): Demanda | null {
   linhas.forEach((bruta, i) => {
     const l = bruta.replace(/\s+/g, " ").trim();
     const n = norm(l);
-    // itens da conta: "(65) Ultrapassagem de Demanda Injetada KW 2.219,840 9,053580 20.097,51 ..."
-    const it = /^\((\w{2,3})\)\s+(.*?demanda.*?)\s+kw\s+([\d.,]+)\s+([\d.,]+)\s+(-?[\d.,]+)/i.exec(l);
-    if (it) {
-      d.itens.push({ codigo: it[1], descricao: it[2].trim(), kw: toNumber(it[3]), valor: toNumber(it[5]) });
-      achou = true;
-      return;
+    // itens da conta em kW: "(65) Ultrapassagem de Demanda Injetada KW 2.219,840 9,053580 20.097,51 ..."
+    // ou "Demanda [kW] - TUSD JUL/26 kW 24,9600 28,55 29,955 747,68 ..." (o valor é o que bate com qtd × tarifa)
+    const it = /^(?:\((\w{2,3})\)\s+)?(.*?(?:demanda|ultrapassagem).*?)\s+kw\s+([\d.,]+)\s+(.*)$/i.exec(l);
+    if (it && !/^demanda\s+[\d.,]+\s*kw/i.test(l)) {
+      const qtd = toNumber(it[3]);
+      const resto = (it[4].match(/-?[\d.]+,\d+|-?\d+/g) ?? []).map(toNumber);
+      const tarifas = resto.slice(0, 2);
+      const valor = resto.slice(1).find((v) => tarifas.some((t) => t > 0 && qtd > 0 && Math.abs(v - qtd * t) / (qtd * t) < 0.05));
+      if (qtd > 0 && valor != null) {
+        d.itens.push({ codigo: it[1] ?? "", descricao: it[2].replace(/\s*\[kw\]\s*/i, " ").trim(), kw: qtd, valor });
+        achou = true;
+      }
     }
-    let m = /demanda de inje[cç][aã]o\s+([\d.,]+)\s*kw/i.exec(l);
+    // contratadas no formato RGE/CPFL: "... Demanda kW 30" e "... Geração kW 1.000"
+    let m = /gera[cç][aã]o\s+kw\s+([\d.,]+)\s*$/i.exec(l);
+    if (m) {
+      d.contratadaKw = kw(m[1]);
+      achou = true;
+    }
+    m = /\bdemanda\s+kw\s+([\d.,]+)\s*$/i.exec(l);
+    if (m) {
+      d.contratadaConsumoKw = kw(m[1]);
+      achou = true;
+    }
+    m = /demanda de inje[cç][aã]o\s+([\d.,]+)\s*kw/i.exec(l);
     if (m) {
       d.contratadaKw = kw(m[1]);
       achou = true;
@@ -63,6 +80,11 @@ export function lerDemanda(linhas: string[]): Demanda | null {
       m = /medida\s+([\d.,]+)\s*kw\s+([\d.,]+)\s*kw/i.exec(l);
       if (m) d.registradaConsumoKw = Math.max(kw(m[1]), kw(m[2]));
     }
+    // medidor: "Demanda Ativa - kW Ponta 000008 000008 0,60000 5" (último número = registrado)
+    m = /demanda ativa.*?(?:fora (?:de )?ponta|ponta)\s+\d+\s+\d+\s+[\d.,]+\s+([\d.,]+)\s*$/i.exec(l);
+    if (m) d.registradaConsumoKw = Math.max(d.registradaConsumoKw ?? 0, kw(m[1]));
+    m = /demanda (?:injetada|gera[cç][aã]o).*?(?:fora (?:de )?ponta|ponta)\s+\d+\s+\d+\s+[\d.,]+\s+([\d.,]+)\s*$/i.exec(l);
+    if (m) d.registradaKw = Math.max(d.registradaKw ?? 0, kw(m[1]));
     // "Ultrapassagem" com o valor na mesma linha ou na seguinte
     if (/^ultrapassagem\b/.test(n) && !/demanda/.test(n)) {
       const aqui = /([\d.,]+)\s*kw/i.exec(l);

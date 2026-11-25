@@ -174,3 +174,56 @@ describe("demanda da usina (fatura)", () => {
     expect(r.alertas.some((a) => a.codigo === "ultrapassagem_demanda")).toBe(true);
   });
 });
+
+describe("fatura em outros formatos (RGE/CPFL)", () => {
+  // trechos no formato da RGE Sul, sem dados de cliente
+  const linhas = [
+    "RGE SUL DISTRIBUIDORA DE ENERGIA S.A.",
+    "JUL/2026  13/08/2026  R$ 14.884,36",
+    "Consumo Ponta [KWh] - TUSD JUL/26  kWh  213,3000  1,83490000  2,31950305  494,75  494,75  17,00  84,11  3,41  15,85",
+    "Demanda [kW] - TUSD JUL/26  kW  24,9600  28,55000000  29,95512821  747,68  6,21  28,86 Demanda kW  30",
+    "Demanda [kW] - TUSD JUL/26  kW  5,0400  28,55000000  36,08928572  181,89  181,89  17,00  30,92  1,25  5,83 Geração kW  1.000",
+    "11111111  Demanda Ativa - kW  Ponta  000008  000008  0,60000  5",
+    "11111111  Energia Injetada - kW  Ponta  007509  007510  6,00000  6",
+    "11111111  Energia Injetada - kW Fora Ponta  347032  367795  6,00000  124.578",
+    "Mínimo  21.483  kWh Injetado Ponta  7  www.exemplo.com.br",
+    "Máximo  24.255  kWh Injetado FPonta  124.580",
+    "Consumo Ponta - [kWh]  N° DIAS FAT  Consumo Fora de Ponta - [kWh] N° DIAS FAT  Demanda - [kW]  Nº DIAS FAT",
+    "JUL 26 llllllllllll  213,00  31  JUL 26 lllllllllll  1117,00  31  JUL 26 llllllll  5,00  31",
+    "JUN 26 llllllllll  200,00  30  JUN 26 lllllllll  1065,00  30  JUN 26 llllllll  5,00  30",
+    "AGO 25 llllllllll  264,00  31  AGO 25 lllllllll  1608,00  31  AGO 25  0,00  31",
+    "Saldo em Energia da Instalação: Ponta 0,0000000000 kWh  Caso não ocorra o débito utilize esta conta para pagamento.",
+    "Fora Ponta 35.220,0000000000 kWh",
+  ];
+
+  it("lê injetada do mês, confere com o medidor e monta o histórico do gráfico", async () => {
+    const { lerFaturaTexto, scoreFatura, aplicacaoDaFatura } = await import("@/modules/rateio/fatura");
+    const f = lerFaturaTexto(linhas, "rge.pdf");
+    expect(f.distribuidora).toBe("RGE");
+    expect(f.mesReferencia).toBe("2026-07");
+    expect(f.injetada["2026-07"]).toBe(124587);
+    expect(f.injetadaMedidor).toBe(124584);
+    expect(f.saldoKwh).toBe(35220);
+    expect(f.consumo["2026-07"]).toBe(1330);
+    expect(f.consumo["2026-06"]).toBe(1265);
+    expect(f.consumo["2025-08"]).toBe(1872);
+    expect(aplicacaoDaFatura(f).injecaoMensal).toBe(124587 - 1330);
+    const s = scoreFatura(f);
+    expect(s.score).toBeGreaterThanOrEqual(70);
+    expect(s.itens.some((i) => /medidor/.test(i.texto) && i.ok)).toBe(true);
+    expect(f.demanda).toMatchObject({ contratadaKw: 1000, contratadaConsumoKw: 30, registradaConsumoKw: 5, despesaUltrapassagem: 0 });
+    expect(f.demanda!.itens.map((i) => i.valor)).toEqual([747.68, 181.89]);
+  });
+
+  it("fatura de 1 mês não substitui a média do período da tela do Orange", async () => {
+    const { lerFaturaTexto } = await import("@/modules/rateio/fatura");
+    const { autoAplicar } = await import("@/modules/rateio/automacao");
+    const { usinaVazia } = await import("@/modules/rateio/grid");
+    const f = lerFaturaTexto(linhas, "rge.pdf");
+    const so = autoAplicar({ ...usinaVazia("U"), fatura: f });
+    expect(so.injecaoMensalProjetada).toBe(124587 - 1330);
+    const comPainel = autoAplicar({ ...so, fontePeriodo: "painel", meses: 6, energiaInjetadaPeriodo: 700000, painel: { valores: { injetada: 700000 }, meses: 6, fonte: "texto", lidoEm: "" } as never });
+    expect(comPainel.injecaoMensalProjetada).toBeNull();
+    expect(comPainel.fonteInjecao).toBeNull();
+  });
+});
