@@ -36,6 +36,7 @@ import { METODOLOGIA } from "@/modules/rateio/metodologia";
 import { SaldoChart } from "./chart";
 import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
 import { autoAplicar } from "@/modules/rateio/automacao";
+import { MARCA_PADRAO, MARCA_REPLACE, type MarcaEstudo } from "@/modules/rateio/estudo-xlsx";
 import { kwh, MESES_CURTOS, ratio } from "./format";
 import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
@@ -45,6 +46,7 @@ interface Parecer {
 }
 
 interface Estado {
+  marca: MarcaEstudo;
   usinas: Usina[];
   candidatas: Candidata[];
   calendario: ItemCalendario[];
@@ -53,7 +55,7 @@ interface Estado {
   exemplo: boolean;
 }
 
-const VAZIO: Estado = { usinas: [], candidatas: [], calendario: [], params: PARAMETROS_PADRAO, pareceres: {}, exemplo: false };
+const VAZIO: Estado = { marca: MARCA_PADRAO, usinas: [], candidatas: [], calendario: [], params: PARAMETROS_PADRAO, pareceres: {}, exemplo: false };
 const STORAGE = "aferi:rateio:v1";
 
 function carregar(): Estado | null {
@@ -61,7 +63,7 @@ function carregar(): Estado | null {
     const raw = localStorage.getItem(STORAGE);
     if (!raw) return null;
     const e = JSON.parse(raw) as Estado;
-    return { ...VAZIO, ...e, params: validarParametros({ ...PARAMETROS_PADRAO, ...e.params }) };
+    return { ...VAZIO, ...e, marca: { ...MARCA_PADRAO, ...e.marca }, params: validarParametros({ ...PARAMETROS_PADRAO, ...e.params }) };
   } catch {
     return null;
   }
@@ -119,7 +121,7 @@ export interface Destinos {
 }
 
 function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Destinos): { estado: Estado; abrir: string | null } {
-  const base = atual.exemplo ? { ...VAZIO, params: atual.params } : atual;
+  const base = atual.exemplo ? { ...VAZIO, params: atual.params, marca: atual.marca } : atual;
   const calendario = imp.calendario.length ? imp.calendario : base.calendario;
   const usinas = [...base.usinas];
   let abrir: string | null = null;
@@ -313,18 +315,48 @@ export function RateioWorkspace() {
     inputRef.current?.click();
   }
 
-  async function exportar() {
+  function baixar(blob: Blob, nome: string) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  async function planilhaModelo(usinaId: string) {
+    const u = estado.usinas.find((x) => x.id === usinaId);
+    const r = resultado.usinas.find((x) => x.usinaId === usinaId);
+    if (!u || !r) return;
     setOcupado(true);
     try {
-      const { exportarXlsx } = await import("@/modules/rateio/xlsx");
-      const textos = Object.fromEntries(Object.entries(estado.pareceres).map(([k, v]) => [k, v.texto]));
-      const blob = await exportarXlsx(estado.usinas, resultado, estado.params, textos);
-      const nome = estado.usinas.map((u) => u.nome.replace(/\s+/g, "-")).join("_").slice(0, 60) || "rateio";
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `estudo-rateio_${nome}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      const { preencherModelo } = await import("@/modules/rateio/planilha-modelo");
+      const blob = await preencherModelo(u, r, resultado.candidatas.filter((c) => !c.selecionada || c.usinaDestino === u.nome), estado.params);
+      baixar(blob, `Modelo_Rateio_${u.nome.replace(/\s+/g, "-")}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function modeloBranco() {
+    const { modeloEmBranco } = await import("@/modules/rateio/planilha-modelo");
+    baixar(await modeloEmBranco(), "Modelo_Rateio_Usinas_GD.xlsx");
+  }
+
+  async function exportar(somente?: string) {
+    setOcupado(true);
+    try {
+      const { exportarEstudo } = await import("@/modules/rateio/estudo-xlsx");
+      const pareceres = Object.fromEntries(Object.entries(estado.pareceres).map(([k, v]) => [k, v.texto]));
+      const ciclo = Object.fromEntries(
+        estado.usinas.map((u) => {
+          const item = itemDoCalendario(estado.calendario, u.nome);
+          return [u.id, item?.mesCiclo ? `${item.mesCiclo.slice(5, 7)}/${item.mesCiclo.slice(0, 4)}` : ""];
+        }),
+      );
+      const blob = await exportarEstudo(estado.usinas, resultado, estado.params, { marca: estado.marca, pareceres, usinas: somente ? [somente] : undefined, ciclo });
+      const lista = somente ? estado.usinas.filter((u) => u.id === somente) : estado.usinas;
+      const nome = lista.map((u) => u.nome.replace(/\s+/g, "-")).join("_").slice(0, 60) || "rateio";
+      baixar(blob, `Estudo-de-rateio_${nome}_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } finally {
       setOcupado(false);
     }
@@ -332,14 +364,14 @@ export function RateioWorkspace() {
 
   function carregarExemplo() {
     const ex = exemplo();
-    setEstado({ ...VAZIO, ...ex, exemplo: true });
+    setEstado((e) => ({ ...VAZIO, ...ex, exemplo: true, marca: e.marca }));
     setAba(ex.usinas[0].id);
     setAvisos(["Exemplo com dados fictícios carregado. Importe suas planilhas para substituir."]);
   }
 
   function limpar() {
     if (!confirm("Apagar todas as usinas, candidatas e o calendário deste navegador?")) return;
-    setEstado(VAZIO);
+    setEstado((e) => ({ ...VAZIO, marca: e.marca }));
     setAba("inicio");
     setAvisos([]);
   }
@@ -403,7 +435,7 @@ export function RateioWorkspace() {
           <Button size="sm" variant="secondary" onClick={() => setColar(true)}>
             <ClipboardPaste className="size-4" /> Colar tabela
           </Button>
-          <Button size="sm" variant="secondary" onClick={exportar} disabled={!estado.usinas.some((u) => u.ucs.length) || ocupado}>
+          <Button size="sm" variant="secondary" onClick={() => exportar()} disabled={!estado.usinas.some((u) => u.ucs.length) || ocupado}>
             <Download className="size-4" /> Exportar estudo
           </Button>
           {temDados && (
@@ -435,7 +467,7 @@ export function RateioWorkspace() {
       )}
 
       {!pronto ? null : !temDados ? (
-        <Vazio onImportar={() => abrirImport()} onExemplo={carregarExemplo} ocupado={ocupado} />
+        <Vazio onImportar={() => abrirImport()} onExemplo={carregarExemplo} onModelo={modeloBranco} ocupado={ocupado} />
       ) : (
         <>
           <nav aria-label="Seções do estudo" className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4">
@@ -472,7 +504,12 @@ export function RateioWorkspace() {
 
           {abaAtual === "calendario" && <Calendario itens={estado.calendario} usinas={estado.usinas} onAnalisar={analisarDoCalendario} />}
           {abaAtual === "candidatas" && <Candidatas resultado={resultado.candidatas} onImportar={() => abrirImport()} onLimpar={() => setEstado((e) => ({ ...e, candidatas: [] }))} />}
-          {abaAtual === "parametros" && <ParametrosPainel params={estado.params} onChange={(p) => setEstado((e) => ({ ...e, params: p }))} />}
+          {abaAtual === "parametros" && (
+            <div className="space-y-5">
+              <IdentidadeEstudo marca={estado.marca} onChange={(m) => setEstado((e) => ({ ...e, marca: m }))} />
+              <ParametrosPainel params={estado.params} onChange={(p) => setEstado((e) => ({ ...e, params: p }))} />
+            </div>
+          )}
           {abaAtual === "metodologia" && <Metodologia />}
           {usinaAtiva && resAtivo && (
             <UsinaPainel
@@ -485,6 +522,8 @@ export function RateioWorkspace() {
               calendario={itemDoCalendario(estado.calendario, usinaAtiva.nome)}
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
               onTransformar={(fn) => transformarUsina(usinaAtiva.id, fn)}
+              onExportar={() => exportar(usinaAtiva.id)}
+              onModelo={() => planilhaModelo(usinaAtiva.id)}
               onTarifa={(t) => setEstado((e) => ({ ...e, params: { ...e.params, tarifaKwh: t } }))}
               onImportar={() => abrirImport(usinaAtiva.id)}
               onParecer={(p) => setEstado((e) => ({ ...e, pareceres: { ...e.pareceres, [usinaAtiva.id]: p } }))}
@@ -542,7 +581,7 @@ export function RateioWorkspace() {
 
 // ---------------------------------------------------------------------------
 
-function Vazio({ onImportar, onExemplo, ocupado }: { onImportar: () => void; onExemplo: () => void; ocupado: boolean }) {
+function Vazio({ onImportar, onExemplo, onModelo, ocupado }: { onImportar: () => void; onExemplo: () => void; onModelo: () => void; ocupado: boolean }) {
   const passos = [
     { t: "Calendário de rateio", d: "Mostra as usinas do ciclo, etapa e prazo. Clique em uma usina para abrir o estudo." },
     { t: "UCs da usina (Orange)", d: "Export da Unidade Rateio GD ou a planilha modelo de análise, com saldo, compensável e % atual." },
@@ -563,6 +602,9 @@ function Vazio({ onImportar, onExemplo, ocupado }: { onImportar: () => void; onE
               <FlaskConical className="size-4" /> Ver exemplo fictício
             </Button>
           </div>
+          <button type="button" onClick={onModelo} className="mt-4 text-sm font-medium text-primary-text hover:underline">
+            Baixar a planilha modelo em branco
+          </button>
         </div>
         <ol className="space-y-3">
           {passos.map((p, i) => (
@@ -664,6 +706,8 @@ function UsinaPainel({
   calendario,
   onChange,
   onTransformar,
+  onExportar,
+  onModelo,
   onTarifa,
   onImportar,
   onParecer,
@@ -678,6 +722,8 @@ function UsinaPainel({
   calendario?: ItemCalendario;
   onChange: (p: Partial<Usina>) => void;
   onTransformar: (fn: (u: Usina) => Usina) => void;
+  onExportar: () => void;
+  onModelo: () => void;
   onTarifa: (t: number) => void;
   onImportar: () => void;
   onParecer: (p: Parecer) => void;
@@ -721,6 +767,16 @@ function UsinaPainel({
           {!semUcs && E > 0 && <MetodoInfo otimizacao={{ ...otimizacao, metodoUsado: r.metodo }} />}
         </div>
         <div className="flex flex-wrap gap-2">
+          {!semUcs && E > 0 && (
+            <>
+              <Button size="sm" onClick={onExportar}>
+                <Download className="size-4" /> Exportar esta usina
+              </Button>
+              <Button size="sm" variant="secondary" onClick={onModelo}>
+                <FileSpreadsheet className="size-4" /> Planilha modelo
+              </Button>
+            </>
+          )}
           <Button size="sm" variant="secondary" onClick={onImportar}>
             <Upload className="size-4" /> {semUcs ? "Importar UCs" : "Atualizar UCs"}
           </Button>
@@ -1511,6 +1567,70 @@ function Ganho({ r, params, onTarifa }: { r: ResultadoUsina; params: Parametros;
           className="h-10 w-36 rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground focus:border-primary focus:outline-none"
         />
       </label>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/** Nome, cor, logo e responsável que aparecem no Excel do estudo. */
+function IdentidadeEstudo({ marca, onChange }: { marca: MarcaEstudo; onChange: (m: MarcaEstudo) => void }) {
+  const [erro, setErro] = useState<string | null>(null);
+  const ref = useRef<HTMLInputElement>(null);
+  async function logo(file: File) {
+    setErro(null);
+    if (!/^image\/(png|jpeg)$/.test(file.type)) return setErro("Use PNG ou JPG.");
+    if (file.size > 1_500_000) return setErro("Logo muito grande (máx. 1,5 MB).");
+    const url = await new Promise<string>((ok, falha) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result));
+      r.onerror = () => falha(r.error);
+      r.readAsDataURL(file);
+    });
+    onChange({ ...marca, logo: url });
+    if (ref.current) ref.current.value = "";
+  }
+  return (
+    <Card className="space-y-4 p-4 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Identidade do estudo</h2>
+          <p className="text-sm text-muted">Aparece no Excel exportado: cabeçalho, cores e assinatura. Fica salvo neste navegador.</p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => onChange({ ...marca, ...MARCA_REPLACE })}>
+          Usar cores da Replace
+        </Button>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <CampoTexto label="Empresa" value={marca.empresa} onChange={(v) => onChange({ ...marca, empresa: v })} />
+        <CampoTexto label="Responsável técnico" value={marca.responsavel} onChange={(v) => onChange({ ...marca, responsavel: v })} />
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-foreground/80">Cor principal</span>
+          <span className="flex items-center gap-2">
+            <input type="color" value={marca.cor} onChange={(e) => onChange({ ...marca, cor: e.target.value })} aria-label="Cor principal" className="h-10 w-14 cursor-pointer rounded-lg border border-border bg-card" />
+            <span className="font-mono text-sm text-muted">{marca.cor.toUpperCase()}</span>
+          </span>
+        </label>
+        <div>
+          <span className="mb-1 block text-xs font-medium text-foreground/80">Logo (PNG ou JPG)</span>
+          <input ref={ref} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => e.target.files?.[0] && logo(e.target.files[0])} />
+          <div className="flex items-center gap-2">
+            {marca.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- prévia local (data URL)
+              <img src={marca.logo} alt="Logo do estudo" className="h-10 max-w-28 rounded bg-white object-contain p-1" />
+            ) : null}
+            <Button size="sm" variant="secondary" onClick={() => ref.current?.click()}>
+              {marca.logo ? "Trocar" : "Enviar logo"}
+            </Button>
+            {marca.logo && (
+              <Button size="sm" variant="ghost" onClick={() => onChange({ ...marca, logo: null })}>
+                Remover
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      {erro && <p className="text-sm text-attention">{erro}</p>}
     </Card>
   );
 }

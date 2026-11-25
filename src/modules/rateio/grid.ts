@@ -247,7 +247,8 @@ export function parseDadosUsina(grid: Grid): DadosUsinaPlanilha | null {
       if (t && !/^(analise|periodo|numero|energia)/i.test(norm(t)) && t.length > 6) d.nome = t;
     }
   }
-  if (found < 3) return null;
+  // modelo em branco: rótulos sem valores não viram usina
+  if (found < 3 || !(d.meses > 0 || d.energiaInjetadaPeriodo > 0 || d.energiaGeradaPeriodo > 0 || d.energiaContratadaPeriodo > 0)) return null;
   d.consumoMensal.reverse(); // a planilha lista do mês mais recente para o mais antigo
   return d;
 }

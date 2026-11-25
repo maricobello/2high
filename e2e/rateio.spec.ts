@@ -30,7 +30,11 @@ test.describe("admin: rateio GD", () => {
 
     const download = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar estudo" }).click();
-    expect((await download).suggestedFilename()).toMatch(/^estudo-rateio_.*\.xlsx$/);
+    expect((await download).suggestedFilename()).toMatch(/^Estudo-de-rateio_.*\.xlsx$/);
+
+    const modelo = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Planilha modelo" }).click();
+    expect((await modelo).suggestedFilename()).toMatch(/^Modelo_Rateio_.*\.xlsx$/);
 
     const [scroll, largura] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
     expect(scroll).toBeLessThanOrEqual(largura);

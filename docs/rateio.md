@@ -40,8 +40,19 @@ geração distribuída e entregar o estudo em Excel.
 4. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
 5. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
 6. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
-7. **Exportar estudo**: Resumo, Rateio proposto, uma aba *Envio* por usina (instalação +
-   percentual, soma 100%), Novas UCs, Alertas, Projeção e Metodologia.
+7. **Exportar estudo** (todas as usinas, ou "Exportar esta usina"): Excel no formato
+   "prontuário", pronto para envio e impressão em A4:
+   - *Estudo* (por usina): página 1 com identificação, resultado em 4 números, conduta (o que
+     muda), validação ✓/✗ e pontos de atenção; página 2 com parecer e assinaturas;
+   - *Envio* (por usina): só instalação e percentual, soma 100%;
+   - *Detalhe por UC*, *Novas UCs* e *Memória de cálculo* (parâmetros, fontes, projeção e
+     metodologia).
+   A identidade (empresa, cor, logo, responsável técnico) é definida em Parâmetros →
+   Identidade do estudo; "Usar cores da Replace" aplica o laranja do logo.
+8. **Planilha modelo**: a planilha do dia a dia ("Análise do Rateio" + "Novas UCs") preenchida
+   pelo sistema, com as fórmulas originais (estendidas para quantas UCs houver) e duas colunas a
+   mais: rateio proposto pelo sistema e ação. O modelo em branco pode ser baixado na tela
+   inicial; importado vazio, não cria usina.
 
 Os arquivos são lidos no navegador e ficam salvos só nele (botão de lixeira apaga).
 Para o parecer, só sai um resumo com totais e apelidos, sem número de instalação.
