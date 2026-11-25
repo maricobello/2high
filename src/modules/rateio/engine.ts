@@ -21,13 +21,16 @@ import type {
   CandidataAvaliada,
   Cenario,
   CenarioMes,
+  Diagnostico,
   Indicadores,
   LinhaRateio,
+  OtimizacaoResultado,
   Parametros,
   ResultadoProjeto,
   ResultadoUsina,
   UcAtual,
   Usina,
+  Validacao,
 } from "./types";
 import { norm } from "./normalize";
 
@@ -44,6 +47,21 @@ export function normalizarPerfil(perfil: number[]): number[] {
   const media = perfil.reduce((a, b) => a + b, 0) / 12;
   if (media <= 0) return Array(12).fill(1);
   return perfil.map((v) => v / media);
+}
+
+/** Hash curto e estável das entradas (para saber se a solução otimizada ainda vale). */
+export function chaveEntradas(usinas: Usina[], candidatas: CandidataAvaliada[], p: Parametros): string {
+  const s = JSON.stringify([
+    usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh])]),
+    candidatas.filter((c) => c.elegivel).map((c) => [c.candidata.key, c.candidata.compensavelKwh, c.candidata.concessionaria]),
+    p,
+  ]);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36) + s.length.toString(36);
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +120,7 @@ export function simular(ucs: UcSim[], usina: Usina, p: Parametros, fatorConsumo 
   const E = injecaoMensal(usina);
   const perfil = normalizarPerfil(usina.perfilSazonal);
   const saldos = ucs.map((u) => Math.max(0, u.saldo));
+  const saldoPorUcMes: number[][] = ucs.map(() => []);
   const saldoInicial = saldos.reduce((a, b) => a + b, 0);
   const meses: CenarioMes[] = [];
   let injetadoTotal = 0;
@@ -128,6 +147,7 @@ export function simular(ucs: UcSim[], usina: Usina, p: Parametros, fatorConsumo 
       paraSaldo += credito - usoNovo;
       descoberto += resto - usoSaldo;
     });
+    saldos.forEach((v, i) => saldoPorUcMes[i].push(v));
     injetadoTotal += inj;
     compensadoTotal += compensado;
     paraSaldoTotal += paraSaldo;
@@ -144,6 +164,8 @@ export function simular(ucs: UcSim[], usina: Usina, p: Parametros, fatorConsumo 
     saldoInicial,
     saldoFinal,
     saldoFinalPorUc: saldos,
+    saldoPorUcMes,
+    saldoAcimaReserva: saldos.reduce((a, v, i) => a + Math.max(0, v - p.reservaSaldoMeses * Math.max(0, ucs[i].comp)), 0),
     aproveitamento: injetadoTotal > 0 ? compensadoTotal / injetadoTotal : 0,
     aproveitamentoDireto: injetadoTotal > 0 ? diretoTotal / injetadoTotal : 0,
   };
@@ -258,11 +280,29 @@ function escolherCandidatas(pool: CandidataAvaliada[], falta: number, p: Paramet
 // ---------------------------------------------------------------------------
 // Análise
 
-export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Parametros): ResultadoProjeto {
+export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Parametros, otim?: OtimizacaoResultado | null): ResultadoProjeto {
   const avaliadas = avaliarCandidatas(usinas, candidatas, p);
+  const chave = chaveEntradas(usinas, avaliadas, p);
   const novasPorUsina = new Map<string, Candidata[]>();
+  const pesosPorUsina = new Map<string, number[]>();
+  const usarOtim = p.metodo === "otimizado" && !!otim && otim.chave === chave && !otim.erro;
 
-  if (p.incluirNovasUcs) {
+  if (usarOtim) {
+    const porKey = new Map(avaliadas.map((c) => [c.candidata.key, c]));
+    for (const u of usinas) {
+      const sol = otim.porUsina[u.id];
+      if (!sol || sol.pctAtuais.length !== u.ucs.length) continue;
+      const novas = sol.novas.map((n) => porKey.get(n.key)).filter((c): c is CandidataAvaliada => !!c && !c.selecionada);
+      for (const c of novas) {
+        c.selecionada = true;
+        c.usinaDestino = u.nome;
+        c.motivo = `${c.motivo === "Elegível" ? "Incluída" : c.motivo.replace("Elegível", "Incluída")} na ${u.nome} pela otimização`;
+      }
+      novasPorUsina.set(u.id, novas.map((c) => c.candidata));
+      const pctNovas = new Map(sol.novas.map((n) => [n.key, n.pct]));
+      pesosPorUsina.set(u.id, [...sol.pctAtuais, ...novas.map((c) => pctNovas.get(c.candidata.key) ?? 0)]);
+    }
+  } else if (p.incluirNovasUcs) {
     const faltas = usinas
       .map((u) => ({ u, falta: injecaoMensal(u) - somaNecessidades(u, p) }))
       .filter((x) => x.falta > 0)
@@ -281,12 +321,14 @@ export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Par
   for (const c of avaliadas) if (c.elegivel && !c.selecionada && p.incluirNovasUcs) c.motivo = `${c.motivo}. Não foi necessária neste ciclo`;
 
   return {
-    usinas: usinas.map((u) => analisarUsina(u, novasPorUsina.get(u.id) ?? [], p)),
+    usinas: usinas.map((u) => analisarUsina(u, novasPorUsina.get(u.id) ?? [], p, pesosPorUsina.get(u.id))),
     candidatas: avaliadas,
+    chave,
+    metodo: usarOtim ? "otimizado" : "proporcional",
   };
 }
 
-export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): ResultadoUsina {
+export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros, pesosFixos?: number[]): ResultadoUsina {
   const E = injecaoMensal(usina);
   const atuais = usina.ucs.map((uc) => ({ uc, n: necessidadeUc(uc, p) }));
   const novasN = novas.map((c) => ({ c, n: necessidadeUc({ compensavelKwh: c.compensavelKwh, saldoKwh: 0 }, p) }));
@@ -310,8 +352,9 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
       pesos = todos.map((n, i) => (n.retirar ? 0 : pesos[i] + folga[i] + (compAtivo > 0 ? (n.comp / compAtivo) * (extra - F) : 0)));
     }
   }
+  if (pesosFixos && pesosFixos.length === todos.length) pesos = pesosFixos.map((w) => (w > 1e-9 ? w : 0));
   // sem nenhuma necessidade (ex.: todas com saldo alto e retirada desligada): mantém o atual
-  const semNecessidade = todos.every((n) => n.retirar || n.necessidade <= 0);
+  const semNecessidade = !pesosFixos && todos.every((n) => n.retirar || n.necessidade <= 0);
   const pctProposto = semNecessidade
     ? [...usina.ucs.map((u) => u.pctAtual), ...novas.map(() => 0)]
     : arredondarRateio(pesos, p.casasDecimais, p.pctMinimo);
@@ -333,12 +376,12 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
       const delta = pct - uc.pctAtual;
       let acao: Acao;
       let motivo: string;
-      if (pct === 0 && n.retirar) {
+      if (pct === 0 && (n.retirar || (pesosFixos && uc.pctAtual > 0))) {
         acao = "retirar";
-        motivo = n.motivoRetirar;
+        motivo = pesosFixos ? motivoRetiradaOtim(uc, simProp.saldoFinalPorUc[i]) : n.motivoRetirar;
       } else {
         acao = Math.abs(delta) < tolerancia ? "manter" : delta > 0 ? "aumentar" : "reduzir";
-        motivo = motivoUc(uc, n, p);
+        motivo = pesosFixos ? motivoOtim(uc.compensavelKwh, uc.saldoKwh, (uc.pctAtual / 100) * E, (pct / 100) * E, simAtual.saldoFinalPorUc[i], simProp.saldoFinalPorUc[i]) : motivoUc(uc, n, p);
       }
       return {
         key: uc.key,
@@ -362,6 +405,8 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
         mesesSaldoFimProposto: meses(simProp.saldoFinalPorUc[i], uc.compensavelKwh),
         acao,
         motivo,
+        diagnostico: diagnosticarUc(uc, E, simAtual.saldoFinalPorUc[i], p),
+        aproveitamentoHistorico: uc.compensavelKwh > 0 && uc.compensadoKwh > 0 ? uc.compensadoKwh / uc.compensavelKwh : null,
       };
     }),
     ...novasN.map(({ c, n }, j): LinhaRateio => {
@@ -387,7 +432,9 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
         mesesSaldoFimAtual: null,
         mesesSaldoFimProposto: meses(simProp.saldoFinalPorUc[i], c.compensavelKwh),
         acao: "incluir",
-        motivo: `Nova UC: média de ${fmt(c.mediaKwh)} kWh − mínimo de ${fmt(c.consumoMinimoKwh)} = ${fmt(c.compensavelKwh)} kWh/mês compensáveis`,
+        motivo: `Nova UC: média de ${fmt(c.mediaKwh)} kWh − mínimo de ${fmt(c.consumoMinimoKwh)} = ${fmt(c.compensavelKwh)} kWh/mês compensáveis. Recebe ${fmt((pctProposto[i] / 100) * E)} kWh/mês`,
+        diagnostico: { classe: "nova", rotulo: "Nova", texto: "Entra no rateio para absorver crédito que viraria saldo." },
+        aproveitamentoHistorico: null,
       };
     }),
   ];
@@ -403,7 +450,69 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
       detalhe: `Com ${p.casasDecimais} casa(s) decimal(is) cabem no máximo ${100 * 10 ** p.casasDecimais} UCs com percentual; algumas ficaram com 0%. Aumente as casas decimais nos parâmetros.`,
     });
 
-  return { usinaId: usina.id, usinaNome: usina.nome, linhas, atual: simAtual, proposto: simProp, propostoEstresse: simEstresse, indicadores, alertas };
+  const validacoes = validarRateio(usina, linhas, indicadores, simAtual, simProp, simEstresse, p);
+  return { metodo: pesosFixos ? "otimizado" : "proporcional", validacoes, usinaId: usina.id, usinaNome: usina.nome, linhas, atual: simAtual, proposto: simProp, propostoEstresse: simEstresse, indicadores, alertas };
+}
+
+function motivoOtim(comp: number, saldo: number, credAtual: number, credProp: number, fimAtual: number, fimProp: number): string {
+  if (comp <= 0) return "Sem consumo compensável: fica no percentual mínimo";
+  const m = (v: number) => fmt(v / comp, 1);
+  return `Consumo compensável de ${fmt(comp)} kWh/mês e saldo de ${m(saldo)} meses. Crédito ${fmt(credAtual)} → ${fmt(credProp)} kWh/mês; saldo no fim ${m(fimAtual)} → ${m(fimProp)} meses`;
+}
+
+function motivoRetiradaOtim(uc: UcAtual, fimProp: number): string {
+  if (uc.compensavelKwh <= 0) return "Sem consumo compensável: todo crédito viraria saldo";
+  return `Saldo de ${fmt(uc.saldoKwh)} kWh (${fmt(uc.saldoKwh / uc.compensavelKwh, 1)} meses) cobre o consumo; sem crédito novo termina com ${fmt(fimProp / uc.compensavelKwh, 1)} meses. Rever no próximo ciclo`;
+}
+
+/** Situação da UC no rateio atual. */
+export function diagnosticarUc(uc: UcAtual, E: number, saldoFimAtual: number, p: Parametros): Diagnostico {
+  const comp = uc.compensavelKwh;
+  const cred = (uc.pctAtual / 100) * E;
+  if (comp <= 0) return { classe: "sem_consumo", rotulo: "Sem consumo", texto: "Não tem consumo compensável: todo crédito que recebe vira saldo." };
+  const mesesHoje = uc.saldoKwh / comp;
+  if (mesesHoje > p.validadeCreditosMeses)
+    return { classe: "risco_vencimento", rotulo: "Risco de vencer", texto: `Saldo para ${fmt(mesesHoje)} meses, acima da validade de ${p.validadeCreditosMeses} meses: parte tende a vencer.` };
+  if (mesesHoje > p.horizonteSaldoMeses)
+    return { classe: "saldo_encalhado", rotulo: "Saldo parado", texto: `Saldo para ${fmt(mesesHoje, 1)} meses de consumo. Precisa de pouco ou nenhum crédito novo.` };
+  if (cred > comp * 1.05)
+    return { classe: "sobreatendida", rotulo: "Recebe demais", texto: `Recebe ${fmt(cred)} kWh/mês para ${fmt(comp)} de consumo: ${fmt(((cred - comp) / comp) * 100)}% vira saldo todo mês.` };
+  const usoSaldo = Math.min(uc.saldoKwh / Math.max(1, p.mesesSimulacao), Math.max(0, comp - cred));
+  if (cred + usoSaldo < comp * p.cobertura * 0.85 && saldoFimAtual < comp)
+    return { classe: "subatendida", rotulo: "Recebe pouco", texto: `Crédito cobre ${fmt(((cred + usoSaldo) / comp) * 100)}% do consumo compensável; o resto é comprado da distribuidora.` };
+  return { classe: "equilibrada", rotulo: "Equilibrada", texto: `Crédito cobre ${fmt(Math.min(100, (cred / comp) * 100))}% do consumo e o saldo está em ${fmt(mesesHoje, 1)} meses.` };
+}
+
+/** Checagens do rateio proposto antes de enviar. */
+function validarRateio(u: Usina, linhas: LinhaRateio[], ind: Indicadores, atual: Cenario, prop: Cenario, estresse: Cenario, p: Parametros): Validacao[] {
+  const v: Validacao[] = [];
+  const f = 10 ** p.casasDecimais;
+  const soma = Math.round(linhas.reduce((a, l) => a + l.pctProposto, 0) * f) / f;
+  v.push({ ok: soma === 100, nivel: "erro", titulo: "Soma do rateio = 100%", detalhe: `Soma: ${fmt(soma, p.casasDecimais)}%.` });
+  const ativos = linhas.filter((l) => l.pctProposto > 0);
+  const foraCasas = ativos.filter((l) => Math.abs(l.pctProposto * f - Math.round(l.pctProposto * f)) > 1e-6);
+  const abaixoMin = ativos.filter((l) => l.pctProposto < p.pctMinimo - 1e-9);
+  v.push({ ok: !foraCasas.length && !abaixoMin.length, nivel: "erro", titulo: `Percentuais com ${p.casasDecimais} casas e mínimo de ${fmt(p.pctMinimo, p.casasDecimais)}%`, detalhe: foraCasas.length || abaixoMin.length ? `${foraCasas.length + abaixoMin.length} UC(s) fora da regra.` : `${ativos.length} UCs conferidas.` });
+  const semNumero = linhas.filter((l) => !l.key || l.key.length < 6);
+  const keys = new Map<string, number>();
+  for (const l of linhas) keys.set(l.key, (keys.get(l.key) ?? 0) + 1);
+  const dup = [...keys.values()].filter((n) => n > 1).length;
+  v.push({ ok: !semNumero.length && !dup, nivel: "erro", titulo: "Instalações válidas e sem repetição", detalhe: semNumero.length || dup ? `${semNumero.length} sem número válido, ${dup} repetida(s).` : "Todas com número e sem duplicidade." });
+  const semConsumo = ativos.filter((l) => l.compensavelKwh <= 0 && l.pctProposto > p.pctMinimo + 1e-9);
+  v.push({ ok: !semConsumo.length, nivel: "erro", titulo: "Nenhuma UC sem consumo acima do mínimo", detalhe: semConsumo.length ? `${semConsumo.length} UC(s) sem consumo recebem mais que o mínimo.` : "Ok." });
+  const vencer = linhas.filter((l, i) => l.compensavelKwh > 0 && prop.saldoFinalPorUc[i] / l.compensavelKwh > p.validadeCreditosMeses);
+  v.push({ ok: !vencer.length, nivel: "aviso", titulo: `Nenhuma UC termina com saldo acima de ${p.validadeCreditosMeses} meses`, detalhe: vencer.length ? `${vencer.length} UC(s) ainda com saldo que tende a vencer (o saldo já existia).` : "Ok." });
+  const acumula = ativos.filter((l) => l.compensavelKwh > 0 && l.creditoPropostoKwh > l.compensavelKwh * 1.02);
+  v.push({ ok: !acumula.length, nivel: "aviso", titulo: "Nenhuma UC recebe mais crédito que o consumo", detalhe: acumula.length ? `${acumula.length} UC(s) recebem mais que consomem (sobra injeção na usina).` : "Ok." });
+  v.push({ ok: prop.saldoFinal <= atual.saldoFinal + 1, nivel: "erro", titulo: "Saldo projetado não piora em relação ao atual", detalhe: `Fim da projeção: ${fmt(atual.saldoFinal)} → ${fmt(prop.saldoFinal)} kWh.` });
+  v.push({ ok: prop.consumoDescobertoTotal <= atual.consumoDescobertoTotal * 1.05 + 1, nivel: "aviso", titulo: "Consumo sem crédito não aumenta", detalhe: `${fmt(atual.consumoDescobertoTotal)} → ${fmt(prop.consumoDescobertoTotal)} kWh no período.` });
+  v.push({ ok: estresse.saldoFinal <= Math.max(estresse.saldoInicial, atual.saldoFinal), nivel: "aviso", titulo: `Robusto com consumo ${fmt((1 - p.fatorConsumoEstresse) * 100)}% menor`, detalhe: `Saldo no estresse termina em ${fmt(estresse.saldoFinal)} kWh (hoje: ${fmt(estresse.saldoInicial)}).` });
+  if (u.ucsCalendario != null) {
+    const n = linhas.filter((l) => l.origem === "atual").length;
+    v.push({ ok: u.ucsCalendario === n, nivel: "aviso", titulo: "Lista confere com o calendário", detalhe: `Calendário: ${u.ucsCalendario} UCs; lista: ${n}.` });
+  }
+  v.push({ ok: ind.injecaoMensal > 0, nivel: "erro", titulo: "Injeção da usina informada", detalhe: `${fmt(ind.injecaoMensal)} kWh/mês.` });
+  return v;
 }
 
 function motivoUc(uc: UcAtual, n: Necessidade, p: Parametros): string {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Cenario } from "@/modules/rateio/types";
 import { compacto, kwh, MESES_CURTOS } from "./format";
 
 const SERIES = [
@@ -10,8 +9,11 @@ const SERIES = [
   { key: "estresse", label: "Proposto com consumo menor", color: "var(--viz-3)", dash: "5 4" },
 ] as const;
 
-/** Saldo de créditos projetado mês a mês (uma escala, três cenários). */
-export function SaldoChart({ atual, proposto, estresse, fatorEstresse }: { atual: Cenario; proposto: Cenario; estresse: Cenario; fatorEstresse: number }) {
+/**
+ * Saldo de créditos projetado mês a mês (uma escala, três cenários).
+ * Cada série começa no saldo de hoje; `mesesDoAno` traz o mês (1-12) de cada ponto seguinte.
+ */
+export function SaldoChart({ atual, proposto, estresse, mesesDoAno, fatorEstresse }: { atual?: number[]; proposto: number[]; estresse: number[]; mesesDoAno: number[]; fatorEstresse: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(720);
@@ -27,14 +29,13 @@ export function SaldoChart({ atual, proposto, estresse, fatorEstresse }: { atual
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
 
-  const serie = (c: Cenario) => [c.saldoInicial, ...c.meses.map((m) => m.saldoTotal)];
-  const dados = { atual: serie(atual), proposto: serie(proposto), estresse: serie(estresse) };
-  const n = dados.atual.length;
-  const max = Math.max(1, ...dados.atual, ...dados.proposto, ...dados.estresse) * 1.08;
+  const dados: Record<"atual" | "proposto" | "estresse", number[] | undefined> = { atual, proposto, estresse };
+  const n = proposto.length;
+  const max = Math.max(1, ...(atual ?? []), ...proposto, ...estresse) * 1.08;
   const x = (i: number) => pad.l + (n > 1 ? (i / (n - 1)) * iw : 0);
   const y = (v: number) => pad.t + ih - (v / max) * ih;
   const ticks = Array.from({ length: 5 }, (_, i) => (max / 4) * i);
-  const rotulo = (i: number) => (i === 0 ? "hoje" : MESES_CURTOS[(proposto.meses[i - 1]?.mes ?? 1) - 1]);
+  const rotulo = (i: number) => (i === 0 ? "hoje" : MESES_CURTOS[(mesesDoAno[i - 1] ?? 1) - 1]);
   const path = (vals: number[]) => vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
 
   function onMove(e: React.PointerEvent<SVGRectElement>) {
@@ -43,7 +44,8 @@ export function SaldoChart({ atual, proposto, estresse, fatorEstresse }: { atual
     setHover(Math.max(0, Math.min(n - 1, Math.round((rel / iw) * (n - 1)))));
   }
 
-  const legenda = SERIES.map((s) => ({ ...s, label: s.key === "estresse" ? `Proposto com consumo ${Math.round((1 - fatorEstresse) * 100)}% menor` : s.label }));
+  const series = SERIES.filter((s) => dados[s.key]);
+  const legenda = series.map((s) => ({ ...s, label: s.key === "estresse" ? `Proposto com consumo ${Math.round((1 - fatorEstresse) * 100)}% menor` : s.label }));
 
   return (
     <figure className="m-0">
@@ -68,17 +70,17 @@ export function SaldoChart({ atual, proposto, estresse, fatorEstresse }: { atual
               </text>
             </g>
           ))}
-          {dados.atual.map((_, i) => (
+          {proposto.map((_, i) => (
             <text key={i} x={x(i)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--muted)">
               {(n > 14 || W < 520) && i % 2 ? "" : rotulo(i)}
             </text>
           ))}
           {hover != null && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={pad.t + ih} stroke="var(--muted)" strokeOpacity="0.5" strokeWidth="1" />}
-          {SERIES.map((s) => (
-            <path key={s.key} d={path(dados[s.key])} fill="none" stroke={s.color} strokeWidth="2" strokeDasharray={s.dash} strokeLinejoin="round" strokeLinecap="round" />
+          {series.map((s) => (
+            <path key={s.key} d={path(dados[s.key]!)} fill="none" stroke={s.color} strokeWidth="2" strokeDasharray={s.dash} strokeLinejoin="round" strokeLinecap="round" />
           ))}
           {hover != null &&
-            SERIES.map((s) => <circle key={s.key} cx={x(hover)} cy={y(dados[s.key][hover])} r="4.5" fill={s.color} stroke="var(--card)" strokeWidth="2" />)}
+            series.map((s) => <circle key={s.key} cx={x(hover)} cy={y(dados[s.key]![hover])} r="4.5" fill={s.color} stroke="var(--card)" strokeWidth="2" />)}
           <rect x={pad.l} y={pad.t} width={iw} height={ih} fill="transparent" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)} />
         </svg>
         {hover != null && (
@@ -93,7 +95,7 @@ export function SaldoChart({ atual, proposto, estresse, fatorEstresse }: { atual
                   <span className="inline-block size-2 rounded-full" style={{ background: s.color }} />
                   {s.label.replace("Proposto com consumo", "Estresse:").replace("% menor", "%")}
                 </span>
-                <span className="font-mono text-foreground">{kwh(dados[s.key][hover])}</span>
+                <span className="font-mono text-foreground">{kwh(dados[s.key]![hover])}</span>
               </p>
             ))}
           </div>

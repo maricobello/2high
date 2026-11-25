@@ -28,7 +28,30 @@ Para o parecer, só sai um resumo com totais e apelidos, sem número de instala�
 ## Metodologia
 
 O texto completo fica em `src/modules/rateio/metodologia.ts` (aba Metodologia da tela e
-do Excel). Em resumo:
+do Excel).
+
+### Otimizado (padrão)
+
+Programação linear inteira mista resolvida com HiGHS (WebAssembly, num Web Worker do
+navegador; nenhum dado sai do computador). Como todas as UCs são do mesmo cliente,
+compensar mais energia é o que vale (cada kWh compensado é um kWh a menos comprado da
+distribuidora), e isso equivale a deixar menos saldo parado. Como o saldo é de cada UC, o
+modelo acompanha UC por UC, mês a mês:
+
+- variáveis: percentual de cada UC, crédito usado por UC e mês, inclusão de candidata
+  (binária), permanência de UC atual (binária);
+- restrições: soma 100%, saldo de cada UC nunca negativo mês a mês, mínimo por UC,
+  cada candidata em no máximo uma usina;
+- objetivo: maximizar a energia compensada em dois cenários (consumo médio 60%,
+  consumo menor 40%), com custo por UC incluída e desempates (mudar pouco o rateio
+  atual, manter a reserva de saldo).
+
+A tela mostra a comparação com o rateio atual e com a regra proporcional, a validação
+antes do envio e a ficha de cada UC (diagnóstico, números e saldo mês a mês).
+
+Com cerca de 160 UCs e 80 candidatas, a solução ótima sai em poucos segundos.
+
+### Regra proporcional (comparação)
 
 - **Necessidade de cada UC** = compensável × cobertura, reduzida quando a UC tem saldo
   acima da reserva: o excesso é gasto no horizonte definido. A margem (1 − cobertura)
@@ -51,9 +74,10 @@ Casas decimais aceitas variam por distribuidora (CPFL: até 2); confirme com a C
 
 | Parte | Arquivo |
 |---|---|
-| Motor (necessidade, candidatas, arredondamento, projeção, alertas) | `src/modules/rateio/engine.ts` |
+| Motor (necessidade, candidatas, arredondamento, projeção, alertas, diagnóstico, validação) | `src/modules/rateio/engine.ts` |
+| Modelo de otimização (MILP) e worker do HiGHS | `src/modules/rateio/otimizador.ts`, `src/modules/rateio/otimizador.worker.ts` |
 | Leitura de tabelas (cabeçalhos, calendário, planilha modelo) | `src/modules/rateio/grid.ts` |
 | Excel (leitura e exportação, no navegador) | `src/modules/rateio/xlsx.ts` |
 | Parecer (resumo agregado e texto padrão) | `src/modules/rateio/parecer.ts`, `src/modules/llm/tasks/rateio.ts` |
 | Tela | `src/components/admin/rateio/` |
-| Testes | `tests/rateio.test.ts` |
+| Testes | `tests/rateio.test.ts`, `tests/rateio-otimizador.test.ts`, `e2e/rateio.spec.ts` |

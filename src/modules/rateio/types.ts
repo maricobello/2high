@@ -99,6 +99,10 @@ export interface Parametros {
    * sem contar a queima (menos UCs, saldo cai mais devagar).
    */
   dimensionarNovas: "queima" | "estrutural";
+  /** "otimizado" = programação linear (HiGHS); "proporcional" = regra da necessidade. */
+  metodo: "otimizado" | "proporcional";
+  /** Custo de incluir uma UC nova, em kWh equivalentes (evita incluir UC por ganho mínimo). */
+  custoNovaUcKwh: number;
 }
 
 export const PARAMETROS_PADRAO: Parametros = {
@@ -115,6 +119,8 @@ export const PARAMETROS_PADRAO: Parametros = {
   compensavelMinimoCandidata: 100,
   fatorConsumoEstresse: 0.9,
   dimensionarNovas: "queima",
+  metodo: "otimizado",
+  custoNovaUcKwh: 500,
 };
 
 export type Acao = "manter" | "aumentar" | "reduzir" | "retirar" | "incluir";
@@ -144,6 +150,38 @@ export interface LinhaRateio {
   mesesSaldoFimProposto: number | null;
   acao: Acao;
   motivo: string;
+  diagnostico: Diagnostico;
+  /** Compensado ÷ compensável no histórico do Orange (quanto do consumo já é coberto). */
+  aproveitamentoHistorico: number | null;
+}
+
+export type ClasseUc = "sem_consumo" | "risco_vencimento" | "saldo_encalhado" | "sobreatendida" | "subatendida" | "equilibrada" | "nova";
+
+export interface Diagnostico {
+  classe: ClasseUc;
+  rotulo: string;
+  texto: string;
+}
+
+export interface Validacao {
+  ok: boolean;
+  /** "aviso" não reprova o estudo, só chama atenção. */
+  nivel: "erro" | "aviso";
+  titulo: string;
+  detalhe: string;
+}
+
+export interface OtimizacaoResultado {
+  /** Identifica os dados de entrada; muda quando qualquer entrada muda. */
+  chave: string;
+  status: string;
+  otimo: boolean;
+  objetivo: number;
+  tempoMs: number;
+  variaveis: number;
+  restricoes: number;
+  porUsina: Record<string, { pctAtuais: number[]; novas: { key: string; pct: number }[] }>;
+  erro?: string;
 }
 
 export interface CenarioMes {
@@ -167,6 +205,10 @@ export interface Cenario {
   saldoInicial: number;
   saldoFinal: number;
   saldoFinalPorUc: number[];
+  /** Saldo acima da reserva de cada UC no fim (crédito parado). */
+  saldoAcimaReserva: number;
+  /** Saldo de cada UC ao fim de cada mês (UC → meses). */
+  saldoPorUcMes: number[][];
   /** Compensado ÷ injetado no período (pode passar de 100% quando consome saldo). */
   aproveitamento: number;
   /** Crédito novo usado no próprio mês ÷ injetado. */
@@ -219,6 +261,8 @@ export interface CandidataAvaliada {
 }
 
 export interface ResultadoUsina {
+  metodo: "otimizado" | "proporcional";
+  validacoes: Validacao[];
   usinaId: string;
   usinaNome: string;
   linhas: LinhaRateio[];
@@ -232,4 +276,8 @@ export interface ResultadoUsina {
 export interface ResultadoProjeto {
   usinas: ResultadoUsina[];
   candidatas: CandidataAvaliada[];
+  /** Chave das entradas (para casar com a otimização). */
+  chave: string;
+  /** Método efetivamente usado (o otimizado só vale com solução para a chave atual). */
+  metodo: "otimizado" | "proporcional";
 }

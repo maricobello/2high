@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { norm } from "@/modules/rateio/normalize";
-import type { Acao, CandidataAvaliada, LinhaRateio } from "@/modules/rateio/types";
+import type { Acao, CandidataAvaliada, ClasseUc, LinhaRateio } from "@/modules/rateio/types";
 import { kwh, num, pct } from "./format";
 
 export const ACAO_INFO: Record<Acao, { label: string; cls: string }> = {
@@ -13,6 +13,16 @@ export const ACAO_INFO: Record<Acao, { label: string; cls: string }> = {
   reduzir: { label: "Reduzir", cls: "bg-analysis-soft text-analysis" },
   retirar: { label: "Retirar", cls: "bg-attention-soft text-attention" },
   incluir: { label: "Incluir", cls: "bg-primary-soft text-primary-text" },
+};
+
+export const CLASSE_INFO: Record<ClasseUc, string> = {
+  sem_consumo: "bg-attention-soft text-attention",
+  risco_vencimento: "bg-attention-soft text-attention",
+  saldo_encalhado: "bg-analysis-soft text-analysis",
+  sobreatendida: "bg-analysis-soft text-analysis",
+  subatendida: "bg-primary-soft text-primary-text",
+  equilibrada: "bg-opportunity-soft text-opportunity",
+  nova: "bg-primary-soft text-primary-text",
 };
 
 function Busca({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
@@ -27,11 +37,16 @@ function Busca({ value, onChange, placeholder }: { value: string; onChange: (v: 
 
 type Col = "apelido" | "acao" | "pctAtual" | "pctProposto" | "delta" | "saldoKwh" | "compensavelKwh" | "queimaSaldoMensal" | "mesesSaldoHoje" | "mesesSaldoFimProposto";
 
-export function TabelaRateio({ linhas, casas }: { linhas: LinhaRateio[]; casas: number }) {
+export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRateio[]; casas: number; onSelecionar: (l: LinhaRateio) => void }) {
   const [filtro, setFiltro] = useState<Acao | "todas">("todas");
+  const [classe, setClasse] = useState<ClasseUc | "">("");
   const [q, setQ] = useState("");
   const [ord, setOrd] = useState<{ col: Col; desc: boolean }>({ col: "pctProposto", desc: true });
-  const [aberta, setAberta] = useState<string | null>(null);
+  const classes = useMemo(() => {
+    const m = new Map<ClasseUc, { rotulo: string; n: number }>();
+    for (const l of linhas) m.set(l.diagnostico.classe, { rotulo: l.diagnostico.rotulo, n: (m.get(l.diagnostico.classe)?.n ?? 0) + 1 });
+    return [...m.entries()];
+  }, [linhas]);
 
   const contagem = useMemo(() => {
     const c: Record<string, number> = { todas: linhas.length };
@@ -43,14 +58,14 @@ export function TabelaRateio({ linhas, casas }: { linhas: LinhaRateio[]; casas: 
     const nq = norm(q);
     const val = (l: LinhaRateio): number | string => (ord.col === "delta" ? l.pctProposto - l.pctAtual : ord.col === "apelido" ? l.apelido || l.instalacao : ord.col === "acao" ? l.acao : (l[ord.col] ?? -1));
     return linhas
-      .filter((l) => (filtro === "todas" || l.acao === filtro) && (!nq || norm(`${l.apelido} ${l.instalacao} ${l.idUnidade}`).includes(nq)))
+      .filter((l) => (filtro === "todas" || l.acao === filtro) && (!classe || l.diagnostico.classe === classe) && (!nq || norm(`${l.apelido} ${l.instalacao} ${l.idUnidade}`).includes(nq)))
       .sort((a, b) => {
         const va = val(a);
         const vb = val(b);
         const r = typeof va === "string" ? va.localeCompare(String(vb)) : (va as number) - (vb as number);
         return ord.desc ? -r : r;
       });
-  }, [linhas, filtro, q, ord]);
+  }, [linhas, filtro, classe, q, ord]);
 
   const th = (col: Col, label: string, right = true) => (
     <th scope="col" className={cn("px-3 py-2.5 font-medium whitespace-nowrap", right && "text-right")} aria-sort={ord.col === col ? (ord.desc ? "descending" : "ascending") : "none"}>
@@ -79,14 +94,27 @@ export function TabelaRateio({ linhas, casas }: { linhas: LinhaRateio[]; casas: 
             ) : null,
           )}
         </div>
-        <Busca value={q} onChange={setQ} placeholder="Buscar UC ou apelido" />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <select value={classe} onChange={(e) => setClasse(e.target.value as ClasseUc | "")} aria-label="Filtrar por situação" className="h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:border-primary focus:outline-none">
+            <option value="">Todas as situações</option>
+            {classes.map(([k, v]) => (
+              <option key={k} value={k}>
+                {v.rotulo} ({v.n})
+              </option>
+            ))}
+          </select>
+          <Busca value={q} onChange={setQ} placeholder="Buscar UC ou apelido" />
+        </div>
       </div>
       <div className="max-h-[640px] overflow-auto">
-        <table className="w-full min-w-[980px] text-sm">
+        <table className="w-full min-w-[1080px] text-sm">
           <thead className="sticky top-0 z-10 bg-ink-2 text-left text-xs text-muted">
             <tr>
               {th("apelido", "UC", false)}
               {th("acao", "Ação", false)}
+              <th scope="col" className="px-3 py-2.5 font-medium whitespace-nowrap">
+                Situação hoje
+              </th>
               {th("pctAtual", "% atual")}
               {th("pctProposto", "% proposto")}
               {th("delta", "Variação")}
@@ -102,14 +130,18 @@ export function TabelaRateio({ linhas, casas }: { linhas: LinhaRateio[]; casas: 
               const id = `${l.origem}-${l.key}-${l.instalacao}`;
               const delta = l.pctProposto - l.pctAtual;
               return (
-                <FragmentRow key={id} aberta={aberta === id} motivo={l.motivo}>
-                  <tr className="cursor-pointer border-t border-border/60 hover:bg-subtle/60" onClick={() => setAberta((a) => (a === id ? null : id))}>
+                  <tr key={id} className="cursor-pointer border-t border-border/60 hover:bg-subtle/60" onClick={() => onSelecionar(l)}>
                     <td className="px-3 py-2">
-                      <p className="font-medium text-foreground">{l.apelido || "—"}</p>
+                      <button type="button" onClick={(e) => (e.stopPropagation(), onSelecionar(l))} className="text-left font-medium text-foreground hover:text-primary-text hover:underline">
+                        {l.apelido || "—"}
+                      </button>
                       <p className="font-mono text-[11px] text-muted">{l.instalacao}</p>
                     </td>
                     <td className="px-3 py-2">
                       <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", ACAO_INFO[l.acao].cls)}>{ACAO_INFO[l.acao].label}</span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap", CLASSE_INFO[l.diagnostico.classe])}>{l.diagnostico.rotulo}</span>
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-muted">{pct(l.pctAtual, casas)}</td>
                     <td className="px-3 py-2 text-right font-mono font-semibold text-foreground">{pct(l.pctProposto, casas)}</td>
@@ -125,12 +157,11 @@ export function TabelaRateio({ linhas, casas }: { linhas: LinhaRateio[]; casas: 
                       <span className="text-muted">{num(l.mesesSaldoFimAtual)} →</span> {num(l.mesesSaldoFimProposto)}
                     </td>
                   </tr>
-                </FragmentRow>
               );
             })}
             {!visiveis.length && (
               <tr>
-                <td colSpan={10} className="px-3 py-10 text-center text-muted">
+                <td colSpan={11} className="px-3 py-10 text-center text-muted">
                   Nenhuma UC neste filtro.
                 </td>
               </tr>
@@ -138,23 +169,8 @@ export function TabelaRateio({ linhas, casas }: { linhas: LinhaRateio[]; casas: 
           </tbody>
         </table>
       </div>
-      <p className="border-t border-border px-4 py-2.5 text-xs text-muted">Toque numa linha para ver o motivo. &quot;Saldo no fim&quot; compara o rateio atual → o proposto ao fim da projeção.</p>
+      <p className="border-t border-border px-4 py-2.5 text-xs text-muted">Toque numa UC para abrir a ficha completa. &quot;Saldo no fim&quot; compara o rateio atual → o proposto ao fim da projeção.</p>
     </div>
-  );
-}
-
-function FragmentRow({ children, aberta, motivo }: { children: React.ReactNode; aberta: boolean; motivo: string }) {
-  return (
-    <>
-      {children}
-      {aberta && (
-        <tr className="bg-subtle/40">
-          <td colSpan={10} className="px-3 pb-3 text-[13px] text-muted">
-            {motivo}
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 

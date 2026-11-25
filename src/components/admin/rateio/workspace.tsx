@@ -8,6 +8,8 @@ import {
   Download,
   FileSpreadsheet,
   FlaskConical,
+  CircleCheck,
+  CircleX,
   Info,
   Loader2,
   Plus,
@@ -19,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, Eyebrow } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -26,12 +29,13 @@ import { analisarProjeto, injecaoMensal } from "@/modules/rateio/engine";
 import { exemplo } from "@/modules/rateio/exemplo";
 import { importarSheets, parseCandidatas, parseUcs, textoParaGrid, usinaVazia, type Importacao, type ItemCalendario } from "@/modules/rateio/grid";
 import { norm } from "@/modules/rateio/normalize";
+import { interpretarSolucao, montarModelo, OPCOES_SOLVER, type ModeloLp } from "@/modules/rateio/otimizador";
 import { montarResumo, parecerPadrao } from "@/modules/rateio/parecer";
-import { PARAMETROS_PADRAO, type Alerta, type Candidata, type Parametros, type ResultadoUsina, type Usina } from "@/modules/rateio/types";
+import { PARAMETROS_PADRAO, type Alerta, type Candidata, type OtimizacaoResultado, type Parametros, type ResultadoProjeto, type ResultadoUsina, type Usina } from "@/modules/rateio/types";
 import { METODOLOGIA } from "@/modules/rateio/metodologia";
 import { SaldoChart } from "./chart";
 import { kwh, MESES_CURTOS, ratio } from "./format";
-import { TabelaCandidatas, TabelaRateio } from "./tabelas";
+import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
 interface Parecer {
   texto: string;
@@ -80,6 +84,8 @@ function validarParametros(p: Parametros): Parametros {
     compensavelMinimoCandidata: Math.max(0, n(p.compensavelMinimoCandidata, D.compensavelMinimoCandidata)),
     fatorConsumoEstresse: Math.min(1.5, Math.max(0.3, n(p.fatorConsumoEstresse, D.fatorConsumoEstresse))),
     dimensionarNovas: p.dimensionarNovas === "estrutural" ? "estrutural" : "queima",
+    metodo: p.metodo === "proporcional" ? "proporcional" : "otimizado",
+    custoNovaUcKwh: Math.max(0, n(p.custoNovaUcKwh, D.custoNovaUcKwh)),
   };
 }
 
@@ -168,7 +174,51 @@ export function RateioWorkspace() {
   const usinasD = useDeferredValue(estado.usinas);
   const candD = useDeferredValue(estado.candidatas);
   const paramsD = useDeferredValue(estado.params);
-  const resultado = useMemo(() => analisarProjeto(usinasD, candD, paramsD), [usinasD, candD, paramsD]);
+  const [otim, setOtim] = useState<OtimizacaoResultado | null>(null);
+  const [otimRodando, setOtimRodando] = useState(false);
+  const resultado = useMemo(() => analisarProjeto(usinasD, candD, paramsD, otim), [usinasD, candD, paramsD, otim]);
+  // regra proporcional, sempre calculada, para comparar com o otimizado
+  const resultadoProp = useMemo(() => (paramsD.metodo === "otimizado" ? analisarProjeto(usinasD, candD, { ...paramsD, metodo: "proporcional" }) : resultado), [usinasD, candD, paramsD, resultado]);
+
+  // otimização em segundo plano (Web Worker com HiGHS)
+  const workerRef = useRef<Worker | null>(null);
+  const pedidos = useRef(new Map<number, ModeloLp>());
+  const seqPedido = useRef(0);
+  const precisaOtimizar = paramsD.metodo === "otimizado" && usinasD.some((u) => u.ucs.length) && otim?.chave !== resultado.chave;
+  useEffect(() => {
+    if (!precisaOtimizar) return;
+    const t = setTimeout(() => {
+      const modelo = montarModelo(usinasD, resultado.candidatas, paramsD);
+      if (!modelo.mapa.length) return;
+      if (!workerRef.current) {
+        const w = new Worker(new URL("../../../modules/rateio/otimizador.worker.ts", import.meta.url), { type: "module" });
+        w.onmessage = (ev: MessageEvent<{ id: number; status?: string; objetivo?: number; colunas?: Record<string, { Primal: number }>; tempoMs?: number; erro?: string }>) => {
+          const m = pedidos.current.get(ev.data.id);
+          pedidos.current.delete(ev.data.id);
+          if (!m) return;
+          if (!pedidos.current.size) setOtimRodando(false);
+          if (ev.data.erro) {
+            setOtim({ chave: m.chave, status: "Erro", otimo: false, objetivo: 0, tempoMs: 0, variaveis: m.variaveis, restricoes: m.restricoes, porUsina: {}, erro: ev.data.erro });
+            return;
+          }
+          setOtim(interpretarSolucao(m, ev.data.status ?? "", ev.data.objetivo ?? 0, ev.data.colunas ?? {}, ev.data.tempoMs ?? 0));
+        };
+        w.onerror = () => {
+          setOtimRodando(false);
+          setOtim({ chave: modelo.chave, status: "Erro", otimo: false, objetivo: 0, tempoMs: 0, variaveis: 0, restricoes: 0, porUsina: {}, erro: "Não foi possível carregar o otimizador neste navegador." });
+        };
+        workerRef.current = w;
+      }
+      const id = ++seqPedido.current;
+      pedidos.current.clear();
+      pedidos.current.set(id, modelo);
+      setOtimRodando(true);
+      const colunas = modelo.mapa.flatMap((m) => [...m.atuais, ...m.candidatas.flatMap((c) => [c.col, c.bin])]);
+      workerRef.current.postMessage({ id, lp: modelo.lp, opcoes: OPCOES_SOLVER, colunas });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [precisaOtimizar, resultado.chave, resultado.candidatas, usinasD, paramsD]);
+  useEffect(() => () => workerRef.current?.terminate(), []);
 
   const temDados = estado.usinas.length > 0 || estado.calendario.length > 0 || estado.candidatas.length > 0;
   const abaAtual = aba === "inicio" ? (estado.calendario.length ? "calendario" : (estado.usinas[0]?.id ?? "inicio")) : aba;
@@ -353,6 +403,8 @@ export function RateioWorkspace() {
             <UsinaPainel
               usina={usinaAtiva}
               resultado={resAtivo}
+              proporcional={resultadoProp.usinas.find((r) => r.usinaId === usinaAtiva.id)}
+              otimizacao={{ rodando: otimRodando || precisaOtimizar, info: otim, metodoPedido: paramsD.metodo, metodoUsado: resultado.metodo }}
               params={estado.params}
               parecer={estado.pareceres[usinaAtiva.id]}
               calendario={itemDoCalendario(estado.calendario, usinaAtiva.nome)}
@@ -516,9 +568,18 @@ function CampoTexto({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
+interface OtimizacaoUi {
+  rodando: boolean;
+  info: OtimizacaoResultado | null;
+  metodoPedido: Parametros["metodo"];
+  metodoUsado: ResultadoProjeto["metodo"];
+}
+
 function UsinaPainel({
   usina,
   resultado: r,
+  proporcional,
+  otimizacao,
   params,
   parecer,
   calendario,
@@ -529,6 +590,8 @@ function UsinaPainel({
 }: {
   usina: Usina;
   resultado: ResultadoUsina;
+  proporcional?: ResultadoUsina;
+  otimizacao: OtimizacaoUi;
   params: Parametros;
   parecer?: Parecer;
   calendario?: ItemCalendario;
@@ -539,7 +602,9 @@ function UsinaPainel({
 }) {
   const [gerando, setGerando] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [ficha, setFicha] = useState<number | null>(null);
   const i = r.indicadores;
+  const mesesDoAno = r.proposto.meses.map((m) => m.mes);
   const E = injecaoMensal(usina);
   const semUcs = usina.ucs.length === 0;
 
@@ -570,6 +635,7 @@ function UsinaPainel({
             {[usina.distribuidora, usina.fornecedor, `${usina.ucs.length} UCs`].filter(Boolean).join(" · ")}
             {calendario && ` · ciclo ${calendario.mesCiclo.slice(5, 7)}/${calendario.mesCiclo.slice(0, 4)} · ${calendario.etapaAtual}`}
           </p>
+          {!semUcs && <MetodoInfo otimizacao={otimizacao} />}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={onImportar}>
@@ -606,7 +672,13 @@ function UsinaPainel({
                 <h3 className="font-semibold">Saldo de créditos projetado</h3>
                 <p className="text-xs text-muted">Injeção de {kwh(E)} kWh/mês{usina.perfilSazonal.length === 12 ? " com sazonalidade" : ""}</p>
               </div>
-              <SaldoChart atual={r.atual} proposto={r.proposto} estresse={r.propostoEstresse} fatorEstresse={params.fatorConsumoEstresse} />
+              <SaldoChart
+                atual={[r.atual.saldoInicial, ...r.atual.meses.map((m) => m.saldoTotal)]}
+                proposto={[r.proposto.saldoInicial, ...r.proposto.meses.map((m) => m.saldoTotal)]}
+                estresse={[r.propostoEstresse.saldoInicial, ...r.propostoEstresse.meses.map((m) => m.saldoTotal)]}
+                mesesDoAno={mesesDoAno}
+                fatorEstresse={params.fatorConsumoEstresse}
+              />
             </Card>
             <Card className="p-4 sm:p-5">
               <h3 className="mb-3 font-semibold">Balanço da usina</h3>
@@ -631,6 +703,11 @@ function UsinaPainel({
             </Card>
           </div>
 
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-2">
+            <Comparacao atual={r} proporcional={proporcional} otimizado={r.metodo === "otimizado" ? r : undefined} otimizacao={otimizacao} params={params} />
+            <ValidacaoCard validacoes={r.validacoes} />
+          </div>
+
           {r.alertas.length > 0 && (
             <Card>
               <h3 className="border-b border-border px-4 py-3 font-semibold">Pontos de atenção</h3>
@@ -647,8 +724,9 @@ function UsinaPainel({
               <h3 className="font-semibold">Rateio proposto por UC</h3>
               <p className="text-xs text-muted">Soma: {r.linhas.reduce((s, l) => s + l.pctProposto, 0).toLocaleString("pt-BR", { maximumFractionDigits: params.casasDecimais })}%</p>
             </div>
-            <TabelaRateio linhas={r.linhas} casas={params.casasDecimais} />
+            <TabelaRateio linhas={r.linhas} casas={params.casasDecimais} onSelecionar={(l) => setFicha(r.linhas.indexOf(l))} />
           </Card>
+          {ficha != null && r.linhas[ficha] && <FichaUc resultado={r} indice={ficha} params={params} onClose={() => setFicha(null)} onNavegar={(d) => setFicha((f) => (f == null ? f : Math.min(r.linhas.length - 1, Math.max(0, f + d))))} />}
 
           <Card className="p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -891,10 +969,26 @@ function ParametrosPainel({ params: p, onChange }: { params: Parametros; onChang
           Restaurar padrão
         </Button>
       </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(
+          [
+            ["otimizado", "Otimizado (programação linear)", "Testa todas as combinações e acha o rateio que deixa menos crédito parado, mês a mês e UC por UC, também com consumo menor. Escolhe quais UCs entram e saem."],
+            ["proporcional", "Regra proporcional", "Percentual proporcional à necessidade de cada UC (cobertura e queima de saldo). Mais simples de explicar; serve de comparação."],
+          ] as const
+        ).map(([v, t, d]) => (
+          <label key={v} className={cn("flex cursor-pointer gap-3 rounded-xl border p-4 text-sm", p.metodo === v ? "border-primary bg-primary-soft/40" : "border-border")}>
+            <input type="radio" name="metodo" checked={p.metodo === v} onChange={() => set("metodo", v)} className="mt-0.5 size-4 accent-[var(--primary)]" />
+            <span>
+              <span className="block font-semibold">{t}</span>
+              <span className="mt-0.5 block text-xs text-muted">{d}</span>
+            </span>
+          </label>
+        ))}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <CampoNumero label="Cobertura do compensável" sufixo="%" value={Math.round(p.cobertura * 1000) / 10} onChange={(v) => set("cobertura", Math.min(1, Math.max(0.1, n(v, 90) / 100)))} dica="Parte do consumo compensável que o crédito tenta cobrir. O resto é margem para queda de consumo." />
         <CampoNumero label="Horizonte para gastar o saldo" sufixo="meses" step="1" value={p.horizonteSaldoMeses} onChange={(v) => set("horizonteSaldoMeses", Math.max(1, Math.round(n(v, 12))))} dica="Em quantos meses o saldo acima da reserva deve ser usado." />
-        <CampoNumero label="Reserva de saldo" sufixo="meses" value={p.reservaSaldoMeses} onChange={(v) => set("reservaSaldoMeses", Math.max(0, n(v, 1)))} dica="Saldo mantido por UC, em meses de consumo." />
+        <CampoNumero label="Reserva de saldo" sufixo="meses" value={p.reservaSaldoMeses} onChange={(v) => set("reservaSaldoMeses", Math.max(0, n(v, 1)))} dica="Na regra proporcional, só o saldo acima disso é gasto no horizonte. No otimizado é só desempate: ele gasta o saldo sempre que isso compensa mais energia." />
         <CampoNumero label="Casas decimais do percentual" step="1" value={p.casasDecimais} onChange={(v) => set("casasDecimais", Math.min(6, Math.max(0, Math.round(n(v, 2)))))} dica="Confirme com a distribuidora (CPFL aceita até 2)." />
         <CampoNumero label="Percentual mínimo por UC" sufixo="%" value={p.pctMinimo} onChange={(v) => set("pctMinimo", Math.max(10 ** -p.casasDecimais, n(v, 0.01)))} />
         <CampoNumero label="Compensável mínimo da candidata" sufixo="kWh" value={p.compensavelMinimoCandidata} onChange={(v) => set("compensavelMinimoCandidata", Math.max(0, n(v, 100)))} dica="Candidatas menores não entram." />
@@ -910,6 +1004,7 @@ function ParametrosPainel({ params: p, onChange }: { params: Parametros; onChang
           </select>
           <span className="mt-1 block text-[11px] text-muted">A distribuidora aplica no ciclo seguinte ao pedido.</span>
         </label>
+        <CampoNumero label="Custo de incluir uma UC (otimizado)" sufixo="kWh" value={p.custoNovaUcKwh} onChange={(v) => set("custoNovaUcKwh", Math.max(0, n(v, 500)))} dica="Só inclui UC nova se o ganho passar disso. Evita incluir UC por ganho mínimo." />
         <CampoNumero label="Consumo no cenário de estresse" sufixo="%" value={Math.round(p.fatorConsumoEstresse * 100)} onChange={(v) => set("fatorConsumoEstresse", Math.min(1.5, Math.max(0.3, n(v, 90) / 100)))} dica="90% = consumo 10% menor que a média." />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -991,5 +1086,199 @@ function ColarDialog({ usinas, inicial, onClose, onAplicar }: { usinas: Usina[];
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function MetodoInfo({ otimizacao: o }: { otimizacao: OtimizacaoUi }) {
+  let texto: string;
+  let cls = "text-muted";
+  if (o.metodoPedido === "proporcional") texto = "Método: regra proporcional à necessidade";
+  else if (o.rodando) {
+    texto = "Otimizando o rateio…";
+    cls = "text-primary-text";
+  } else if (o.metodoUsado === "otimizado" && o.info) {
+    texto = `Rateio otimizado (programação linear) · ${o.info.otimo ? "solução ótima comprovada" : "melhor solução no tempo limite"} em ${(o.info.tempoMs / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s · ${o.info.variaveis.toLocaleString("pt-BR")} variáveis`;
+    cls = "text-opportunity";
+  } else {
+    texto = `Otimização indisponível${o.info?.erro ? ` (${o.info.erro})` : ""}: usando a regra proporcional`;
+    cls = "text-analysis";
+  }
+  return (
+    <p className={cn("mt-1 flex items-center gap-1.5 text-xs font-medium", cls)}>
+      {o.rodando ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+      {texto}
+    </p>
+  );
+}
+
+function Comparacao({ atual, proporcional, otimizado, otimizacao, params }: { atual: ResultadoUsina; proporcional?: ResultadoUsina; otimizado?: ResultadoUsina; otimizacao: OtimizacaoUi; params: Parametros }) {
+  type Col = { nome: string; r: ResultadoUsina; cen: "atual" | "proposto" };
+  const cols: Col[] = [{ nome: "Rateio atual", r: atual, cen: "atual" }];
+  if (proporcional) cols.push({ nome: "Regra proporcional", r: proporcional, cen: "proposto" });
+  if (otimizado) cols.push({ nome: "Otimizado", r: otimizado, cen: "proposto" });
+  const sim = (c: Col) => (c.cen === "atual" ? c.r.atual : c.r.proposto);
+  const estresse = (c: Col) => (c.cen === "atual" ? null : c.r.propostoEstresse);
+  const mudancas = (c: Col) => (c.cen === "atual" ? 0 : c.r.linhas.filter((l) => l.acao !== "manter").length);
+  const linhas: { label: string; v: (c: Col) => number | null; menor: boolean; fmt?: (n: number) => string }[] = [
+    { label: "Energia compensada (kWh)", v: (c) => sim(c).compensadoTotal, menor: false },
+    { label: `Compensada com consumo ${Math.round((1 - params.fatorConsumoEstresse) * 100)}% menor`, v: (c) => estresse(c)?.compensadoTotal ?? null, menor: false },
+    { label: `Saldo total no fim de ${params.mesesSimulacao} meses (kWh)`, v: (c) => sim(c).saldoFinal, menor: true },
+    { label: "Consumo sem crédito (kWh)", v: (c) => sim(c).consumoDescobertoTotal, menor: true },
+    { label: "Crédito novo que vira saldo (kWh)", v: (c) => sim(c).creditoParaSaldoTotal, menor: true },
+    { label: "UCs no rateio", v: (c) => (c.cen === "atual" ? c.r.indicadores.ucsAtuais : c.r.indicadores.ucsPropostas), menor: false, fmt: (n) => String(n) },
+    { label: "UCs com percentual alterado", v: mudancas, menor: true, fmt: (n) => String(n) },
+  ];
+  return (
+    <Card>
+      <div className="border-b border-border px-4 py-3">
+        <h3 className="font-semibold">Comparação de métodos</h3>
+        <p className="text-xs text-muted">Mesma projeção para os três rateios; em destaque, o melhor de cada linha. Como todas as UCs são do mesmo cliente, a energia compensada é o que vale: cada kWh a mais é um kWh a menos comprado da distribuidora.</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
+          <thead className="text-left text-xs text-muted">
+            <tr>
+              <th className="px-4 py-2 font-medium" />
+              {cols.map((c) => (
+                <th key={c.nome} className="px-3 py-2 text-right font-medium whitespace-nowrap">
+                  {c.nome}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l) => {
+              const vals = cols.map(l.v);
+              const validos = vals.filter((v): v is number => v != null);
+              const melhor = l.label.startsWith("UCs no") ? null : l.menor ? Math.min(...validos) : Math.max(...validos);
+              return (
+                <tr key={l.label} className="border-t border-border/60">
+                  <td className="px-4 py-2 text-muted">{l.label}</td>
+                  {vals.map((v, k) => (
+                    <td key={k} className={cn("px-3 py-2 text-right font-mono", v != null && melhor != null && Math.abs(v - melhor) < 0.5 && validos.length > 1 ? "font-semibold text-opportunity" : "")}>
+                      {v == null ? "—" : l.fmt ? l.fmt(v) : kwh(v)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {otimizacao.metodoPedido === "otimizado" && !otimizado && <p className="border-t border-border px-4 py-2.5 text-xs text-muted">{otimizacao.rodando ? "Calculando o rateio otimizado…" : "O otimizado aparece aqui quando o cálculo termina."}</p>}
+    </Card>
+  );
+}
+
+function ValidacaoCard({ validacoes }: { validacoes: ResultadoUsina["validacoes"] }) {
+  const erros = validacoes.filter((v) => !v.ok && v.nivel === "erro").length;
+  const avisos = validacoes.filter((v) => !v.ok && v.nivel === "aviso").length;
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <h3 className="font-semibold">Validação do rateio proposto</h3>
+        <Badge tone={erros ? "attention" : avisos ? "analysis" : "opportunity"}>{erros ? `${erros} reprovada(s)` : avisos ? `${avisos} aviso(s)` : "Pronto para enviar"}</Badge>
+      </div>
+      <ul>
+        {validacoes.map((v) => (
+          <li key={v.titulo} className="flex gap-3 border-t border-border/60 px-4 py-2.5 first:border-t-0">
+            {v.ok ? (
+              <CircleCheck className="mt-0.5 size-4 shrink-0 text-opportunity" aria-label="Aprovada" />
+            ) : v.nivel === "erro" ? (
+              <CircleX className="mt-0.5 size-4 shrink-0 text-attention" aria-label="Reprovada" />
+            ) : (
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-analysis" aria-label="Aviso" />
+            )}
+            <div className="min-w-0">
+              <p className="text-sm">{v.titulo}</p>
+              <p className="text-xs text-muted">{v.detalhe}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function FichaUc({ resultado: r, indice, params, onClose, onNavegar }: { resultado: ResultadoUsina; indice: number; params: Parametros; onClose: () => void; onNavegar: (d: number) => void }) {
+  const l = r.linhas[indice];
+  const nAtuais = r.linhas.filter((x) => x.origem === "atual").length;
+  const temAtual = indice < nAtuais;
+  const comp = l.compensavelKwh;
+  const meses = (v: number) => (comp > 0 ? `${(v / comp).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} meses` : "—");
+  const serieAtual = temAtual ? [l.saldoKwh, ...r.atual.saldoPorUcMes[indice]] : undefined;
+  const serieProp = [l.saldoKwh, ...r.proposto.saldoPorUcMes[indice]];
+  const serieEst = [l.saldoKwh, ...r.propostoEstresse.saldoPorUcMes[indice]];
+  const fimAtual = serieAtual?.at(-1) ?? null;
+  const fimProp = serieProp.at(-1) ?? 0;
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") onNavegar(1);
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") onNavegar(-1);
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose, onNavegar]);
+  const dados: [string, string][] = [
+    ["Consumo compensável", `${kwh(comp)} kWh/mês`],
+    ["Compensado (histórico)", l.origem === "atual" ? `${kwh(l.compensadoKwh)} kWh/mês` : "—"],
+    ["Aproveitamento histórico", l.aproveitamentoHistorico != null ? ratio(l.aproveitamentoHistorico) : "—"],
+    ["Saldo hoje", `${kwh(l.saldoKwh)} kWh · ${meses(l.saldoKwh)}`],
+    ["Percentual", `${l.pctAtual.toLocaleString("pt-BR", { minimumFractionDigits: params.casasDecimais })}% → ${l.pctProposto.toLocaleString("pt-BR", { minimumFractionDigits: params.casasDecimais })}%`],
+    ["Crédito por mês", `${kwh(l.creditoAtualKwh)} → ${kwh(l.creditoPropostoKwh)} kWh`],
+    ["Crédito ÷ consumo", comp > 0 ? `${ratio(l.creditoAtualKwh / comp)} → ${ratio(l.creditoPropostoKwh / comp)}` : "—"],
+    [`Saldo no fim (${params.mesesSimulacao} meses)`, `${fimAtual != null ? `${kwh(fimAtual)} → ` : ""}${kwh(fimProp)} kWh`],
+  ];
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" role="dialog" aria-modal="true" aria-labelledby="ficha-titulo" onClick={onClose}>
+      <div className="h-dvh w-full max-w-xl overflow-y-auto border-l border-border bg-card p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Eyebrow>Ficha da UC</Eyebrow>
+            <h2 id="ficha-titulo" className="mt-2 text-xl font-semibold break-words">
+              {l.apelido || l.instalacao}
+            </h2>
+            <p className="mt-0.5 font-mono text-xs text-muted">
+              {l.instalacao}
+              {l.idUnidade && ` · ID ${l.idUnidade}`}
+              {l.subgrupo && ` · ${l.subgrupo}`}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar ficha" className="text-muted hover:text-foreground">
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", ACAO_INFO[l.acao].cls)}>{ACAO_INFO[l.acao].label}</span>
+          <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", CLASSE_INFO[l.diagnostico.classe])}>{l.diagnostico.rotulo}</span>
+        </div>
+        <p className="mt-3 text-sm text-foreground/85">{l.diagnostico.texto}</p>
+        <p className="mt-2 text-sm text-muted">{l.motivo}</p>
+        <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+          {dados.map(([k, v]) => (
+            <div key={k} className="border-b border-border/50 pb-2">
+              <dt className="text-xs text-muted">{k}</dt>
+              <dd className="font-mono">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-6">
+          <h3 className="mb-2 text-sm font-semibold">Saldo desta UC mês a mês</h3>
+          <SaldoChart atual={serieAtual} proposto={serieProp} estresse={serieEst} mesesDoAno={r.proposto.meses.map((m) => m.mes)} fatorEstresse={params.fatorConsumoEstresse} />
+        </div>
+        <div className="mt-6 flex justify-between gap-2">
+          <Button size="sm" variant="secondary" onClick={() => onNavegar(-1)} disabled={indice === 0}>
+            ← Anterior
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => onNavegar(1)} disabled={indice === r.linhas.length - 1}>
+            Próxima →
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

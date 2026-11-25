@@ -94,6 +94,7 @@ export async function exportarXlsx(usinas: Usina[], resultado: ResultadoProjeto,
     ["Casas decimais / mínimo por UC", `${p.casasDecimais} / ${p.pctMinimo}%`],
     ["Projeção (meses) / mês de início", `${p.mesesSimulacao} / ${p.mesInicio}`],
     ["Cenário de estresse (consumo)", `${(p.fatorConsumoEstresse * 100).toFixed(0)}%`],
+    ["Método", resultado.metodo === "otimizado" ? "Otimizado (programação linear, HiGHS)" : "Regra proporcional à necessidade"],
   ];
   for (const r of params) rs.addRow(r);
 
@@ -148,6 +149,7 @@ export async function exportarXlsx(usinas: Usina[], resultado: ResultadoProjeto,
     { header: "% proposto", key: "pp", width: 11, fmt: pctFmt },
     { header: "Variação (p.p.)", key: "dp", width: 11, fmt: pctFmt },
     { header: "Ação", key: "acao", width: 11 },
+    { header: "Situação hoje", key: "sit", width: 15 },
     { header: "Saldo kWh", key: "saldo", width: 12, fmt: KWH },
     { header: "Compensável kWh/mês", key: "comp", width: 13, fmt: KWH },
     { header: "Uso de saldo kWh/mês", key: "queima", width: 13, fmt: KWH },
@@ -170,6 +172,7 @@ export async function exportarXlsx(usinas: Usina[], resultado: ResultadoProjeto,
         pp: l.pctProposto,
         dp: l.pctProposto - l.pctAtual,
         acao: ACAO_LABEL[l.acao],
+        sit: l.diagnostico.rotulo,
         saldo: l.saldoKwh,
         comp: l.compensavelKwh,
         queima: l.queimaSaldoMensal,
@@ -245,6 +248,20 @@ export async function exportarXlsx(usinas: Usina[], resultado: ResultadoProjeto,
       const row = as.addRow({ usina: r.usinaNome, sev: a.severidade === "alta" ? "Alta" : a.severidade === "media" ? "Média" : "Baixa", titulo: a.titulo, det: a.detalhe, refs: a.refs?.join(", ") ?? "" });
       row.getCell("sev").fill = { type: "pattern", pattern: "solid", fgColor: { argb: a.severidade === "alta" ? COR.vermelho : a.severidade === "media" ? COR.amarelo : COR.cinza } };
       row.alignment = { wrapText: true, vertical: "top" };
+    }
+
+  // Validação
+  const vs = wb.addWorksheet("Validação");
+  cabecalho(vs, [
+    { header: "Usina", key: "usina", width: 20 },
+    { header: "Resultado", key: "res", width: 12 },
+    { header: "Checagem", key: "titulo", width: 55 },
+    { header: "Detalhe", key: "det", width: 70 },
+  ]);
+  for (const r of resultado.usinas)
+    for (const v of r.validacoes) {
+      const row = vs.addRow({ usina: r.usinaNome, res: v.ok ? "Aprovada" : v.nivel === "erro" ? "Reprovada" : "Aviso", titulo: v.titulo, det: v.detalhe });
+      row.getCell("res").fill = { type: "pattern", pattern: "solid", fgColor: { argb: v.ok ? COR.verde : v.nivel === "erro" ? COR.vermelho : COR.amarelo } };
     }
 
   // Projeção mês a mês
