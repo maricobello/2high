@@ -20,6 +20,8 @@ test.describe("admin: rateio GD", () => {
   });
 
   test("exemplo fictício gera estudo completo, sem rolagem lateral", async ({ page }) => {
+    // otimização, busca do máximo compensável e recálculo rodam de verdade no navegador
+    test.setTimeout(120_000);
     await page.getByRole("button", { name: "Ver exemplo fictício" }).click();
     await expect(page.getByRole("heading", { name: "Saldo de créditos projetado" })).toBeVisible();
     await expect(page.getByText("Soma: 100%")).toBeVisible();

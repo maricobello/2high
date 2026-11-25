@@ -10,6 +10,7 @@ import { aplicacaoDaFatura, lerFaturaTexto, scoreFatura, type FaturaUsina, type 
 import { CAMPOS_PAINEL, checarPainel, lerPainelTexto, scorePainel, type CampoPainel, type ValoresPainel } from "@/modules/rateio/painel";
 import type { Usina } from "@/modules/rateio/types";
 import { kwh, MESES_CURTOS } from "./format";
+import { EntradaNumero } from "./numero";
 
 /** Lê a fatura da usina (PDF com texto) no navegador. */
 export async function lerFaturaArquivo(file: File): Promise<FaturaUsina> {
@@ -262,12 +263,9 @@ export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; 
               {sPainel && <Nota s={sPainel} aplicado={painelAplicado} rotulo="Período" />}
               <label className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-xs text-muted">Meses do período no Orange</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={p.meses ?? ""}
-                  onChange={(e) => onTransformar((u) => autoAplicar({ ...u, painel: { ...p, meses: e.target.value ? Math.max(1, Math.round(Number(e.target.value))) : null, mesesInferidos: false } }))}
+                <EntradaNumero
+                  value={p.meses}
+                  onValor={(v) => onTransformar((u) => autoAplicar({ ...u, painel: { ...p, meses: v ? Math.min(60, Math.max(1, Math.round(v))) : null, mesesInferidos: false } }))}
                   className="h-8 w-20 rounded-lg border border-border bg-card px-2 font-mono text-sm"
                 />
                 {p.mesesInferidos && <span className="text-xs text-opportunity">descoberto pela fatura</span>}
@@ -278,10 +276,9 @@ export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; 
                   {(Object.keys(CAMPOS_PAINEL) as CampoPainel[]).map((k) => (
                     <label key={k} className="flex items-center justify-between gap-2 border-b border-border/50 py-1">
                       <span className="text-muted">{CAMPOS_PAINEL[k]}</span>
-                      <input
-                        type="number"
-                        value={p.valores[k] ?? ""}
-                        onChange={(e) => onTransformar((u) => autoAplicar({ ...u, painel: { ...p, valores: { ...p.valores, [k]: e.target.value === "" ? undefined : Number(e.target.value) } } }))}
+                      <EntradaNumero
+                        value={p.valores[k]}
+                        onValor={(v) => onTransformar((u) => autoAplicar({ ...u, painel: { ...p, valores: { ...p.valores, [k]: v ?? undefined } } }))}
                         className="w-32 rounded border border-transparent bg-transparent px-1 text-right font-mono text-foreground hover:border-border focus:border-primary focus:outline-none"
                       />
                     </label>

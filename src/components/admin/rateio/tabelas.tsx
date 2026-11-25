@@ -35,7 +35,14 @@ function Busca({ value, onChange, placeholder }: { value: string; onChange: (v: 
   );
 }
 
-type Col = "apelido" | "acao" | "pctAtual" | "pctProposto" | "delta" | "saldoKwh" | "compensavelKwh" | "queimaSaldoMensal" | "mesesSaldoHoje" | "mesesSaldoFimProposto";
+type Col = "maxComp" | "apelido" | "acao" | "pctAtual" | "pctProposto" | "delta" | "saldoKwh" | "compensavelKwh" | "queimaSaldoMensal" | "mesesSaldoHoje" | "mesesSaldoFimProposto";
+
+/** Máximo compensável da UC: crédito novo ÷ consumo compensável. */
+function maxComp(l: LinhaRateio, qual: "atual" | "proposto"): number | null {
+  if (l.compensavelKwh <= 0) return null;
+  return (qual === "atual" ? l.creditoAtualKwh : l.creditoPropostoKwh) / l.compensavelKwh;
+}
+const fracao = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 
 export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRateio[]; casas: number; onSelecionar: (l: LinhaRateio) => void }) {
   const [filtro, setFiltro] = useState<Acao | "todas">("todas");
@@ -56,7 +63,7 @@ export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRat
 
   const visiveis = useMemo(() => {
     const nq = norm(q);
-    const val = (l: LinhaRateio): number | string => (ord.col === "delta" ? l.pctProposto - l.pctAtual : ord.col === "apelido" ? l.apelido || l.instalacao : ord.col === "acao" ? l.acao : (l[ord.col] ?? -1));
+    const val = (l: LinhaRateio): number | string => (ord.col === "maxComp" ? (maxComp(l, "proposto") ?? -1) : ord.col === "delta" ? l.pctProposto - l.pctAtual : ord.col === "apelido" ? l.apelido || l.instalacao : ord.col === "acao" ? l.acao : (l[ord.col] ?? -1));
     return linhas
       .filter((l) => (filtro === "todas" || l.acao === filtro) && (!classe || l.diagnostico.classe === classe) && (!nq || norm(`${l.apelido} ${l.instalacao} ${l.idUnidade}`).includes(nq)))
       .sort((a, b) => {
@@ -107,7 +114,7 @@ export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRat
         </div>
       </div>
       <div className="max-h-[640px] overflow-auto">
-        <table className="w-full min-w-[1080px] text-sm">
+        <table className="w-full min-w-[1180px] text-sm">
           <thead className="sticky top-0 z-10 bg-ink-2 text-left text-xs text-muted">
             <tr>
               {th("apelido", "UC", false)}
@@ -120,6 +127,7 @@ export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRat
               {th("delta", "Variação")}
               {th("saldoKwh", "Saldo kWh")}
               {th("compensavelKwh", "Compensável/mês")}
+              {th("maxComp", "Máx. compensável")}
               {th("queimaSaldoMensal", "Uso do saldo/mês")}
               {th("mesesSaldoHoje", "Saldo hoje (meses)")}
               {th("mesesSaldoFimProposto", "Saldo no fim (meses)")}
@@ -151,6 +159,9 @@ export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRat
                     </td>
                     <td className="px-3 py-2 text-right font-mono">{kwh(l.saldoKwh)}</td>
                     <td className="px-3 py-2 text-right font-mono">{kwh(l.compensavelKwh)}</td>
+                    <td className="px-3 py-2 text-right font-mono whitespace-nowrap" title="Crédito novo ÷ consumo compensável da UC (o resto sai do saldo dela)">
+                      <span className="text-muted">{fracao(maxComp(l, "atual"))} →</span> {fracao(maxComp(l, "proposto"))}
+                    </td>
                     <td className="px-3 py-2 text-right font-mono text-muted">{l.queimaSaldoMensal > 0 ? kwh(l.queimaSaldoMensal) : "—"}</td>
                     <td className="px-3 py-2 text-right font-mono text-muted">{num(l.mesesSaldoHoje)}</td>
                     <td className="px-3 py-2 text-right font-mono">
@@ -161,7 +172,7 @@ export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRat
             })}
             {!visiveis.length && (
               <tr>
-                <td colSpan={11} className="px-3 py-10 text-center text-muted">
+                <td colSpan={12} className="px-3 py-10 text-center text-muted">
                   Nenhuma UC neste filtro.
                 </td>
               </tr>

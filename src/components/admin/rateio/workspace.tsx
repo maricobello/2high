@@ -44,6 +44,7 @@ import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes"
 import { autoAplicar } from "@/modules/rateio/automacao";
 import { MARCA_PADRAO, MARCA_REPLACE, type MarcaEstudo } from "@/modules/rateio/estudo-xlsx";
 import { kwh, MESES_CURTOS, pct1, ratio } from "./format";
+import { EntradaNumero } from "./numero";
 import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
 interface Parecer {
@@ -808,17 +809,14 @@ function AlertaItem({ a }: { a: Alerta }) {
   );
 }
 
-function CampoNumero({ label, value, onChange, sufixo, dica, step = "any" }: { label: string; value: number | null; onChange: (v: number | null) => void; sufixo?: string; dica?: string; step?: string }) {
+function CampoNumero({ label, value, onChange, sufixo, dica }: { label: string; value: number | null; onChange: (v: number | null) => void; sufixo?: string; dica?: string; step?: string }) {
   return (
     <label className="block">
       <span className="mb-1 block text-xs font-medium text-foreground/80">{label}</span>
       <span className="relative block">
-        <input
-          type="number"
-          inputMode="decimal"
-          step={step}
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        <EntradaNumero
+          value={value}
+          onValor={onChange}
           className="h-10 w-full rounded-lg border border-border bg-card px-3 pr-12 font-mono text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none"
         />
         {sufixo && <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted">{sufixo}</span>}
@@ -1086,6 +1084,8 @@ function CampoMes({ label, value, onChange }: { label: string; value: string; on
 function EnergiaConsumida({ usina, onChange }: { usina: Usina; onChange: (p: Partial<Usina>) => void }) {
   const res = resumoConsumo(usina);
   const estimativa = estimativaConsumo(usina);
+  // média muito abaixo do consumo das UCs: digitado em MWh ou com o ponto lido como decimal
+  const pareceMwh = res.informados > 0 && res.media > 0 && res.media < 100_000 && estimativa > 0 && res.media * 50 < estimativa;
   const contratadaMes = usina.meses > 0 ? usina.energiaContratadaPeriodo / usina.meses : 0;
   const definir = (competencia: string, v: number | null) => onChange({ consumoMensal: definirConsumo(usina, competencia, v) });
   // colar uma coluna do Excel preenche a partir do mês em que se colou
@@ -1125,12 +1125,11 @@ function EnergiaConsumida({ usina, onChange }: { usina: Usina; onChange: (p: Par
               <label key={l.competencia} className="block">
                 <span className="mb-1 block text-xs font-medium text-foreground/80">{rotuloCompetencia(l.competencia)}</span>
                 <span className="relative block">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="any"
-                    value={l.kwh ?? ""}
-                    onChange={(e) => definir(l.competencia, e.target.value === "" ? null : Number(e.target.value))}
+                  <EntradaNumero
+                    value={l.kwh}
+                    onValor={(v) => definir(l.competencia, v)}
+                    casas={2}
+                    placeholder={k === 0 ? "ex.: 619.886,12" : undefined}
                     onPaste={(e) => colar(k, e)}
                     aria-label={`Energia consumida em ${rotuloCompetencia(l.competencia)}`}
                     className="h-10 w-full rounded-lg border border-border bg-card px-3 pr-10 font-mono text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none"
@@ -1141,6 +1140,17 @@ function EnergiaConsumida({ usina, onChange }: { usina: Usina; onChange: (p: Par
             ))}
           </div>
           {res.faltando > 0 && res.informados > 0 && <p className="mt-2 text-xs text-analysis">{res.faltando} competência(s) sem valor: a média usa só as informadas.</p>}
+          {pareceMwh && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-analysis/40 bg-analysis/10 px-3 py-2 text-xs">
+              <TriangleAlert className="size-4 shrink-0 text-analysis" />
+              <span className="min-w-0 flex-1">
+                Os valores parecem estar em MWh ou com vírgula no lugar do ponto (ex.: 619,886 em vez de 619.886). A soma do compensável das UCs é {kwh(estimativa)} kWh/mês.
+              </span>
+              <button type="button" onClick={() => onChange({ consumoMensal: usina.consumoMensal.map((c) => ({ ...c, kwh: Math.round(c.kwh * 1000 * 100) / 100 })) })} className="font-semibold text-primary-text hover:underline">
+                Converter para kWh (×1.000)
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -1675,7 +1685,7 @@ function MaximoCompensavel({ usina, r, params, sugestao }: { usina: Usina; r: Re
         <div className="min-w-0">
           <h3 className="font-semibold">Máximo compensável</h3>
           <p className="mt-0.5 max-w-3xl text-xs text-muted">
-            É quanto do consumo de cada UC o crédito novo da usina cobre; o resto sai do saldo acumulado da própria UC. O sistema escolhe sozinho o valor que compensa mais energia. Não precisa ajustar nada.
+            É quanto do consumo de cada UC o crédito novo da usina cobre; o resto sai do saldo acumulado da própria UC. O melhor é um valor por UC (um valor único para todas é só um caso particular, nunca rende mais): o otimizado escolhe o de cada UC, e a coluna &quot;Máx. compensável&quot; da tabela mostra cada um. Não precisa ajustar nada.
           </p>
         </div>
         <Badge tone="opportunity">Automático</Badge>
@@ -2024,14 +2034,10 @@ function Ganho({ r, params, onTarifa }: { r: ResultadoUsina; params: Parametros;
       </div>
       <label className="shrink-0">
         <span className="mb-1 block text-xs text-muted">Tarifa média das UCs (R$/kWh)</span>
-        <input
-          type="number"
-          inputMode="decimal"
-          step="0.01"
-          min={0}
+        <EntradaNumero
           placeholder="ex.: 0,85"
-          value={t || ""}
-          onChange={(e) => onTarifa(Math.max(0, Number(e.target.value) || 0))}
+          value={t || null}
+          onValor={(v) => onTarifa(Math.max(0, v ?? 0))}
           className="h-10 w-36 rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground focus:border-primary focus:outline-none"
         />
       </label>

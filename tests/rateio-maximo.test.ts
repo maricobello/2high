@@ -182,3 +182,17 @@ describe("refino exato do otimizado", () => {
     expect(valorCompensado(r, "proposto", { ...P, tarifaKwh: 0 })).toBeNull();
   });
 });
+
+describe("campo numérico no formato brasileiro", () => {
+  it("ponto é milhar e vírgula é decimal", async () => {
+    const { lerNumeroBr, formatarBr } = await import("@/components/admin/rateio/numero");
+    expect(lerNumeroBr("619.886,12")).toBe(619886.12);
+    expect(lerNumeroBr("619.886")).toBe(619886);
+    expect(lerNumeroBr("1.234.567")).toBe(1234567);
+    expect(lerNumeroBr("619886,12")).toBe(619886.12);
+    expect(lerNumeroBr("0,85")).toBe(0.85);
+    expect(lerNumeroBr("447036")).toBe(447036);
+    expect(lerNumeroBr("")).toBeNull();
+    expect(formatarBr(619886.12)).toBe("619.886,12");
+  });
+});
