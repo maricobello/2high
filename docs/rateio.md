@@ -40,8 +40,12 @@ geração distribuída e entregar o estudo em Excel.
 4. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
 5. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
 6. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
-7. **Exportar estudo** (todas as usinas, ou "Exportar esta usina"): Excel no formato
-   "prontuário", pronto para envio e impressão em A4:
+7. **Exportar** (botão "Exportar estudo" para todas as usinas, ou "Exportar" na usina) abre a
+   escolha do formato:
+   - **PDF executivo** (para enviar): por usina, página 1 com o resumo, página 2 com parecer e
+     assinaturas, e o Anexo I com as UCs (maior consumo primeiro, barra no consumo). Gerado no
+     navegador, texto selecionável, fonte Geist embutida. Sem parecer gerado, entra o padrão.
+   - **Excel completo** (para trabalhar), no formato "prontuário", pronto para impressão em A4:
    - *Estudo* (por usina): página 1 com identificação, resultado em 4 números, conduta (o que
      muda), validação ✓/✗ e pontos de atenção; página 2 com parecer e assinaturas;
    - *Anexo I* (por usina): tabela de todas as UCs, como estão hoje e como ficam (situação,
@@ -52,7 +56,7 @@ geração distribuída e entregar o estudo em Excel.
      metodologia).
    A identidade (empresa, cor, logo, responsável técnico) é definida em Parâmetros →
    Identidade do estudo; "Usar cores da Replace" aplica o laranja do logo.
-8. **Planilha modelo**: a planilha do dia a dia ("Análise do Rateio" + "Novas UCs") preenchida
+8. **Planilha modelo** (no mesmo popup, quando é uma usina): a planilha do dia a dia ("Análise do Rateio" + "Novas UCs") preenchida
    pelo sistema, com as fórmulas originais (estendidas para quantas UCs houver) e duas colunas a
    mais: rateio proposto pelo sistema e ação. O modelo em branco pode ser baixado na tela
    inicial; importado vazio, não cria usina.

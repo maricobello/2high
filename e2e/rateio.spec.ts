@@ -28,12 +28,22 @@ test.describe("admin: rateio GD", () => {
     await page.getByRole("button", { name: "Gerar parecer" }).click();
     await expect(page.getByLabel("Texto do parecer")).toHaveValue(/Estudo de revisão do rateio|rateio/i, { timeout: 30_000 });
 
-    const download = page.waitForEvent("download");
+    // popup de exportação: PDF executivo e Excel completo (todas as usinas)
     await page.getByRole("button", { name: "Exportar estudo" }).click();
-    expect((await download).suggestedFilename()).toMatch(/^Estudo-de-rateio_.*\.xlsx$/);
+    await expect(page.getByRole("dialog", { name: "Exportar estudo" })).toBeVisible();
+    const pdf = page.waitForEvent("download");
+    await page.getByRole("button", { name: /PDF executivo/ }).click();
+    expect((await pdf).suggestedFilename()).toMatch(/^Estudo-de-rateio_.*\.pdf$/);
 
+    await page.getByRole("button", { name: "Exportar estudo" }).click();
+    const excel = page.waitForEvent("download");
+    await page.getByRole("button", { name: /Excel completo/ }).click();
+    expect((await excel).suggestedFilename()).toMatch(/^Estudo-de-rateio_.*\.xlsx$/);
+
+    // da usina: inclui a planilha modelo
+    await page.getByRole("button", { name: "Exportar", exact: true }).click();
     const modelo = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Planilha modelo" }).click();
+    await page.getByRole("button", { name: /Planilha modelo/ }).click();
     expect((await modelo).suggestedFilename()).toMatch(/^Modelo_Rateio_.*\.xlsx$/);
 
     const [scroll, largura] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);

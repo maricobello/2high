@@ -75,3 +75,27 @@ describe("planilha modelo", () => {
     expect(imp.usinas).toHaveLength(0);
   });
 });
+
+describe("PDF executivo", () => {
+  it("gera estudo, parecer e Anexo I com a fonte embutida", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { exportarPdf } = await import("@/modules/rateio/estudo-pdf");
+    const { lerPdf } = await import("@/modules/rateio/pdf");
+    const F = "src/modules/rateio/pdf-fontes/";
+    const fontes = { regular: readFileSync(F + "Geist-Regular.ttf").toString("base64"), negrito: readFileSync(F + "Geist-SemiBold.ttf").toString("base64") };
+    const ex = exemplo();
+    const p = { ...PARAMETROS_PADRAO, metodo: "proporcional" as const, tarifaKwh: 0.8 };
+    const r = analisarProjeto(ex.usinas, ex.candidatas, p);
+    const u = ex.usinas[0];
+    const blob = await exportarPdf(ex.usinas, r, p, { marca: { ...MARCA_REPLACE, logo: null, responsavel: "Teste" }, usinas: [u.id], pareceres: { [u.id]: "Parecer de teste." }, fontes });
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    expect(new TextDecoder().decode(buf.slice(0, 5))).toBe("%PDF-");
+    const t = await lerPdf(buf);
+    const texto = t.linhas.join("\n");
+    expect(t.paginas).toBeGreaterThanOrEqual(3);
+    expect(texto).toContain("Estudo de rateio de créditos");
+    expect(texto).toContain("Parecer de teste.");
+    expect(texto).toContain("ANEXO I");
+    expect(texto).toMatch(/Página 1 de \d+/);
+  });
+});

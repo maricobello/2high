@@ -7,6 +7,7 @@ import {
   Copy,
   Download,
   FileSpreadsheet,
+  FileText,
   FlaskConical,
   CircleCheck,
   CircleX,
@@ -167,6 +168,7 @@ export function RateioWorkspace() {
   const [avisos, setAvisos] = useState<string[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [colar, setColar] = useState(false);
+  const [exportarPopup, setExportarPopup] = useState<{ somente?: string } | null>(null);
   const [pendente, setPendente] = useState<{ imp: Importacao; arquivos: string[]; alvo: string | null } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const alvoImport = useRef<string | null>(null);
@@ -342,21 +344,35 @@ export function RateioWorkspace() {
     baixar(await modeloEmBranco(), "Modelo_Rateio_Usinas_GD.xlsx");
   }
 
-  async function exportar(somente?: string) {
+  async function exportar(formato: "pdf" | "excel", somente?: string) {
     setOcupado(true);
     try {
-      const { exportarEstudo } = await import("@/modules/rateio/estudo-xlsx");
-      const pareceres = Object.fromEntries(Object.entries(estado.pareceres).map(([k, v]) => [k, v.texto]));
+      // sem parecer gerado, entra o parecer padrão (o documento sai sempre completo)
+      const pareceres = Object.fromEntries(
+        resultado.usinas.map((r) => {
+          const u = estado.usinas.find((x) => x.id === r.usinaId)!;
+          return [r.usinaId, estado.pareceres[r.usinaId]?.texto ?? parecerPadrao(montarResumo(u, r, estado.params))];
+        }),
+      );
       const ciclo = Object.fromEntries(
         estado.usinas.map((u) => {
           const item = itemDoCalendario(estado.calendario, u.nome);
           return [u.id, item?.mesCiclo ? `${item.mesCiclo.slice(5, 7)}/${item.mesCiclo.slice(0, 4)}` : ""];
         }),
       );
-      const blob = await exportarEstudo(estado.usinas, resultado, estado.params, { marca: estado.marca, pareceres, usinas: somente ? [somente] : undefined, ciclo });
+      const opcoes = { marca: estado.marca, pareceres, usinas: somente ? [somente] : undefined, ciclo };
       const lista = somente ? estado.usinas.filter((u) => u.id === somente) : estado.usinas;
       const nome = lista.map((u) => u.nome.replace(/\s+/g, "-")).join("_").slice(0, 60) || "rateio";
-      baixar(blob, `Estudo-de-rateio_${nome}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const data = new Date().toISOString().slice(0, 10);
+      if (formato === "pdf") {
+        const { exportarPdf } = await import("@/modules/rateio/estudo-pdf");
+        baixar(await exportarPdf(estado.usinas, resultado, estado.params, opcoes), `Estudo-de-rateio_${nome}_${data}.pdf`);
+      } else {
+        const { exportarEstudo } = await import("@/modules/rateio/estudo-xlsx");
+        baixar(await exportarEstudo(estado.usinas, resultado, estado.params, opcoes), `Estudo-de-rateio_${nome}_${data}.xlsx`);
+      }
+    } catch (err) {
+      setAvisos([`Não foi possível gerar o arquivo: ${err instanceof Error ? err.message : "erro"}`]);
     } finally {
       setOcupado(false);
     }
@@ -435,7 +451,7 @@ export function RateioWorkspace() {
           <Button size="sm" variant="secondary" onClick={() => setColar(true)}>
             <ClipboardPaste className="size-4" /> Colar tabela
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => exportar()} disabled={!estado.usinas.some((u) => u.ucs.length) || ocupado}>
+          <Button size="sm" variant="secondary" onClick={() => setExportarPopup({})} disabled={!estado.usinas.some((u) => u.ucs.length) || ocupado}>
             <Download className="size-4" /> Exportar estudo
           </Button>
           {temDados && (
@@ -522,8 +538,7 @@ export function RateioWorkspace() {
               calendario={itemDoCalendario(estado.calendario, usinaAtiva.nome)}
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
               onTransformar={(fn) => transformarUsina(usinaAtiva.id, fn)}
-              onExportar={() => exportar(usinaAtiva.id)}
-              onModelo={() => planilhaModelo(usinaAtiva.id)}
+              onExportar={() => setExportarPopup({ somente: usinaAtiva.id })}
               onTarifa={(t) => setEstado((e) => ({ ...e, params: { ...e.params, tarifaKwh: t } }))}
               onImportar={() => abrirImport(usinaAtiva.id)}
               onParecer={(p) => setEstado((e) => ({ ...e, pareceres: { ...e.pareceres, [usinaAtiva.id]: p } }))}
@@ -538,6 +553,21 @@ export function RateioWorkspace() {
       )}
 
       <p className="text-xs text-muted">Os arquivos são lidos neste navegador e ficam salvos só nele. Para o parecer, só sai um resumo com totais e apelidos, sem número de instalação.</p>
+
+      {exportarPopup && (
+        <ExportarDialog
+          escopo={exportarPopup.somente ? (estado.usinas.find((u) => u.id === exportarPopup.somente)?.nome ?? "") : estado.usinas.length === 1 ? estado.usinas[0].nome : `Todas as usinas (${estado.usinas.filter((u) => u.ucs.length).length})`}
+          umaUsina={!!exportarPopup.somente || estado.usinas.length === 1}
+          ocupado={ocupado}
+          onFechar={() => setExportarPopup(null)}
+          onEscolher={async (f) => {
+            const somente = exportarPopup.somente ?? (estado.usinas.length === 1 ? estado.usinas[0].id : undefined);
+            if (f === "modelo") await planilhaModelo(somente!);
+            else await exportar(f, exportarPopup.somente);
+            setExportarPopup(null);
+          }}
+        />
+      )}
 
       {pendente && <DestinoDialog pendente={pendente} usinas={estado.exemplo ? [] : estado.usinas} onCancelar={() => setPendente(null)} onConfirmar={confirmarImportacao} />}
 
@@ -707,7 +737,6 @@ function UsinaPainel({
   onChange,
   onTransformar,
   onExportar,
-  onModelo,
   onTarifa,
   onImportar,
   onParecer,
@@ -723,7 +752,6 @@ function UsinaPainel({
   onChange: (p: Partial<Usina>) => void;
   onTransformar: (fn: (u: Usina) => Usina) => void;
   onExportar: () => void;
-  onModelo: () => void;
   onTarifa: (t: number) => void;
   onImportar: () => void;
   onParecer: (p: Parecer) => void;
@@ -768,14 +796,9 @@ function UsinaPainel({
         </div>
         <div className="flex flex-wrap gap-2">
           {!semUcs && E > 0 && (
-            <>
-              <Button size="sm" onClick={onExportar}>
-                <Download className="size-4" /> Exportar esta usina
-              </Button>
-              <Button size="sm" variant="secondary" onClick={onModelo}>
-                <FileSpreadsheet className="size-4" /> Planilha modelo
-              </Button>
-            </>
+            <Button size="sm" onClick={onExportar}>
+              <Download className="size-4" /> Exportar
+            </Button>
           )}
           <Button size="sm" variant="secondary" onClick={onImportar}>
             <Upload className="size-4" /> {semUcs ? "Importar UCs" : "Atualizar UCs"}
@@ -1632,5 +1655,63 @@ function IdentidadeEstudo({ marca, onChange }: { marca: MarcaEstudo; onChange: (
       </div>
       {erro && <p className="text-sm text-attention">{erro}</p>}
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/** Escolha do formato do estudo: PDF para enviar, Excel para trabalhar, ou a planilha modelo. */
+function ExportarDialog({ escopo, umaUsina, ocupado, onFechar, onEscolher }: { escopo: string; umaUsina: boolean; ocupado: boolean; onFechar: () => void; onEscolher: (f: "pdf" | "excel" | "modelo") => void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onFechar();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onFechar]);
+  const opcoes = [
+    { f: "pdf" as const, icone: FileText, titulo: "PDF executivo", tag: "Para enviar", desc: "Resumo em 1 página, parecer com assinaturas e o Anexo I com as UCs. Pronto para mandar ou imprimir." },
+    { f: "excel" as const, icone: FileSpreadsheet, titulo: "Excel completo", tag: "Para trabalhar", desc: "Estudo, Anexo I, lista de envio para a distribuidora, detalhe por UC e memória de cálculo." },
+    ...(umaUsina ? [{ f: "modelo" as const, icone: FileSpreadsheet, titulo: "Planilha modelo", tag: "Seu formato", desc: "A sua planilha de análise preenchida, com as fórmulas originais e a coluna do rateio proposto." }] : []),
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="exportar-titulo" onClick={onFechar}>
+      <div className="w-full max-w-lg rounded-t-2xl border border-border bg-card p-5 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="exportar-titulo" className="text-lg font-semibold">
+              Exportar estudo
+            </h2>
+            <p className="text-sm text-muted">{escopo}</p>
+          </div>
+          <button type="button" onClick={onFechar} aria-label="Fechar" className="text-muted hover:text-foreground">
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {opcoes.map((o, i) => (
+            <button
+              key={o.f}
+              type="button"
+              disabled={ocupado}
+              onClick={() => onEscolher(o.f)}
+              className={cn("flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60", i === 0 ? "border-primary bg-primary-soft/40 hover:bg-primary-soft/70" : "border-border hover:bg-subtle")}
+            >
+              <o.icone className={cn("mt-0.5 size-5 shrink-0", i === 0 ? "text-primary-text" : "text-muted")} />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{o.titulo}</span>
+                  <span className="rounded-full bg-subtle px-2 py-0.5 text-[11px] font-medium text-muted">{o.tag}</span>
+                </span>
+                <span className="mt-1 block text-sm text-muted">{o.desc}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        {ocupado && (
+          <p className="mt-3 flex items-center gap-2 text-sm text-muted">
+            <Loader2 className="size-4 animate-spin" /> Gerando o arquivo…
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

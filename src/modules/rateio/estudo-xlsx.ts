@@ -5,6 +5,7 @@
  */
 import type ExcelJS from "exceljs";
 import { injecaoMensal } from "./engine";
+import { ACAO_LABEL, atencaoEstudo, AVISO_ESTIMATIVA, condutaEstudo, fmt, identificacao, kpisEstudo, LEGENDA_SITUACAO, linhasAnexo, protocoloEstudo, resumoAnexo, subtituloUsina, veredito } from "./estudo-dados";
 import { aplicacaoDaFatura, scoreFatura } from "./fatura";
 import { METODOLOGIA } from "./metodologia";
 import { scorePainel } from "./painel";
@@ -64,19 +65,9 @@ const OK = "FF15803D";
 const ERRO = "FFB91C1C";
 const ATENCAO = "FFB45309";
 
-const ACAO_LABEL: Record<Acao, string> = { manter: "Manter", aumentar: "Aumentar", reduzir: "Reduzir", retirar: "Retirar", incluir: "Incluir" };
 const ACAO_COR: Record<Acao, string> = { manter: MUDO, aumentar: OK, reduzir: ATENCAO, retirar: ERRO, incluir: "FF1D4ED8" };
-const ACAO_EFEITO: Record<Acao, string> = {
-  incluir: "Novas UCs que passam a receber crédito",
-  retirar: "Saem do rateio (saldo cobre o consumo)",
-  aumentar: "Recebem mais crédito",
-  reduzir: "Recebem menos crédito (têm saldo ou recebiam demais)",
-  manter: "Sem alteração",
-};
 
 const KWH = "#,##0";
-const fmt = (n: number, d = 0) => n.toLocaleString("pt-BR", { maximumFractionDigits: d, minimumFractionDigits: d });
-const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const nomeAba = (s: string) => s.replace(/[\\/?*[\]:]/g, "").slice(0, 31);
 
 function borda(cor = LINHA): Partial<ExcelJS.Borders> {
@@ -181,8 +172,8 @@ function folhaEstudo(
   if (logoId != null) ws.addImage(logoId, { tl: { col: 0.1, row: 0.2 }, ext: { width: 150, height: 52 }, editAs: "oneCell" });
   celula(1, iniTitulo, 1, 5, marca.empresa ? marca.empresa.toUpperCase() : "ESTUDO TÉCNICO", { font: { size: 9, bold: true, color: { argb: C.texto } } });
   celula(2, iniTitulo, 2, 5, "Estudo de rateio de créditos", { font: { size: 17, bold: true } });
-  celula(3, iniTitulo, 3, 5, `${r.usinaNome}${u.distribuidora ? ` · ${u.distribuidora}` : ""}${u.fornecedor ? ` · ${u.fornecedor}` : ""}`, { font: { size: 11, color: { argb: MUDO } }, align: { wrapText: false, shrinkToFit: true } });
-  const protocolo = `RAT-${emissao.split("/").reverse().join("")}-${r.usinaNome.replace(/^(UFV|CGH|PCH|EOL|UTE)\s+/i, "").replace(/[^A-Z0-9]/gi, "").slice(0, 8).toUpperCase()}`;
+  celula(3, iniTitulo, 3, 5, subtituloUsina(u, r), { font: { size: 11, color: { argb: MUDO } }, align: { wrapText: false, shrinkToFit: true } });
+  const protocolo = protocoloEstudo(r.usinaNome, emissao);
   [
     ["Protocolo", protocolo],
     ["Emissão", emissao],
@@ -204,25 +195,8 @@ function folhaEstudo(
   };
 
   // --- 1. Identificação
-  const i = r.indicadores;
-  const E = injecaoMensal(u);
-  const fonteInj =
-    u.fonteInjecao === "fatura" && u.fatura
-      ? `Fatura da usina (confiança ${scoreFatura(u.fatura, u.painel?.valores.injetada && u.painel.meses ? { kwh: u.painel.valores.injetada, meses: u.painel.meses } : null).score}/100)`
-      : u.fontePeriodo === "painel" && u.painel
-        ? `Tela do Orange (confiança ${scorePainel(u.painel, u.fatura?.injetada).score}/100)`
-        : "Informada no estudo";
   secao(1, "Identificação");
-  const ident: [string, string][] = [
-    ["Usina", r.usinaNome],
-    ["Distribuidora", u.distribuidora || "—"],
-    ["Fornecedor", u.fornecedor || "—"],
-    ["UCs no rateio", `${i.ucsAtuais} → ${i.ucsPropostas}`],
-    ["Energia para rateio", `${fmt(E)} kWh/mês`],
-    ["Origem da energia", fonteInj],
-    ["Saldo atual das UCs", `${fmt(i.saldoTotal)} kWh`],
-    ["Método", metodo === "otimizado" ? "Otimização matemática (ótimo comprovado)" : "Regra proporcional à necessidade"],
-  ];
+  const ident = identificacao(u, r, metodo);
   for (let k = 0; k < ident.length; k += 2) {
     ws.getRow(row).height = 18;
     ident.slice(k, k + 2).forEach(([lab, val], j) => {
@@ -236,27 +210,20 @@ function folhaEstudo(
 
   // --- 2. Resultado (4 números)
   secao(2, `Resultado esperado em ${p.mesesSimulacao} meses`);
-  const ganho = r.proposto.compensadoTotal - r.atual.compensadoTotal;
-  const kpis: { titulo: string; valor: string; nota: string }[] = [
-    { titulo: "Energia compensada a mais", valor: `${ganho >= 0 ? "+" : ""}${fmt(ganho)} kWh`, nota: "vs. rateio atual" },
-    { titulo: "Ganho estimado", valor: p.tarifaKwh > 0 ? brl(ganho * p.tarifaKwh) : "—", nota: p.tarifaKwh > 0 ? `tarifa ${fmt(p.tarifaKwh, 2)} R$/kWh` : "informe a tarifa no estudo" },
-    { titulo: "Crédito parado no fim", valor: `${fmt(r.proposto.saldoFinal)} kWh`, nota: `hoje ${fmt(r.atual.saldoInicial)} · sem mudar ${fmt(r.atual.saldoFinal)}` },
-    { titulo: "Consumo sem crédito", valor: `${fmt(r.proposto.consumoDescobertoTotal)} kWh`, nota: `sem mudar: ${fmt(r.atual.consumoDescobertoTotal)}` },
-  ];
+  const kpis = kpisEstudo(r, p);
   ws.getRow(row).height = 16;
   ws.getRow(row + 1).height = 26;
   ws.getRow(row + 2).height = 16;
   kpis.forEach((k, j) => {
     const c0 = j * 2 + 1;
     celula(row, c0, row, c0 + 1, k.titulo, { font: { size: 8, bold: true, color: { argb: MUDO } }, fill: C.claro, align: { horizontal: "center" } });
-    celula(row + 1, c0, row + 1, c0 + 1, k.valor, { font: { size: 14, bold: true, color: { argb: j === 0 || j === 1 ? C.texto : TXT } }, fill: C.claro, align: { horizontal: "center" } });
+    celula(row + 1, c0, row + 1, c0 + 1, k.valor, { font: { size: 14, bold: true, color: { argb: k.destaque ? C.texto : TXT } }, fill: C.claro, align: { horizontal: "center" } });
     celula(row + 2, c0, row + 2, c0 + 1, k.nota, { font: { size: 8, color: { argb: MUDO } }, fill: C.claro, align: { horizontal: "center" } });
   });
   row += 4;
 
   // --- 3. Conduta
   secao(3, "Conduta (o que muda no rateio)");
-  const cont = (a: Acao) => r.linhas.filter((l) => l.acao === a).length;
   const cab = (cols: [number, number, string][]) => {
     ws.getRow(row).height = 18;
     cols.forEach(([c1, c2, t]) => celula(row, c1, row, c2, t, { font: { size: 8, bold: true, color: { argb: MUDO } }, fill: FUNDO, borda: true }));
@@ -267,26 +234,23 @@ function folhaEstudo(
     [3, 3, "UCs"],
     [4, 8, "O que significa"],
   ]);
-  (["incluir", "retirar", "aumentar", "reduzir", "manter"] as Acao[]).forEach((a) => {
-    const n = cont(a);
-    if (!n) return;
+  for (const { acao: a, n, efeito } of condutaEstudo(r)) {
     ws.getRow(row).height = 18;
     celula(row, 1, row, 2, ACAO_LABEL[a], { font: { bold: true, color: { argb: ACAO_COR[a] } }, borda: true });
     celula(row, 3, row, 3, n, { font: { bold: true }, borda: true, align: { horizontal: "center" } });
-    celula(row, 4, row, 8, ACAO_EFEITO[a], { font: { color: { argb: MUDO } }, borda: true });
+    celula(row, 4, row, 8, efeito, { font: { color: { argb: MUDO } }, borda: true });
     row++;
-  });
+  }
   celula(row, 1, row, 8, `UC por UC no Anexo I (aba "${nomeAba(`Anexo I ${r.usinaNome}`)}"); lista para a distribuidora na aba "${nomeAba(`Envio ${r.usinaNome}`)}"; motivo de cada UC em "Detalhe por UC".`, { font: { size: 8, italic: true, color: { argb: MUDO } } });
   row += 2;
 
   // --- 4. Validação
   secao(4, "Validação antes do envio");
-  const reprov = r.validacoes.filter((v) => !v.ok && v.nivel === "erro").length;
-  const avisos = r.validacoes.filter((v) => !v.ok && v.nivel === "aviso").length;
+  const ver = veredito(r);
   ws.getRow(row).height = 20;
-  celula(row, 1, row, 8, reprov ? `${reprov} item(ns) reprovado(s): corrigir antes de enviar` : avisos ? `Aprovado com ${avisos} aviso(s)` : "Aprovado: pronto para envio", {
-    font: { bold: true, color: { argb: reprov ? ERRO : avisos ? ATENCAO : OK } },
-    fill: reprov ? "FFFEF2F2" : avisos ? "FFFFFBEB" : "FFF0FDF4",
+  celula(row, 1, row, 8, ver.texto, {
+    font: { bold: true, color: { argb: ver.nivel === "erro" ? ERRO : ver.nivel === "aviso" ? ATENCAO : OK } },
+    fill: ver.nivel === "erro" ? "FFFEF2F2" : ver.nivel === "aviso" ? "FFFFFBEB" : "FFF0FDF4",
     align: { indent: 1 },
   });
   row++;
@@ -300,7 +264,7 @@ function folhaEstudo(
   row++;
 
   // --- 5. Atenção
-  const atencao = r.alertas.filter((a) => a.severidade !== "baixa").slice(0, 6);
+  const atencao = atencaoEstudo(r);
   if (atencao.length) {
     secao(5, "Pontos de atenção");
     for (const a of atencao) {
@@ -340,7 +304,7 @@ function folhaEstudo(
   celula(row, 1, row, 4, `Responsável técnico${marca.responsavel ? `: ${marca.responsavel}` : ""}`, { font: { size: 8, color: { argb: MUDO } } });
   celula(row, 6, row, 8, "De acordo (cliente / fornecedor)", { font: { size: 8, color: { argb: MUDO } } });
   row += 2;
-  celula(row, 1, row, 8, "Valores estimados a partir das médias de consumo, saldo e injeção informadas; sujeitos à validação na fatura após a aplicação pela distribuidora (vale a partir do ciclo seguinte ao pedido).", {
+  celula(row, 1, row, 8, AVISO_ESTIMATIVA, {
     font: { size: 7.5, italic: true, color: { argb: MUDO } },
   });
   ws.getRow(row).height = 22;
@@ -377,12 +341,10 @@ function folhaAnexo(wb: ExcelJS.Workbook, u: Usina, r: ResultadoUsina, p: Parame
   ws.mergeCells(2, 1, 2, n);
   ws.getCell(2, 1).value = `UCs no rateio · ${r.usinaNome}`;
   ws.getCell(2, 1).font = { name: "Calibri", size: 15, bold: true, color: { argb: TXT } };
-  const atuais = r.linhas.filter((l) => l.origem === "atual");
-  const novas = r.linhas.filter((l) => l.origem === "nova");
   const f = 10 ** p.casasDecimais;
   const soma = (k: "pctAtual" | "pctProposto") => Math.round(r.linhas.reduce((a, l) => a + l[k], 0) * f) / f;
   ws.mergeCells(3, 1, 3, n);
-  ws.getCell(3, 1).value = `${u.distribuidora ? `${u.distribuidora} · ` : ""}emitido em ${emissao} · hoje ${atuais.length} UCs (${fmt(soma("pctAtual"), p.casasDecimais)}%) → proposto ${r.indicadores.ucsPropostas} UCs (${fmt(soma("pctProposto"), p.casasDecimais)}%)${novas.length ? ` · ${novas.length} novas` : ""} · ordem: maior consumo compensável primeiro`;
+  ws.getCell(3, 1).value = resumoAnexo(u, r, p, emissao);
   ws.getCell(3, 1).font = { name: "Calibri", size: 9.5, color: { argb: MUDO } };
   ws.getCell(3, 1).alignment = { wrapText: false, shrinkToFit: true };
   for (let c = 1; c <= n; c++) ws.getCell(4, c).border = { bottom: { style: "medium", color: { argb: C.marca } } };
@@ -400,7 +362,7 @@ function folhaAnexo(wb: ExcelJS.Workbook, u: Usina, r: ResultadoUsina, p: Parame
   });
 
   // do maior para o menor consumo compensável (quem mais pesa no rateio primeiro)
-  const ordenadas = [...r.linhas].sort((a, b) => b.compensavelKwh - a.compensavelKwh || b.pctProposto - a.pctProposto);
+  const ordenadas = linhasAnexo(r);
   ordenadas.forEach((l, k) => {
     const row = ws.addRow([k + 1, l.instalacao, l.apelido || "—", l.diagnostico.rotulo, l.pctAtual, l.pctProposto, l.pctProposto - l.pctAtual, ACAO_LABEL[l.acao], l.compensavelKwh, l.origem === "nova" ? null : l.mesesSaldoHoje]);
     row.height = 15;
@@ -437,7 +399,7 @@ function folhaAnexo(wb: ExcelJS.Workbook, u: Usina, r: ResultadoUsina, p: Parame
   const leg = ws.addRow([]);
   ws.mergeCells(leg.number + 1, 1, leg.number + 1, n);
   const nota = ws.getCell(leg.number + 1, 1);
-  nota.value = "Situação hoje: Recebe demais = crédito maior que o consumo (vira saldo); Recebe pouco = crédito e saldo cobrem bem menos que a meta; Saldo parado = saldo acima do horizonte; Risco de vencer = saldo acima de 60 meses. Variação em pontos percentuais.";
+  nota.value = LEGENDA_SITUACAO;
   nota.font = { name: "Calibri", size: 7.5, italic: true, color: { argb: MUDO } };
   nota.alignment = { wrapText: true, vertical: "top" };
   ws.getRow(leg.number + 1).height = 24;
