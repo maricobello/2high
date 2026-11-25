@@ -1,13 +1,13 @@
 "use client";
 
-import { CircleCheck, FileText, ImageIcon, Loader2, TriangleAlert, Upload } from "lucide-react";
+import { ChevronDown, CircleCheck, FileText, ImageIcon, Loader2, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { injecaoMensal } from "@/modules/rateio/engine";
-import { aplicacaoDaFatura, lerFaturaTexto, type FaturaUsina } from "@/modules/rateio/fatura";
-import { CAMPOS_PAINEL, checarPainel, lerPainelTexto, type CampoPainel, type ValoresPainel } from "@/modules/rateio/painel";
+import { autoAplicar, NOTA_AUTOMATICA } from "@/modules/rateio/automacao";
+import { aplicacaoDaFatura, lerFaturaTexto, scoreFatura, type FaturaUsina, type ScoreLeitura } from "@/modules/rateio/fatura";
+import { CAMPOS_PAINEL, checarPainel, lerPainelTexto, scorePainel, type CampoPainel, type ValoresPainel } from "@/modules/rateio/painel";
 import type { Usina } from "@/modules/rateio/types";
 import { kwh, MESES_CURTOS } from "./format";
 
@@ -42,7 +42,41 @@ export async function lerPainelImagemArquivo(file: Blob): Promise<ValoresPainel>
 
 const mesLabel = (iso: string) => `${MESES_CURTOS[Number(iso.slice(5, 7)) - 1]}/${iso.slice(2, 4)}`;
 
-export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<Usina>) => void }) {
+function Nota({ s, aplicado, rotulo }: { s: ScoreLeitura; aplicado: boolean; rotulo: string }) {
+  const [aberto, setAberto] = useState(false);
+  const cor = s.nivel === "alta" ? "text-opportunity border-opportunity/40 bg-opportunity-soft" : s.nivel === "media" ? "text-analysis border-analysis/40 bg-analysis-soft" : "text-attention border-attention/40 bg-attention-soft";
+  return (
+    <div className="rounded-xl border border-border">
+      <button type="button" onClick={() => setAberto((v) => !v)} aria-expanded={aberto} className="flex w-full items-center gap-3 p-3 text-left">
+        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full border font-mono text-sm font-bold", cor)}>{s.score}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">
+            Confiança da leitura {s.nivel === "alta" ? "alta" : s.nivel === "media" ? "média" : "baixa"}
+          </span>
+          <span className="block text-xs text-muted">
+            {aplicado ? `${rotulo} aplicada ao estudo automaticamente` : s.score >= NOTA_AUTOMATICA ? "Pronta para aplicar" : `Abaixo de ${NOTA_AUTOMATICA}: confira e aplique manualmente`}
+          </span>
+        </span>
+        <ChevronDown className={cn("size-4 text-muted transition-transform", aberto && "rotate-180")} />
+      </button>
+      {aberto && (
+        <ul className="space-y-1 border-t border-border px-3 py-2">
+          {s.itens.map((i) => (
+            <li key={i.texto} className="flex gap-2 text-xs">
+              {i.ok ? <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-opportunity" /> : <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-analysis" />}
+              <span className="flex-1">{i.texto}</span>
+              <span className="font-mono text-muted">
+                {i.pontos}/{i.max}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function FontesUsina({ usina, onChange, onTransformar }: { usina: Usina; onChange: (p: Partial<Usina>) => void; onTransformar: (fn: (u: Usina) => Usina) => void }) {
   const [lendo, setLendo] = useState<"fatura" | "painel" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
@@ -56,7 +90,8 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
     setErro(null);
     try {
       const fat = await lerFaturaArquivo(file);
-      onChange({ fatura: fat, distribuidora: usina.distribuidora || fat.distribuidora });
+      // nova leitura: volta a aplicar automaticamente
+      onTransformar((u) => autoAplicar({ ...u, fatura: fat, fonteInjecao: u.fonteInjecao === "manual" ? null : u.fonteInjecao }));
     } catch (e) {
       setErro(`Fatura: ${e instanceof Error ? e.message : "falha na leitura"}`);
     } finally {
@@ -70,7 +105,7 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
     setErro(null);
     try {
       const valores = await lerPainelImagemArquivo(file);
-      onChange({ painel: { valores, meses: p?.meses ?? (usina.meses || null), fonte: "imagem", lidoEm: new Date().toISOString() } });
+      onTransformar((u) => autoAplicar({ ...u, painel: { valores, meses: null, fonte: "imagem", lidoEm: new Date().toISOString() }, fontePeriodo: u.fontePeriodo === "manual" ? null : u.fontePeriodo }));
     } catch (e) {
       setErro(`Tela do Orange: ${e instanceof Error ? e.message : "falha na leitura"}. Você pode colar o texto da tela.`);
     } finally {
@@ -83,15 +118,17 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
     const valores = lerPainelTexto(texto);
     if (!Object.keys(valores).length) return setErro("Não reconheci os rótulos (Estimada, Injetada, Compensada, Saldo…). Copie o bloco Energia inteiro.");
     setErro(null);
-    onChange({ painel: { valores, meses: p?.meses ?? (usina.meses || null), fonte: "texto", lidoEm: new Date().toISOString() } });
+    onTransformar((u) => autoAplicar({ ...u, painel: { valores, meses: null, fonte: "texto", lidoEm: new Date().toISOString() }, fontePeriodo: u.fontePeriodo === "manual" ? null : u.fontePeriodo }));
     setTexto("");
   }
 
   const aplic = f ? aplicacaoDaFatura(f) : null;
+  const sFatura = f ? scoreFatura(f, p?.valores.injetada && p.meses ? { kwh: p.valores.injetada, meses: p.meses } : null) : null;
+  const sPainel = p ? scorePainel(p, f?.injetada) : null;
   const mesesFatura = f ? [...new Set([...Object.keys(f.injetada), ...Object.keys(f.excedente)])].sort().slice(-12) : [];
-  const usandoFatura = !!aplic?.injecaoMensal && usina.injecaoMensalProjetada != null && Math.abs(usina.injecaoMensalProjetada - aplic.injecaoMensal) < 1;
+  const faturaAplicada = usina.fonteInjecao === "fatura";
+  const painelAplicado = usina.fontePeriodo === "painel";
 
-  // injeção da fatura nos meses do período do painel (todos os meses com injeção, para conferência)
   const injecaoFaturaPeriodo =
     f && p?.meses
       ? Object.entries(f.injetada)
@@ -101,24 +138,19 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
           .reduce((a, [, v]) => a + v, 0) || null
       : null;
   const checagens = p
-    ? checarPainel(p.valores, {
-        saldoUcs: usina.ucs.reduce((a, u) => a + Math.max(0, u.saldoKwh), 0),
-        compensadoUcsMes: usina.ucs.reduce((a, u) => a + Math.max(0, u.compensadoKwh), 0),
-        meses: p.meses,
-        injecaoFaturaPeriodo,
-      })
+    ? checarPainel(p.valores, { saldoUcs: usina.ucs.reduce((a, u) => a + Math.max(0, u.saldoKwh), 0), compensadoUcsMes: 0, meses: p.meses, injecaoFaturaPeriodo }).filter(
+        (c) => !/^Saldo fecha|^Injetada na tela|^Compensada não/.test(c.titulo), // já estão na nota
+      )
     : [];
-  const painelAplicado = !!p && p.meses != null && usina.meses === p.meses && usina.energiaInjetadaPeriodo === (p.valores.injetada ?? -1);
 
+  function aplicarFatura() {
+    if (!aplic?.injecaoMensal) return;
+    onChange({ injecaoMensalProjetada: Math.round(aplic.injecaoMensal), perfilSazonal: aplic.perfilSazonal.length === 12 ? aplic.perfilSazonal : usina.perfilSazonal, fonteInjecao: "fatura" });
+  }
   function aplicarPainel() {
     if (!p) return;
     if (!p.meses) return setErro("Informe quantos meses tem o período selecionado na tela do Orange.");
-    onChange({
-      meses: p.meses,
-      energiaContratadaPeriodo: p.valores.estimada ?? usina.energiaContratadaPeriodo,
-      energiaGeradaPeriodo: p.valores.geracaoRealizada ?? usina.energiaGeradaPeriodo,
-      energiaInjetadaPeriodo: p.valores.injetada ?? usina.energiaInjetadaPeriodo,
-    });
+    onChange({ meses: p.meses, energiaContratadaPeriodo: p.valores.estimada ?? usina.energiaContratadaPeriodo, energiaGeradaPeriodo: p.valores.geracaoRealizada ?? usina.energiaGeradaPeriodo, energiaInjetadaPeriodo: p.valores.injetada ?? usina.energiaInjetadaPeriodo, fontePeriodo: "painel" });
   }
 
   return (
@@ -136,14 +168,14 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
           <h3 className="font-semibold">Fatura e tela do Orange</h3>
-          <p className="text-xs text-muted">A fatura da usina dá a energia de cada mês; a tela do Orange dá os totais do período. Uma confere a outra.</p>
+          <p className="text-xs text-muted">Envie a fatura da usina e o recorte do Orange: a leitura recebe uma nota e, se for {NOTA_AUTOMATICA} ou mais, entra no estudo sozinha.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => pdfRef.current?.click()} disabled={!!lendo}>
-            {lendo === "fatura" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />} Fatura (PDF)
+          <Button size="sm" variant={f ? "secondary" : "primary"} onClick={() => pdfRef.current?.click()} disabled={!!lendo}>
+            {lendo === "fatura" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />} {f ? "Trocar fatura" : "Fatura (PDF)"}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => imgRef.current?.click()} disabled={!!lendo}>
-            {lendo === "painel" ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />} Recorte do Orange
+          <Button size="sm" variant={p ? "secondary" : "primary"} onClick={() => imgRef.current?.click()} disabled={!!lendo}>
+            {lendo === "painel" ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />} {p ? "Trocar recorte" : "Recorte do Orange"}
           </Button>
         </div>
       </div>
@@ -154,38 +186,14 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
         <div className="border-b border-border p-4 xl:border-r xl:border-b-0">
           <p className="mb-2 text-sm font-semibold">Fatura da usina</p>
           {!f ? (
-            <p className="text-sm text-muted">Envie o PDF da fatura da UC geradora (2ª via com texto). Lemos injeção, excedente distribuído, consumo da usina e saldo, mês a mês.</p>
+            <p className="text-sm text-muted">PDF da fatura da UC geradora (2ª via com texto). Lemos injeção, excedente distribuído, consumo da usina e saldo, mês a mês.</p>
           ) : (
             <div className="space-y-3">
+              {sFatura && <Nota s={sFatura} aplicado={faturaAplicada} rotulo="Injeção" />}
               <p className="text-xs text-muted">
                 {f.arquivo} · {f.distribuidora || "distribuidora não identificada"} · referência {f.mesReferencia ? mesLabel(f.mesReferencia) : "—"}
                 {f.saldoKwh != null && ` · saldo da geradora ${kwh(f.saldoKwh)} kWh`}
               </p>
-              {mesesFatura.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[420px] text-xs">
-                    <thead className="text-left text-muted">
-                      <tr>
-                        <th className="py-1 pr-2 font-medium">Mês</th>
-                        <th className="py-1 pr-2 text-right font-medium">Injetada</th>
-                        <th className="py-1 pr-2 text-right font-medium">Excedente distribuído</th>
-                        <th className="py-1 text-right font-medium">Consumo da usina</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...mesesFatura].reverse().map((m) => (
-                        <tr key={m} className={cn("border-t border-border/50", !aplic?.mesesUsados.includes(m) && "text-muted/70")}>
-                          <td className="py-1 pr-2">{mesLabel(m)}</td>
-                          <td className="py-1 pr-2 text-right font-mono">{f.injetada[m] != null ? kwh(f.injetada[m]) : "—"}</td>
-                          <td className="py-1 pr-2 text-right font-mono">{f.excedente[m] != null ? kwh(f.excedente[m]) : "—"}</td>
-                          <td className="py-1 text-right font-mono">{f.consumo[m] != null ? kwh(f.consumo[m]) : "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <p className="mt-1 text-[11px] text-muted">Meses em cinza ficam fora da média (zerados ou entrada em operação).</p>
-                </div>
-              )}
               {aplic?.descricao.map((d) => (
                 <p key={d} className="text-xs text-foreground/85">
                   {d}
@@ -196,18 +204,44 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" /> {a}
                 </p>
               ))}
-              {aplic?.injecaoMensal != null && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={usandoFatura ? "secondary" : "primary"}
-                    onClick={() => onChange({ injecaoMensalProjetada: Math.round(aplic.injecaoMensal!), perfilSazonal: aplic.perfilSazonal.length === 12 ? aplic.perfilSazonal : usina.perfilSazonal })}
-                  >
-                    <Upload className="size-4" /> {usandoFatura ? "Em uso no estudo" : "Usar no estudo"}
-                  </Button>
-                  <span className="text-xs text-muted">Injeção do estudo hoje: {kwh(injecaoMensal(usina))} kWh/mês</span>
-                </div>
+              {mesesFatura.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-primary-text">Ver os {mesesFatura.length} meses lidos</summary>
+                  <div className="mt-2 overflow-x-auto">
+                    <table className="w-full min-w-[420px]">
+                      <thead className="text-left text-muted">
+                        <tr>
+                          <th className="py-1 pr-2 font-medium">Mês</th>
+                          <th className="py-1 pr-2 text-right font-medium">Injetada</th>
+                          <th className="py-1 pr-2 text-right font-medium">Excedente distribuído</th>
+                          <th className="py-1 text-right font-medium">Consumo da usina</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...mesesFatura].reverse().map((m) => (
+                          <tr key={m} className={cn("border-t border-border/50", !aplic?.mesesUsados.includes(m) && "text-muted/70")}>
+                            <td className="py-1 pr-2">{mesLabel(m)}</td>
+                            <td className="py-1 pr-2 text-right font-mono">{f.injetada[m] != null ? kwh(f.injetada[m]) : "—"}</td>
+                            <td className="py-1 pr-2 text-right font-mono">{f.excedente[m] != null ? kwh(f.excedente[m]) : "—"}</td>
+                            <td className="py-1 text-right font-mono">{f.consumo[m] != null ? kwh(f.consumo[m]) : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="mt-1 text-[11px] text-muted">Meses em cinza ficam fora da média (zerados ou entrada em operação).</p>
+                  </div>
+                </details>
               )}
+              {aplic?.injecaoMensal != null &&
+                (faturaAplicada ? (
+                  <Button size="sm" variant="ghost" onClick={() => onChange({ injecaoMensalProjetada: null, fonteInjecao: "manual" })}>
+                    Não usar a fatura
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={aplicarFatura}>
+                    Usar no estudo
+                  </Button>
+                ))}
             </div>
           )}
         </div>
@@ -217,7 +251,7 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
           <p className="mb-2 text-sm font-semibold">Tela de gestão de usinas (Orange)</p>
           {!p ? (
             <div className="space-y-2">
-              <p className="text-sm text-muted">Envie o recorte do bloco &quot;Energia&quot; (imagem; dá para colar com Ctrl+V aqui) ou cole o texto copiado da tela.</p>
+              <p className="text-sm text-muted">Recorte do bloco &quot;Energia&quot; (imagem; dá para colar com Ctrl+V aqui) ou o texto copiado da tela.</p>
               <textarea value={texto} onChange={(e) => setTexto(e.target.value)} aria-label="Texto da tela do Orange" placeholder={"Estimada 4.389.840\nInjetada 3.239.006\n…"} className="h-24 w-full rounded-lg border border-border bg-subtle/40 p-2 font-mono text-xs text-foreground focus:border-primary focus:outline-none" />
               <Button size="sm" variant="secondary" disabled={!texto.trim()} onClick={lerTexto}>
                 Ler texto
@@ -225,24 +259,35 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
-                {(Object.keys(CAMPOS_PAINEL) as CampoPainel[]).map((k) => (
-                  <label key={k} className="flex items-center justify-between gap-2 border-b border-border/50 py-1 text-xs">
-                    <span className="text-muted">{CAMPOS_PAINEL[k]}</span>
-                    <input
-                      type="number"
-                      value={p.valores[k] ?? ""}
-                      onChange={(e) => onChange({ painel: { ...p, valores: { ...p.valores, [k]: e.target.value === "" ? undefined : Number(e.target.value) } } })}
-                      className="w-32 rounded border border-transparent bg-transparent px-1 text-right font-mono text-foreground hover:border-border focus:border-primary focus:outline-none"
-                    />
-                  </label>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted">{p.fonte === "imagem" ? "Lido da imagem: confira com a tela antes de usar." : "Lido do texto colado."}</p>
-              <label className="flex items-center gap-2 text-sm">
-                <span className="text-xs text-muted">Meses do período selecionado no Orange</span>
-                <input type="number" min={1} max={60} value={p.meses ?? ""} onChange={(e) => onChange({ painel: { ...p, meses: e.target.value ? Math.max(1, Math.round(Number(e.target.value))) : null } })} className="h-8 w-20 rounded-lg border border-border bg-card px-2 font-mono text-sm" />
+              {sPainel && <Nota s={sPainel} aplicado={painelAplicado} rotulo="Período" />}
+              <label className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-xs text-muted">Meses do período no Orange</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={p.meses ?? ""}
+                  onChange={(e) => onTransformar((u) => autoAplicar({ ...u, painel: { ...p, meses: e.target.value ? Math.max(1, Math.round(Number(e.target.value))) : null, mesesInferidos: false } }))}
+                  className="h-8 w-20 rounded-lg border border-border bg-card px-2 font-mono text-sm"
+                />
+                {p.mesesInferidos && <span className="text-xs text-opportunity">descoberto pela fatura</span>}
               </label>
+              <details className="text-xs">
+                <summary className="cursor-pointer text-primary-text">{p.fonte === "imagem" ? "Ver e corrigir os valores lidos da imagem" : "Ver os valores lidos"}</summary>
+                <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                  {(Object.keys(CAMPOS_PAINEL) as CampoPainel[]).map((k) => (
+                    <label key={k} className="flex items-center justify-between gap-2 border-b border-border/50 py-1">
+                      <span className="text-muted">{CAMPOS_PAINEL[k]}</span>
+                      <input
+                        type="number"
+                        value={p.valores[k] ?? ""}
+                        onChange={(e) => onTransformar((u) => autoAplicar({ ...u, painel: { ...p, valores: { ...p.valores, [k]: e.target.value === "" ? undefined : Number(e.target.value) } } }))}
+                        className="w-32 rounded border border-transparent bg-transparent px-1 text-right font-mono text-foreground hover:border-border focus:border-primary focus:outline-none"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </details>
               {checagens.length > 0 && (
                 <ul className="space-y-1">
                   {checagens.map((c) => (
@@ -256,14 +301,19 @@ export function FontesUsina({ usina, onChange }: { usina: Usina; onChange: (p: P
                 </ul>
               )}
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant={painelAplicado ? "secondary" : "primary"} onClick={aplicarPainel}>
-                  <Upload className="size-4" /> {painelAplicado ? "Em uso no estudo" : "Usar no estudo"}
-                </Button>
+                {painelAplicado ? (
+                  <Button size="sm" variant="ghost" onClick={() => onChange({ fontePeriodo: "manual" })}>
+                    Não aplicar automaticamente
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={aplicarPainel}>
+                    Usar no estudo
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => onChange({ painel: null })}>
-                  Trocar
+                  Remover
                 </Button>
               </div>
-              <p className="text-[11px] text-muted">Usar no estudo preenche meses, energia contratada (Estimada), gerada e injetada do período.</p>
             </div>
           )}
         </div>

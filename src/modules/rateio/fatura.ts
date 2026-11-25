@@ -262,3 +262,52 @@ export function compararRateio(fatura: RateioFatura[], orange: { key: string; in
   for (const o of orange) if (o.pctAtual > 0 && !naFatura.has(o.key)) d.soNoOrange.push({ key: o.key, instalacao: o.instalacao, pct: o.pctAtual });
   return d;
 }
+
+// ---------------------------------------------------------------------------
+// Confiança da leitura
+
+export interface ItemScore {
+  ok: boolean;
+  texto: string;
+  pontos: number;
+  max: number;
+}
+
+export interface ScoreLeitura {
+  score: number;
+  nivel: "alta" | "media" | "baixa";
+  itens: ItemScore[];
+}
+
+export function nivelScore(score: number): ScoreLeitura["nivel"] {
+  return score >= 80 ? "alta" : score >= 60 ? "media" : "baixa";
+}
+
+/** Nota de 0 a 100 da leitura da fatura: o que foi encontrado e se os números fecham entre si. */
+export function scoreFatura(f: FaturaUsina, injetadaPainel?: { kwh: number; meses: number } | null): ScoreLeitura {
+  const itens: ItemScore[] = [];
+  const add = (ok: boolean, texto: string, max: number, pontos = ok ? max : 0) => itens.push({ ok, texto, pontos, max });
+  const op = mesesEmOperacao(f.injetada);
+  add(!!f.mesReferencia, f.mesReferencia ? `Mês de referência ${f.mesReferencia.slice(5, 7)}/${f.mesReferencia.slice(0, 4)}` : "Mês de referência não encontrado", 10);
+  add(!!f.distribuidora, f.distribuidora ? `Distribuidora ${f.distribuidora}` : "Distribuidora não identificada", 5);
+  add(op.length >= 6, `${op.length} meses de injeção em operação no histórico`, 25, op.length >= 6 ? 25 : op.length >= 3 ? 15 : op.length ? 8 : 0);
+  const exc = Object.keys(f.excedente);
+  add(exc.length > 0, exc.length ? `Excedente distribuído em ${exc.length} meses` : "Sem o excedente distribuído (usa injeção − consumo)", 15, exc.length ? 15 : 5);
+  // excedente ≈ injetada − consumo da usina (fecha a conta mês a mês)
+  const pares = exc.filter((m) => f.injetada[m] > 0);
+  if (pares.length) {
+    const erros = pares.map((m) => Math.abs(f.injetada[m] - (f.consumo[m] ?? 0) - f.excedente[m]) / f.injetada[m]);
+    const pior = Math.max(...erros);
+    add(pior <= 0.03, `Injetada − consumo da usina = excedente (maior diferença ${(pior * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%)`, 20, pior <= 0.03 ? 20 : pior <= 0.1 ? 10 : 0);
+  } else add(false, "Sem meses para conferir injetada × excedente", 20, 8);
+  const coerente = op.every(([m, v]) => (f.excedente[m] ?? 0) <= v * 1.001);
+  add(coerente, coerente ? "Excedente nunca passa da injetada" : "Excedente maior que a injetada em algum mês", 10);
+  if (injetadaPainel && injetadaPainel.kwh > 0) {
+    const soma = Object.entries(f.injetada).filter(([, v]) => v > 0).sort(([a], [b]) => a.localeCompare(b)).slice(-injetadaPainel.meses).reduce((a, [, v]) => a + v, 0);
+    const dif = Math.abs(soma - injetadaPainel.kwh) / injetadaPainel.kwh;
+    add(dif <= 0.03, `Bate com a injetada da tela do Orange (${(dif * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% de diferença)`, 15, dif <= 0.03 ? 15 : dif <= 0.1 ? 7 : 0);
+  } else add(false, "Sem a tela do Orange para conferir", 15, 8);
+  const max = itens.reduce((a, i) => a + i.max, 0);
+  const score = Math.round((itens.reduce((a, i) => a + i.pontos, 0) / max) * 100);
+  return { score, nivel: nivelScore(score), itens };
+}

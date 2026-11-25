@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { aplicacaoDaFatura, compararRateio, lerFaturaTexto, mesesEmOperacao, mesIso } from "@/modules/rateio/fatura";
-import { checarPainel, lerPainelTexto } from "@/modules/rateio/painel";
+import { autoAplicar } from "@/modules/rateio/automacao";
+import { aplicacaoDaFatura, compararRateio, lerFaturaTexto, mesesEmOperacao, mesIso, scoreFatura } from "@/modules/rateio/fatura";
+import { usinaVazia } from "@/modules/rateio/grid";
+import { checarPainel, inferirMeses, lerPainelTexto, scorePainel } from "@/modules/rateio/painel";
 
 // Layout de fatura de UC geradora (CELESC Grupo A), com números FICTÍCIOS
 const FATURA = `
@@ -84,3 +86,45 @@ describe("tela do Orange", () => {
     expect(c.find((x) => x.titulo.startsWith("Divergência"))!.ok).toBe(false); // −500 mil em 3 mi
   });
 });
+
+describe("nota de confiança e automação", () => {
+  const f = lerFaturaTexto(FATURA);
+  // soma dos 8 meses com injeção (FEV a SET) do layout fictício
+  const PAINEL = "Estimada 3.000.000\nInjetada 2.360.300\nCompensada 2.000.000\nSaldo Inicial 100.000\nSaldo Utilizado 5.000\nSaldo Vencido 0\nSaldo Adicionado 15.000\nSaldo Acumulado 110.000\nGeração Realizada 2.500.000\nConsumo da Usina 10.000\nDivergência de Faturamento -1.000\nBalanço Energia Injetada 300.000";
+
+  it("fatura coerente tem nota alta; excedente que não fecha derruba a nota", () => {
+    const s = scoreFatura(f);
+    expect(s.score).toBeGreaterThanOrEqual(80);
+    const ruim = { ...f, excedente: { ...f.excedente, "2026-09": 200000 } };
+    expect(scoreFatura(ruim).score).toBeLessThan(s.score);
+  });
+
+  it("descobre os meses do período da tela cruzando com a fatura", () => {
+    expect(inferirMeses(2360300, f.injetada)).toEqual({ meses: 8, diferenca: 0 });
+    expect(inferirMeses(9_999_999, f.injetada)).toBeNull();
+  });
+
+  it("tela com saldo que fecha e injetada que bate tem nota alta; dígito errado derruba", () => {
+    const v = lerPainelTexto(PAINEL);
+    const ok = scorePainel({ valores: v, meses: 8, fonte: "imagem", lidoEm: "" }, f.injetada);
+    expect(ok.score).toBeGreaterThanOrEqual(80);
+    const errado = scorePainel({ valores: { ...v, saldoAcumulado: 119000 }, meses: 8, fonte: "imagem", lidoEm: "" }, f.injetada);
+    expect(errado.score).toBeLessThan(NOTA);
+  });
+
+  it("aplica fatura e tela sozinho quando a nota é alta e respeita edição manual", () => {
+    const base = usinaVazia("UFV TESTE");
+    const u = autoAplicar({ ...base, fatura: f, painel: { valores: lerPainelTexto(PAINEL), meses: null, fonte: "texto", lidoEm: "" } });
+    expect(u.painel!.meses).toBe(8);
+    expect(u.painel!.mesesInferidos).toBe(true);
+    expect(u.fontePeriodo).toBe("painel");
+    expect(u.meses).toBe(8);
+    expect(u.energiaInjetadaPeriodo).toBe(2360300);
+    expect(u.fonteInjecao).toBe("fatura");
+    expect(u.injecaoMensalProjetada).toBe(Math.round(aplicacaoDaFatura(f).injecaoMensal!));
+    const manual = autoAplicar({ ...base, injecaoMensalProjetada: 123, fonteInjecao: "manual", fatura: f });
+    expect(manual.injecaoMensalProjetada).toBe(123);
+  });
+});
+
+const NOTA = 70;

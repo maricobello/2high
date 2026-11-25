@@ -44,6 +44,6 @@ test.describe("admin: rateio GD", () => {
       .fill(["Nome da Usina\tN° de Instalação\t% do Rateio\tSaldo kWh\tConsumo Compensável kWh", "UFV TESTE\t111\t60\t0\t900", "UFV TESTE\t222\t40\t5000\t300"].join("\n"));
     await page.getByRole("button", { name: "Aplicar" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "UFV TESTE" })).toBeVisible();
-    await expect(page.getByText("Falta a injeção")).toBeVisible();
+    await expect(page.getByText("Falta a injeção da usina")).toBeVisible();
   });
 });

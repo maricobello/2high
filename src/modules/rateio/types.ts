@@ -73,6 +73,10 @@ export interface Usina {
   fatura?: FaturaUsina | null;
   /** Bloco "Energia" da tela de usinas do Orange. */
   painel?: PainelOrange | null;
+  /** De onde veio a injeção mensal do estudo ("manual" = não sobrescrever automaticamente). */
+  fonteInjecao?: "fatura" | "manual" | null;
+  /** De onde vieram meses, contratada, gerada e injetada do período. */
+  fontePeriodo?: "painel" | "planilha" | "manual" | null;
 }
 
 export interface Parametros {
@@ -110,6 +114,8 @@ export interface Parametros {
   metodo: "otimizado" | "proporcional";
   /** Custo de incluir uma UC nova, em kWh equivalentes (evita incluir UC por ganho mínimo). */
   custoNovaUcKwh: number;
+  /** Tarifa média das UCs (R$/kWh, com impostos) para mostrar o resultado em reais. 0 = não informada. */
+  tarifaKwh: number;
 }
 
 export const PARAMETROS_PADRAO: Parametros = {
@@ -128,6 +134,7 @@ export const PARAMETROS_PADRAO: Parametros = {
   dimensionarNovas: "queima",
   metodo: "otimizado",
   custoNovaUcKwh: 500,
+  tarifaKwh: 0,
 };
 
 export type Acao = "manter" | "aumentar" | "reduzir" | "retirar" | "incluir";

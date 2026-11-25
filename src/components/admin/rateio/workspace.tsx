@@ -35,6 +35,7 @@ import { PARAMETROS_PADRAO, type Alerta, type Candidata, type OtimizacaoResultad
 import { METODOLOGIA } from "@/modules/rateio/metodologia";
 import { SaldoChart } from "./chart";
 import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
+import { autoAplicar } from "@/modules/rateio/automacao";
 import { kwh, MESES_CURTOS, ratio } from "./format";
 import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
@@ -87,6 +88,7 @@ function validarParametros(p: Parametros): Parametros {
     dimensionarNovas: p.dimensionarNovas === "estrutural" ? "estrutural" : "queima",
     metodo: p.metodo === "proporcional" ? "proporcional" : "otimizado",
     custoNovaUcKwh: Math.max(0, n(p.custoNovaUcKwh, D.custoNovaUcKwh)),
+    tarifaKwh: Math.max(0, n(p.tarifaKwh, D.tarifaKwh)),
   };
 }
 
@@ -110,27 +112,39 @@ function vincularCalendario(u: Usina, cal: ItemCalendario[]): Usina {
   return { ...u, distribuidora: u.distribuidora || item.concessionaria, fornecedor: u.fornecedor || item.fornecedor, ucsCalendario: item.ucs || u.ucsCalendario };
 }
 
-function mesclar(atual: Estado, imp: Importacao, alvo: string | null): { estado: Estado; abrir: string | null } {
+/** Para onde vai cada usina importada: id de uma usina existente ou "nova"; e se usa os dados do cabeçalho. */
+export interface Destinos {
+  destino: Record<string, string>;
+  usarDados: Record<string, boolean>;
+}
+
+function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Destinos): { estado: Estado; abrir: string | null } {
   const base = atual.exemplo ? { ...VAZIO, params: atual.params } : atual;
   const calendario = imp.calendario.length ? imp.calendario : base.calendario;
   const usinas = [...base.usinas];
   let abrir: string | null = null;
   for (const nova of imp.usinas) {
-    let idx = usinas.findIndex((u) => norm(u.nome) === norm(nova.nome));
-    if (idx < 0 && alvo && imp.usinas.length === 1) idx = usinas.findIndex((u) => u.id === alvo);
+    let idx: number;
+    const escolhido = dest?.destino[nova.id];
+    if (escolhido) idx = escolhido === "nova" ? -1 : usinas.findIndex((u) => u.id === escolhido);
+    else {
+      idx = usinas.findIndex((u) => norm(u.nome) === norm(nova.nome));
+      if (idx < 0 && alvo && imp.usinas.length === 1) idx = usinas.findIndex((u) => u.id === alvo);
+    }
+    const usarDados = dest ? dest.usarDados[nova.id] !== false : true;
     if (idx >= 0) {
       const u = usinas[idx];
       usinas[idx] = {
         ...u,
         ucs: nova.ucs.length ? nova.ucs : u.ucs,
         distribuidora: u.distribuidora || nova.distribuidora,
-        ...(nova.meses > 0
+        ...(nova.meses > 0 && usarDados
           ? { periodoInicio: nova.periodoInicio, periodoFim: nova.periodoFim, meses: nova.meses, energiaContratadaPeriodo: nova.energiaContratadaPeriodo, energiaGeradaPeriodo: nova.energiaGeradaPeriodo, energiaInjetadaPeriodo: nova.energiaInjetadaPeriodo, consumoMensal: nova.consumoMensal }
           : {}),
       };
       abrir = u.id;
     } else {
-      usinas.push(nova);
+      usinas.push(usarDados ? nova : { ...nova, meses: 0, periodoInicio: "", periodoFim: "", energiaContratadaPeriodo: 0, energiaGeradaPeriodo: 0, energiaInjetadaPeriodo: 0, consumoMensal: [] });
       abrir = nova.id;
     }
   }
@@ -151,6 +165,7 @@ export function RateioWorkspace() {
   const [avisos, setAvisos] = useState<string[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [colar, setColar] = useState(false);
+  const [pendente, setPendente] = useState<{ imp: Importacao; arquivos: string[]; alvo: string | null } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const alvoImport = useRef<string | null>(null);
   // estado mais recente, para mesclar depois da leitura assíncrona dos arquivos
@@ -227,6 +242,10 @@ export function RateioWorkspace() {
   function atualizarUsina(id: string, patch: Partial<Usina>) {
     setEstado((e) => ({ ...e, usinas: e.usinas.map((u) => (u.id === id ? { ...u, ...patch } : u)) }));
   }
+  /** Atualiza a usina a partir do estado mais recente (para leituras assíncronas). */
+  function transformarUsina(id: string, fn: (u: Usina) => Usina) {
+    setEstado((e) => ({ ...e, usinas: e.usinas.map((u) => (u.id === id ? fn(u) : u)) }));
+  }
 
   async function importar(files: FileList | File[]) {
     const todos = [...files];
@@ -243,12 +262,12 @@ export function RateioWorkspace() {
           try {
             if (/pdf/i.test(d.type) || /\.pdf$/i.test(d.name)) {
               const fat = await lerFaturaArquivo(d);
-              atualizarUsina(alvo.id, { fatura: fat, distribuidora: alvo.distribuidora || fat.distribuidora });
-              msgs.push(`Fatura "${d.name}" lida na ${alvo.nome}${fat.mesReferencia ? ` (referência ${fat.mesReferencia.slice(5, 7)}/${fat.mesReferencia.slice(0, 4)})` : ""}. Confira e clique em "Usar no estudo".`);
+              transformarUsina(alvo.id, (u) => autoAplicar({ ...u, fatura: fat }));
+              msgs.push(`Fatura "${d.name}" lida na ${alvo.nome}${fat.mesReferencia ? ` (referência ${fat.mesReferencia.slice(5, 7)}/${fat.mesReferencia.slice(0, 4)})` : ""}.`);
             } else {
               const valores = await lerPainelImagemArquivo(d);
-              atualizarUsina(alvo.id, { painel: { valores, meses: alvo.painel?.meses ?? (alvo.meses || null), fonte: "imagem", lidoEm: new Date().toISOString() } });
-              msgs.push(`Recorte do Orange lido na ${alvo.nome}. Confira os valores e clique em "Usar no estudo".`);
+              transformarUsina(alvo.id, (u) => autoAplicar({ ...u, painel: { valores, meses: null, fonte: "imagem", lidoEm: new Date().toISOString() } }));
+              msgs.push(`Recorte do Orange lido na ${alvo.nome}.`);
             }
           } catch (err) {
             msgs.push(`"${d.name}": ${err instanceof Error ? err.message : "não foi possível ler"}`);
@@ -269,6 +288,11 @@ export function RateioWorkspace() {
       const { lerArquivo } = await import("@/modules/rateio/xlsx");
       const sheets = (await Promise.all(lista.map(async (f) => (await lerArquivo(f)).map((s) => ({ ...s, name: lista.length > 1 ? `${f.name} › ${s.name}` : s.name }))))).flat();
       const imp = importarSheets(sheets);
+      // UCs de usina: pergunta para qual usina vão (o nome dentro da planilha pode não ser o da usina certa)
+      if (imp.usinas.some((u) => u.ucs.length)) {
+        setPendente({ imp, arquivos: lista.map((f) => f.name), alvo: alvoImport.current ?? (estadoRef.current.usinas.some((u) => u.id === aba) ? aba : null) });
+        return;
+      }
       const { estado: novo, abrir } = mesclar(estadoRef.current, imp, alvoImport.current);
       estadoRef.current = novo;
       setEstado(novo);
@@ -335,6 +359,23 @@ export function RateioWorkspace() {
     { id: "parametros", label: "Parâmetros", icon: Settings2 },
     { id: "metodologia", label: "Metodologia", icon: BookOpen },
   ];
+
+  function confirmarImportacao(dest: Destinos) {
+    if (!pendente) return;
+    const { imp } = pendente;
+    const { estado: novo, abrir } = mesclar(estadoRef.current, imp, null, dest);
+    estadoRef.current = novo;
+    setEstado(novo);
+    if (abrir) setAba(abrir);
+    const nomes = imp.usinas.map((u) => {
+      const d = dest.destino[u.id];
+      const alvoNome = d === "nova" ? u.nome : (novo.usinas.find((x) => x.id === d)?.nome ?? u.nome);
+      return `${u.ucs.length} UCs importadas na ${alvoNome}${alvoNome !== u.nome ? ` (a planilha dizia ${u.nome})` : ""}.`;
+    });
+    const outros = imp.avisos.filter((a) => !/UCs da /.test(a));
+    setAvisos([...nomes, ...outros, ...(imp.maximoCompensavel ? [`Cobertura ajustada para ${Math.round(novo.params.cobertura * 100)}% (Máximo Compensável da planilha).`] : [])]);
+    setPendente(null);
+  }
 
   const usinaAtiva = estado.usinas.find((u) => u.id === abaAtual);
   const resAtivo = resultado.usinas.find((r) => r.usinaId === abaAtual);
@@ -443,6 +484,8 @@ export function RateioWorkspace() {
               parecer={estado.pareceres[usinaAtiva.id]}
               calendario={itemDoCalendario(estado.calendario, usinaAtiva.nome)}
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
+              onTransformar={(fn) => transformarUsina(usinaAtiva.id, fn)}
+              onTarifa={(t) => setEstado((e) => ({ ...e, params: { ...e.params, tarifaKwh: t } }))}
               onImportar={() => abrirImport(usinaAtiva.id)}
               onParecer={(p) => setEstado((e) => ({ ...e, pareceres: { ...e.pareceres, [usinaAtiva.id]: p } }))}
               onRemover={() => {
@@ -456,6 +499,8 @@ export function RateioWorkspace() {
       )}
 
       <p className="text-xs text-muted">Os arquivos são lidos neste navegador e ficam salvos só nele. Para o parecer, só sai um resumo com totais e apelidos, sem número de instalação.</p>
+
+      {pendente && <DestinoDialog pendente={pendente} usinas={estado.exemplo ? [] : estado.usinas} onCancelar={() => setPendente(null)} onConfirmar={confirmarImportacao} />}
 
       {colar && (
         <ColarDialog
@@ -618,6 +663,8 @@ function UsinaPainel({
   parecer,
   calendario,
   onChange,
+  onTransformar,
+  onTarifa,
   onImportar,
   onParecer,
   onRemover,
@@ -630,6 +677,8 @@ function UsinaPainel({
   parecer?: Parecer;
   calendario?: ItemCalendario;
   onChange: (p: Partial<Usina>) => void;
+  onTransformar: (fn: (u: Usina) => Usina) => void;
+  onTarifa: (t: number) => void;
   onImportar: () => void;
   onParecer: (p: Parecer) => void;
   onRemover: () => void;
@@ -669,7 +718,7 @@ function UsinaPainel({
             {[usina.distribuidora, usina.fornecedor, `${usina.ucs.length} UCs`].filter(Boolean).join(" · ")}
             {calendario && ` · ciclo ${calendario.mesCiclo.slice(5, 7)}/${calendario.mesCiclo.slice(0, 4)} · ${calendario.etapaAtual}`}
           </p>
-          {!semUcs && <MetodoInfo otimizacao={otimizacao} />}
+          {!semUcs && E > 0 && <MetodoInfo otimizacao={{ ...otimizacao, metodoUsado: r.metodo }} />}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={onImportar}>
@@ -682,9 +731,14 @@ function UsinaPainel({
       </div>
 
       <DadosUsina usina={usina} onChange={onChange} />
-      <FontesUsina usina={usina} onChange={onChange} />
+      <FontesUsina usina={usina} onChange={onChange} onTransformar={onTransformar} />
 
-      {semUcs ? (
+      {!semUcs && E <= 0 ? (
+        <Card className="p-8 text-center">
+          <p className="font-semibold">Falta a injeção da usina</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted">Envie a fatura da usina (PDF) ou o recorte da tela do Orange no cartão acima. Com nota de leitura alta, a injeção entra sozinha e o rateio é calculado na hora.</p>
+        </Card>
+      ) : semUcs ? (
         <Card className="p-8 text-center">
           <p className="font-semibold">Falta a lista de UCs desta usina</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted">Importe o export da Unidade Rateio GD do Orange (ou a planilha modelo) ou cole a tabela. Precisa das colunas N° de Instalação, % do Rateio, Saldo e Consumo Compensável.</p>
@@ -694,6 +748,8 @@ function UsinaPainel({
         </Card>
       ) : (
         <>
+          <Ganho r={r} params={params} onTarifa={onTarifa} />
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi label={`Saldo em ${params.mesesSimulacao} meses (kWh)`} valor={kwh(r.proposto.saldoFinal)} antes={kwh(r.atual.saldoFinal)} bom={delta(r.proposto.saldoFinal, r.atual.saldoFinal)} nota={`Hoje: ${kwh(r.atual.saldoInicial)}`} />
             <Kpi label="Consumo sem crédito (kWh)" valor={kwh(r.proposto.consumoDescobertoTotal)} antes={kwh(r.atual.consumoDescobertoTotal)} bom={delta(r.proposto.consumoDescobertoTotal, r.atual.consumoDescobertoTotal)} />
@@ -815,7 +871,7 @@ function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<U
       <button type="button" onClick={() => setAberto((v) => !v)} aria-expanded={aberto} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
         <span className="font-semibold">Dados da usina</span>
         <span className="flex items-center gap-2 text-xs text-muted">
-          {faltam ? <Badge tone="attention">Falta a injeção</Badge> : `${usina.meses} meses · injetada ${kwh(usina.energiaInjetadaPeriodo)} kWh`}
+          {faltam ? <Badge tone="attention">Falta a injeção</Badge> : `Injeção do estudo ${kwh(injecaoMensal(usina))} kWh/mês${usina.fonteInjecao === "fatura" ? " (fatura)" : usina.fontePeriodo === "painel" ? " (tela do Orange)" : ""}`}
           <span aria-hidden>{aberto ? "▲" : "▼"}</span>
         </span>
       </button>
@@ -825,15 +881,15 @@ function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<U
             <CampoTexto label="Nome da usina" value={usina.nome} onChange={(v) => onChange({ nome: v })} />
             <CampoTexto label="Distribuidora" value={usina.distribuidora} onChange={(v) => onChange({ distribuidora: v })} />
             <CampoTexto label="Fornecedor" value={usina.fornecedor} onChange={(v) => onChange({ fornecedor: v })} />
-            <CampoNumero label="Meses da análise" value={usina.meses || null} onChange={(v) => onChange({ meses: n0(v) })} step="1" />
-            <CampoNumero label="Energia contratada no período" sufixo="kWh" value={usina.energiaContratadaPeriodo || null} onChange={(v) => onChange({ energiaContratadaPeriodo: n0(v) })} />
-            <CampoNumero label="Energia gerada no período" sufixo="kWh" value={usina.energiaGeradaPeriodo || null} onChange={(v) => onChange({ energiaGeradaPeriodo: n0(v) })} />
-            <CampoNumero label="Energia injetada no período" sufixo="kWh" value={usina.energiaInjetadaPeriodo || null} onChange={(v) => onChange({ energiaInjetadaPeriodo: n0(v) })} />
+            <CampoNumero label="Meses da análise" value={usina.meses || null} onChange={(v) => onChange({ meses: n0(v), fontePeriodo: "manual" })} step="1" />
+            <CampoNumero label="Energia contratada no período" sufixo="kWh" value={usina.energiaContratadaPeriodo || null} onChange={(v) => onChange({ energiaContratadaPeriodo: n0(v), fontePeriodo: "manual" })} />
+            <CampoNumero label="Energia gerada no período" sufixo="kWh" value={usina.energiaGeradaPeriodo || null} onChange={(v) => onChange({ energiaGeradaPeriodo: n0(v), fontePeriodo: "manual" })} />
+            <CampoNumero label="Energia injetada no período" sufixo="kWh" value={usina.energiaInjetadaPeriodo || null} onChange={(v) => onChange({ energiaInjetadaPeriodo: n0(v), fontePeriodo: "manual" })} />
             <CampoNumero
               label="Injeção mensal projetada"
               sufixo="kWh"
               value={usina.injecaoMensalProjetada}
-              onChange={(v) => onChange({ injecaoMensalProjetada: v && v > 0 ? v : null })}
+              onChange={(v) => onChange({ injecaoMensalProjetada: v && v > 0 ? v : null, fonteInjecao: "manual" })}
               dica={usina.meses > 0 ? `Vazio = média do período (${kwh(usina.energiaInjetadaPeriodo / usina.meses)})` : "Vazio = injetada ÷ meses"}
             />
           </div>
@@ -1315,5 +1371,146 @@ function FichaUc({ resultado: r, indice, params, onClose, onNavegar }: { resulta
       </div>
     </div>,
     document.body,
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/** Pergunta para qual usina vão as UCs importadas (e se usa os dados do cabeçalho da planilha). */
+function DestinoDialog({
+  pendente,
+  usinas,
+  onCancelar,
+  onConfirmar,
+}: {
+  pendente: { imp: Importacao; arquivos: string[]; alvo: string | null };
+  usinas: Usina[];
+  onCancelar: () => void;
+  onConfirmar: (d: Destinos) => void;
+}) {
+  const importadas = pendente.imp.usinas.filter((u) => u.ucs.length);
+  const arquivos = norm(pendente.arquivos.join(" "));
+  const sugestao = (nova: Usina): string => {
+    const mesmoNome = usinas.find((u) => norm(u.nome) === norm(nova.nome));
+    if (mesmoNome) return mesmoNome.id;
+    // nome de uma usina aberta aparece no nome do arquivo (ex.: "... UFV SAFIRA ....xlsx")
+    const peloArquivo = usinas.find((u) => {
+      const chave = norm(u.nome).replace(/^(ufv|cgh|pch|eol|ute)\s+/, "");
+      return chave.length >= 3 && arquivos.includes(chave);
+    });
+    if (peloArquivo && importadas.length === 1) return peloArquivo.id;
+    if (pendente.alvo && importadas.length === 1) return pendente.alvo;
+    return "nova";
+  };
+  const [destino, setDestino] = useState<Record<string, string>>(() => Object.fromEntries(importadas.map((u) => [u.id, sugestao(u)])));
+  const [usarDados, setUsarDados] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      importadas.map((u) => {
+        const d = sugestao(u);
+        const alvo = usinas.find((x) => x.id === d);
+        // não sobrescreve dados que já vieram da fatura ou da tela do Orange,
+        // nem usa o cabeçalho de uma planilha de outra usina
+        return [u.id, !alvo || (norm(alvo.nome) === norm(u.nome) && alvo.meses === 0 && !alvo.painel && alvo.injecaoMensalProjetada == null)];
+      }),
+    ),
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="destino-titulo">
+      <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-border bg-card p-5 sm:rounded-2xl">
+        <h2 id="destino-titulo" className="text-lg font-semibold">
+          Para qual usina vão estas UCs?
+        </h2>
+        <p className="mt-1 text-sm text-muted">{pendente.arquivos.join(", ")}</p>
+        <div className="mt-4 space-y-4">
+          {importadas.map((u) => {
+            const d = destino[u.id];
+            const alvo = usinas.find((x) => x.id === d);
+            const divergente = alvo && norm(alvo.nome) !== norm(u.nome);
+            return (
+              <div key={u.id} className="rounded-xl border border-border p-4">
+                <p className="text-sm">
+                  <span className="font-semibold">{u.ucs.length} UCs</span> com &quot;Nome da Usina&quot; <span className="font-semibold">{u.nome}</span>
+                </p>
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-medium text-foreground/80">Importar em</span>
+                  <select value={d} onChange={(e) => setDestino((x) => ({ ...x, [u.id]: e.target.value }))} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground">
+                    {usinas.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.nome}
+                        {x.ucs.length ? ` (substitui ${x.ucs.length} UCs)` : ""}
+                      </option>
+                    ))}
+                    <option value="nova">Criar a usina {u.nome}</option>
+                  </select>
+                </label>
+                {divergente && (
+                  <p className="mt-2 flex gap-1.5 text-xs text-analysis">
+                    <TriangleAlert className="mt-0.5 size-3.5 shrink-0" /> A planilha diz {u.nome}, e você vai importar na {alvo.nome}. Confira se são mesmo as UCs dessa usina.
+                  </p>
+                )}
+                {u.meses > 0 && (
+                  <label className="mt-3 flex items-start gap-2 text-sm">
+                    <input type="checkbox" checked={usarDados[u.id] ?? false} onChange={(e) => setUsarDados((x) => ({ ...x, [u.id]: e.target.checked }))} className="mt-0.5 size-4 accent-[var(--primary)]" />
+                    <span>
+                      Usar também os dados da usina do cabeçalho da planilha ({u.meses} meses, injetada {kwh(u.energiaInjetadaPeriodo)} kWh)
+                      <span className="block text-xs text-muted">Deixe desmarcado se a injeção vem da fatura ou da tela do Orange.</span>
+                    </span>
+                  </label>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {pendente.imp.candidatas.length > 0 && <p className="mt-3 text-xs text-muted">O arquivo também traz {pendente.imp.candidatas.length} novas UCs (candidatas), que entram na lista de Novas UCs.</p>}
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onCancelar}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={() => onConfirmar({ destino, usarDados })}>
+            Importar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/** Quanto o rateio proposto compensa a mais que o atual, em kWh e em reais (estimativa). */
+function Ganho({ r, params, onTarifa }: { r: ResultadoUsina; params: Parametros; onTarifa: (t: number) => void }) {
+  const ganhoKwh = r.proposto.compensadoTotal - r.atual.compensadoTotal;
+  const paradoAtual = r.atual.saldoFinal;
+  const paradoProp = r.proposto.saldoFinal;
+  const t = params.tarifaKwh;
+  const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  return (
+    <Card className="flex flex-col gap-4 border-primary/40 bg-primary-soft/30 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <div className="min-w-0">
+        <p className="text-xs font-medium tracking-wide text-primary-text uppercase">Ganho estimado em {params.mesesSimulacao} meses</p>
+        <p className="mt-1 font-mono text-2xl font-semibold tracking-tight">
+          {ganhoKwh >= 0 ? "+" : ""}
+          {kwh(ganhoKwh)} kWh compensados
+          {t > 0 && <span className="text-volt"> ≈ {brl(ganhoKwh * t)}</span>}
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Crédito parado no fim: {kwh(paradoAtual)} → {kwh(paradoProp)} kWh{t > 0 ? ` (${brl(paradoAtual * t)} → ${brl(paradoProp * t)})` : ""}. Estimativa a partir das médias; confira na fatura.
+        </p>
+      </div>
+      <label className="shrink-0">
+        <span className="mb-1 block text-xs text-muted">Tarifa média das UCs (R$/kWh)</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min={0}
+          placeholder="ex.: 0,85"
+          value={t || ""}
+          onChange={(e) => onTarifa(Math.max(0, Number(e.target.value) || 0))}
+          className="h-10 w-36 rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground focus:border-primary focus:outline-none"
+        />
+      </label>
+    </Card>
   );
 }

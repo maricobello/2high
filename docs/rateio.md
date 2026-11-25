@@ -27,6 +27,16 @@ geração distribuída e entregar o estudo em Excel.
      fecha, se o saldo acumulado bate com a soma das UCs, se a injetada bate com a fatura e a
      divergência de faturamento. "Usar no estudo" preenche meses, energia contratada
      (Estimada), gerada e injetada do período.
+   - **Automático**: cada leitura recebe uma nota de confiança (0 a 100) com os critérios à
+     vista (o que foi encontrado e se os números fecham entre si e com a outra fonte). Com nota
+     70 ou mais, entra no estudo sozinha; os meses do período da tela são descobertos cruzando
+     com a fatura. Saldo que não fecha ou injetada que não bate com a fatura travam a nota abaixo
+     de 70 (sinal de dígito lido errado). Edição manual nunca é sobrescrita.
+   - **Para qual usina vão as UCs**: ao importar uma lista de UCs, a ferramenta pergunta o
+     destino (sugere a usina aberta ou a do nome do arquivo) e avisa se o nome dentro da
+     planilha for de outra usina.
+   - **Ganho em R$**: informe a tarifa média das UCs e o estudo mostra quanto o rateio proposto
+     compensa a mais que o atual, em kWh e em reais (estimativa).
 4. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
 5. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
 6. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).

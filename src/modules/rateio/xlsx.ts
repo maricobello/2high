@@ -111,6 +111,9 @@ export async function exportarXlsx(usinas: Usina[], resultado: ResultadoProjeto,
       ["Consumo sem crédito (kWh no período)", r.atual.consumoDescobertoTotal, r.proposto.consumoDescobertoTotal, KWH],
       ["Energia compensada (kWh no período)", r.atual.compensadoTotal, r.proposto.compensadoTotal, KWH],
     ];
+    const ganho = r.proposto.compensadoTotal - r.atual.compensadoTotal;
+    linhas.push(["Ganho: energia compensada a mais (kWh no período)", 0, ganho, KWH]);
+    if (p.tarifaKwh > 0) linhas.push([`Ganho estimado em R$ (tarifa ${p.tarifaKwh.toLocaleString("pt-BR")} R$/kWh)`, 0, ganho * p.tarifaKwh, '"R$" #,##0']);
     for (const [label, a, b, f] of linhas) {
       const row = rs.addRow([label, a, b, b - a]);
       [2, 3, 4].forEach((c) => (row.getCell(c).numFmt = f));

@@ -27,6 +27,8 @@ export interface PainelOrange {
   valores: ValoresPainel;
   /** Meses do período selecionado na tela do Orange (o painel não mostra). */
   meses: number | null;
+  /** true quando os meses foram descobertos cruzando com a fatura. */
+  mesesInferidos?: boolean;
   fonte: "texto" | "imagem";
   lidoEm: string;
 }
@@ -97,4 +99,59 @@ export function checarPainel(p: ValoresPainel, ctx: { saldoUcs: number; compensa
     c.push({ ok: Math.abs(p.divergencia) <= p.injetada * 0.05, titulo: "Divergência de faturamento até 5% da injetada", detalhe: `${fmt(p.divergencia)} kWh (${((p.divergencia / p.injetada) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da injetada).` });
   if (p.saldoVencido != null && p.saldoVencido > 0) c.push({ ok: false, titulo: "Há saldo vencido", detalhe: `${fmt(p.saldoVencido)} kWh venceram no período.` });
   return c;
+}
+
+/**
+ * Meses do período da tela do Orange: o número de meses (a partir do mais recente com
+ * injeção na fatura) cuja soma mais se aproxima da "Injetada" da tela.
+ */
+export function inferirMeses(injetadaTela: number | undefined, injetadaFatura: Record<string, number> | undefined): { meses: number; diferenca: number } | null {
+  if (!injetadaTela || !injetadaFatura) return null;
+  const serie = Object.entries(injetadaFatura)
+    .filter(([, v]) => v > 0)
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([, v]) => v);
+  let melhor: { meses: number; diferenca: number } | null = null;
+  let soma = 0;
+  serie.forEach((v, i) => {
+    soma += v;
+    const dif = Math.abs(soma - injetadaTela) / injetadaTela;
+    if (!melhor || dif < melhor.diferenca) melhor = { meses: i + 1, diferenca: dif };
+  });
+  return melhor && (melhor as { diferenca: number }).diferenca <= 0.05 ? melhor : null;
+}
+
+export interface ScorePainel {
+  score: number;
+  nivel: "alta" | "media" | "baixa";
+  itens: { ok: boolean; texto: string; pontos: number; max: number }[];
+}
+
+/** Nota de 0 a 100 da leitura da tela: campos lidos e se os números fecham entre si e com a fatura. */
+export function scorePainel(p: PainelOrange, injetadaFatura?: Record<string, number>): ScorePainel {
+  const itens: ScorePainel["itens"] = [];
+  const add = (ok: boolean, texto: string, max: number, pontos = ok ? max : 0) => itens.push({ ok, texto, pontos, max });
+  const v = p.valores;
+  const lidos = (Object.keys(CAMPOS_PAINEL) as CampoPainel[]).filter((k) => typeof v[k] === "number").length;
+  add(lidos >= 10, `${lidos} de 12 campos lidos`, 25, Math.round((lidos / 12) * 25));
+  const temSaldo = v.saldoInicial != null && v.saldoUtilizado != null && v.saldoAdicionado != null && v.saldoAcumulado != null;
+  if (temSaldo) {
+    const calc = v.saldoInicial! - v.saldoUtilizado! - (v.saldoVencido ?? 0) + v.saldoAdicionado!;
+    const ok = Math.abs(calc - v.saldoAcumulado!) <= Math.max(2, v.saldoAcumulado! * 0.001);
+    add(ok, ok ? "Saldo fecha (inicial − utilizado − vencido + adicionado = acumulado)" : "Saldo não fecha: algum dígito pode ter sido lido errado", 30);
+  } else add(false, "Sem os quatro saldos para conferir", 30, 5);
+  const coer = v.injetada != null && v.geracaoRealizada != null && v.compensada != null ? v.injetada <= v.geracaoRealizada * 1.02 && v.compensada <= v.injetada * 1.001 + (v.saldoUtilizado ?? 0) : null;
+  add(coer === true, coer == null ? "Faltam geração, injetada ou compensada" : coer ? "Geração ≥ injetada ≥ compensada" : "Ordem geração ≥ injetada ≥ compensada não fecha", 15, coer == null ? 5 : coer ? 15 : 0);
+  const inf = inferirMeses(v.injetada, injetadaFatura);
+  if (injetadaFatura && Object.keys(injetadaFatura).length) {
+    add(!!inf, inf ? `Injetada bate com ${inf.meses} meses da fatura (${(inf.diferenca * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%)` : "Injetada não bate com nenhum período da fatura", 30, inf ? (inf.diferenca <= 0.01 ? 30 : 22) : 0);
+  } else add(false, "Sem a fatura para conferir a injetada", 30, 12);
+  const max = itens.reduce((a, i) => a + i.max, 0);
+  let score = Math.round((itens.reduce((a, i) => a + i.pontos, 0) / max) * 100);
+  // travas: saldo que não fecha ou injetada que não bate com a fatura indicam dígito lido errado
+  const saldoFalhou = temSaldo && !itens[1].ok;
+  const faturaFalhou = !!injetadaFatura && Object.keys(injetadaFatura).length > 0 && !inf;
+  if (saldoFalhou) score = Math.min(score, 55);
+  if (faturaFalhou) score = Math.min(score, 65);
+  return { score, nivel: score >= 80 ? "alta" : score >= 60 ? "media" : "baixa", itens };
 }

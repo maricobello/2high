@@ -54,7 +54,7 @@ export function chaveEntradas(usinas: Usina[], candidatas: CandidataAvaliada[], 
   const s = JSON.stringify([
     usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh])]),
     candidatas.filter((c) => c.elegivel).map((c) => [c.candidata.key, c.candidata.compensavelKwh, c.candidata.concessionaria]),
-    p,
+    { ...p, tarifaKwh: 0 },
   ]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
