@@ -2,6 +2,7 @@
  * Aplicação automática das fontes da usina (fatura e tela do Orange) no estudo,
  * quando a nota de confiança da leitura é alta o bastante.
  */
+import { lerDemanda } from "./demanda";
 import { aplicacaoDaFatura, scoreFatura } from "./fatura";
 import { inferirMeses, scorePainel } from "./painel";
 import type { Usina } from "./types";
@@ -49,7 +50,8 @@ export function autoAplicar(u: Usina): Usina {
     }
   }
   // demanda da fatura (não sobrescreve o que foi digitado)
-  const d = f?.demanda;
+  // faturas salvas antes da leitura de demanda: relê do texto guardado
+  const d = f?.demanda ?? (f?.linhas ? lerDemanda(f.linhas) : null);
   if (d && out.demanda?.fonte !== "manual" && (d.contratadaKw != null || d.registradaKw != null)) {
     out = { ...out, demanda: { contratadaKw: d.contratadaKw, registradaKw: d.registradaKw, ultrapassagemKw: d.ultrapassagemKw, despesaUltrapassagem: d.despesaUltrapassagem, fonte: "fatura" } };
   }

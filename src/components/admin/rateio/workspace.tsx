@@ -1068,6 +1068,11 @@ function UsinaPainel({
   );
 }
 
+/** Fatura lida por uma versão antiga (sem demanda e sem o texto guardado para reler). */
+function faturaAntiga(u: Usina): boolean {
+  return !!u.fatura && u.fatura.demanda === undefined && !u.fatura.linhas && !u.demanda;
+}
+
 /** Demanda da usina: contratada, registrada, ultrapassagem e despesa (lidas da fatura). */
 function UltrapassagemDemanda({ usina, onChange }: { usina: Usina; onChange: (p: Partial<Usina>) => void }) {
   const d = usina.demanda;
@@ -1087,6 +1092,12 @@ function UltrapassagemDemanda({ usina, onChange }: { usina: Usina; onChange: (p:
         {fonte && <p className="text-xs text-muted">{fonte}</p>}
       </div>
       <p className="mt-0.5 text-xs text-muted">Vem sozinha da fatura da usina (bloco de demandas e item &quot;Ultrapassagem de Demanda&quot;). Vai para a planilha modelo (N4 a N6).</p>
+      {faturaAntiga(usina) && (
+        <p className="mt-2 flex gap-2 rounded-lg border border-analysis/40 bg-analysis/10 px-3 py-2 text-xs">
+          <TriangleAlert className="size-4 shrink-0 text-analysis" />
+          <span>A fatura desta usina foi lida antes da leitura de demanda. Envie o PDF da fatura de novo para preencher estes campos (ou digite os valores).</span>
+        </p>
+      )}
       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CampoNumero label="Demanda contratada" sufixo="kW" value={d?.contratadaKw ?? null} onChange={(v) => set("contratadaKw", v)} />
         <CampoNumero label="Demanda registrada" sufixo="kW" value={d?.registradaKw ?? null} onChange={(v) => set("registradaKw", v)} />
@@ -1675,6 +1686,10 @@ function avaliarStatus(resultado: ResultadoProjeto, usinas: Usina[], calculando:
         itens.push({ ok: false, texto: `${v.nivel === "erro" ? "Reprovado" : "Aviso"}: ${v.titulo}` });
         if (v.nivel === "erro") erros++;
         else avisos++;
+      }
+      if (faturaAntiga(u)) {
+        itens.push({ ok: false, texto: "Envie a fatura da usina de novo para ler a demanda (lida por uma versão antiga)" });
+        avisos++;
       }
       if (u.demanda && ((u.demanda.ultrapassagemKw ?? 0) > 0 || (u.demanda.despesaUltrapassagem ?? 0) > 0))
         itens.push({ ok: false, texto: `Fora do rateio: ultrapassagem de demanda na usina${u.demanda.despesaUltrapassagem ? ` (R$ ${u.demanda.despesaUltrapassagem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} no mês)` : ""}` });

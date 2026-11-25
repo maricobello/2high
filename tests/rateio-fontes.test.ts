@@ -165,6 +165,9 @@ describe("demanda da usina (fatura)", () => {
     const f = lerFaturaTexto(["(65) Ultrapassagem de Demanda Injetada KW 2.219,840 9,053580 20.097,51 20.097,51", "Demanda de Injeção 1000 KW Medida G 0KW 3.220KW"], "f.pdf");
     const u = autoAplicar({ ...usinaVazia("U"), meses: 1, energiaInjetadaPeriodo: 1000, ucs: [{ key: "1", usina: "", idUnidade: "", instalacao: "1", apelido: "", subgrupo: "B3", pctAtual: 100, saldoKwh: 0, compensavelKwh: 900, compensadoKwh: 0 }], fatura: f });
     expect(u.demanda).toMatchObject({ contratadaKw: 1000, registradaKw: 3220, despesaUltrapassagem: 20097.51, fonte: "fatura" });
+    // fatura salva sem a demanda lida (versão antiga) mas com o texto: relê
+    const semDemanda = { ...f, demanda: undefined };
+    expect(autoAplicar({ ...u, demanda: null, fatura: semDemanda }).demanda?.registradaKw).toBe(3220);
     // digitada não é sobrescrita
     expect(autoAplicar({ ...u, demanda: { ...u.demanda!, contratadaKw: 4000, fonte: "manual" } }).demanda?.contratadaKw).toBe(4000);
     const r = analisarProjeto([u], [], { ...PARAMETROS_PADRAO, metodo: "proporcional" }).usinas[0];

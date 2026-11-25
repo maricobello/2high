@@ -43,6 +43,8 @@ export interface FaturaUsina {
   avisos: string[];
   /** Demanda contratada, registrada e ultrapassagem do mês de referência (grupo A). */
   demanda?: Demanda | null;
+  /** Texto da fatura (linhas), para reler quando a leitura melhora sem precisar reenviar o PDF. */
+  linhas?: string[];
 }
 
 const MES: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
@@ -142,6 +144,7 @@ export function lerFaturaTexto(linhasBrutas: string[], arquivo = "fatura.pdf"): 
     tabelas,
     avisos: [],
     demanda: lerDemanda(linhas),
+    linhas,
   };
 
   // mês de referência: "Referência 09/2026", ou linha que começa com MM/AAAA seguida de uma data

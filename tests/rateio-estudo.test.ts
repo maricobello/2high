@@ -80,6 +80,12 @@ describe("planilha modelo", () => {
     const ws2 = wb2.getWorksheet("Análise do Rateio")!;
     expect([ws2.getCell("S4").value, ws2.getCell("T4").value, ws2.getCell("S6").value, ws2.getCell("T6").value]).toEqual(["MAR/26", 300, "JAN/26", 100]);
     expect((ws2.getCell("C9").value as { formula: string }).formula).toBe("T13");
+    // ultrapassagem de demanda (N4:N6)
+    const ud = { ...u, demanda: { contratadaKw: 1000, registradaKw: 3220, ultrapassagemKw: 2220, despesaUltrapassagem: 20097.51, fonte: "fatura" as const } };
+    const wb3 = new ExcelJS.Workbook();
+    await wb3.xlsx.load(await (await preencherModelo(ud, ru, r.candidatas, p)).arrayBuffer());
+    const ws3 = wb3.getWorksheet("Análise do Rateio")!;
+    expect([ws3.getCell("N4").value, ws3.getCell("N5").value, ws3.getCell("N6").value]).toEqual([1000, 3220, 20097.51]);
     // modelo em branco importado não vira usina
     const imp = importarSheets(await lerXlsx(await (await modeloEmBranco()).arrayBuffer()));
     expect(imp.usinas).toHaveLength(0);
