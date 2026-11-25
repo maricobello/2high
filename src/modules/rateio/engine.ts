@@ -111,7 +111,7 @@ export function simular(ucs: UcSim[], usina: Usina, p: Parametros, fatorConsumo 
   let diretoTotal = 0;
 
   for (let t = 0; t < p.mesesSimulacao; t++) {
-    const mes = ((p.mesInicio - 1 + t) % 12) + 1;
+    const mes = ((((Math.round(p.mesInicio) - 1 + t) % 12) + 12) % 12) + 1;
     const inj = E * perfil[mes - 1];
     let compensado = 0;
     let paraSaldo = 0;
@@ -297,7 +297,8 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
     ...novasN.map(({ n }) => n),
   ];
   const N = todos.reduce((a, n) => a + n.necessidade, 0);
-  let pesos = todos.map((n) => (n.retirar ? 0 : n.necessidade));
+  // sem retirada, UC sem necessidade fica no mínimo (peso ínfimo positivo)
+  let pesos = todos.map((n) => (n.retirar ? 0 : n.necessidade > 0 ? n.necessidade : Number.MIN_VALUE));
   if (N < E && N > 0) {
     const folga = todos.map((n) => (n.retirar ? 0 : Math.max(0, n.comp - n.queima - n.necessidade)));
     const F = folga.reduce((a, b) => a + b, 0);
@@ -310,7 +311,7 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
     }
   }
   // sem nenhuma necessidade (ex.: todas com saldo alto e retirada desligada): mantém o atual
-  const semNecessidade = pesos.every((w) => w <= 0);
+  const semNecessidade = todos.every((n) => n.retirar || n.necessidade <= 0);
   const pctProposto = semNecessidade
     ? [...usina.ucs.map((u) => u.pctAtual), ...novas.map(() => 0)]
     : arredondarRateio(pesos, p.casasDecimais, p.pctMinimo);
@@ -323,7 +324,7 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
   const simProp = simular(ucsProp, usina, p);
   const simEstresse = simular(ucsProp, usina, p, p.fatorConsumoEstresse);
 
-  const tolerancia = Math.max(10 ** -p.casasDecimais, 0.005);
+  const tolerancia = 10 ** -p.casasDecimais / 2;
   const meses = (saldo: number, comp: number) => (comp > 0 ? saldo / comp : null);
 
   const linhas: LinhaRateio[] = [
@@ -336,7 +337,7 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
         acao = "retirar";
         motivo = n.motivoRetirar;
       } else {
-        acao = Math.abs(delta) <= Math.max(tolerancia, uc.pctAtual * 0.05) ? "manter" : delta > 0 ? "aumentar" : "reduzir";
+        acao = Math.abs(delta) < tolerancia ? "manter" : delta > 0 ? "aumentar" : "reduzir";
         motivo = motivoUc(uc, n, p);
       }
       return {
@@ -393,6 +394,14 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros): 
 
   const indicadores = calcularIndicadores(usina, linhas, N, p);
   const alertas = gerarAlertas(usina, linhas, indicadores, simAtual, simProp, simEstresse, p, novas);
+  const ativos = pesos.filter((w) => w > 0).length;
+  if (!semNecessidade && ativos > 100 * 10 ** p.casasDecimais)
+    alertas.unshift({
+      severidade: "alta",
+      codigo: "casas_insuficientes",
+      titulo: `Casas decimais insuficientes para ${ativos} UCs`,
+      detalhe: `Com ${p.casasDecimais} casa(s) decimal(is) cabem no máximo ${100 * 10 ** p.casasDecimais} UCs com percentual; algumas ficaram com 0%. Aumente as casas decimais nos parâmetros.`,
+    });
 
   return { usinaId: usina.id, usinaNome: usina.nome, linhas, atual: simAtual, proposto: simProp, propostoEstresse: simEstresse, indicadores, alertas };
 }

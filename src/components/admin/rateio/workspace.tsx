@@ -55,10 +55,32 @@ function carregar(): Estado | null {
     const raw = localStorage.getItem(STORAGE);
     if (!raw) return null;
     const e = JSON.parse(raw) as Estado;
-    return { ...VAZIO, ...e, params: { ...PARAMETROS_PADRAO, ...e.params } };
+    return { ...VAZIO, ...e, params: validarParametros({ ...PARAMETROS_PADRAO, ...e.params }) };
   } catch {
     return null;
   }
+}
+
+/** Mesmas travas da tela de parâmetros (protege contra dados salvos antigos ou corrompidos). */
+function validarParametros(p: Parametros): Parametros {
+  const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const D = PARAMETROS_PADRAO;
+  const casas = Math.min(6, Math.max(0, Math.round(n(p.casasDecimais, D.casasDecimais))));
+  return {
+    cobertura: Math.min(1, Math.max(0.1, n(p.cobertura, D.cobertura))),
+    horizonteSaldoMeses: Math.max(1, Math.round(n(p.horizonteSaldoMeses, D.horizonteSaldoMeses))),
+    reservaSaldoMeses: Math.max(0, n(p.reservaSaldoMeses, D.reservaSaldoMeses)),
+    casasDecimais: casas,
+    pctMinimo: Math.max(10 ** -casas, n(p.pctMinimo, D.pctMinimo)),
+    mesesSimulacao: Math.min(60, Math.max(1, Math.round(n(p.mesesSimulacao, D.mesesSimulacao)))),
+    mesInicio: Math.min(12, Math.max(1, Math.round(n(p.mesInicio, D.mesInicio)))),
+    validadeCreditosMeses: Math.max(1, n(p.validadeCreditosMeses, D.validadeCreditosMeses)),
+    permitirRetirar: typeof p.permitirRetirar === "boolean" ? p.permitirRetirar : D.permitirRetirar,
+    incluirNovasUcs: typeof p.incluirNovasUcs === "boolean" ? p.incluirNovasUcs : D.incluirNovasUcs,
+    compensavelMinimoCandidata: Math.max(0, n(p.compensavelMinimoCandidata, D.compensavelMinimoCandidata)),
+    fatorConsumoEstresse: Math.min(1.5, Math.max(0.3, n(p.fatorConsumoEstresse, D.fatorConsumoEstresse))),
+    dimensionarNovas: p.dimensionarNovas === "estrutural" ? "estrutural" : "queima",
+  };
 }
 
 function salvar(e: Estado) {
@@ -105,11 +127,12 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null): { estado:
       abrir = nova.id;
     }
   }
-  const porKey = new Map(base.candidatas.map((c) => [c.key, c]));
-  for (const c of imp.candidatas) porKey.set(c.key || `${Math.random()}`, c);
-  const params = imp.maximoCompensavel ? { ...base.params, cobertura: imp.maximoCompensavel } : base.params;
+  // candidatas reimportadas substituem as antigas; repetidas no mesmo arquivo ficam (o motor aponta a duplicidade)
+  const novasKeys = new Set(imp.candidatas.map((c) => c.key));
+  const candidatas = [...base.candidatas.filter((c) => !novasKeys.has(c.key)), ...imp.candidatas];
+  const params = imp.maximoCompensavel ? { ...base.params, cobertura: Math.min(1, Math.max(0.1, imp.maximoCompensavel)) } : base.params;
   return {
-    estado: { ...base, usinas: usinas.map((u) => vincularCalendario(u, calendario)), candidatas: [...porKey.values()], calendario, params, exemplo: false },
+    estado: { ...base, usinas: usinas.map((u) => vincularCalendario(u, calendario)), candidatas, calendario, params, exemplo: false },
     abrir: abrir ?? (imp.calendario.length ? "calendario" : imp.candidatas.length ? "candidatas" : null),
   };
 }
@@ -123,6 +146,11 @@ export function RateioWorkspace() {
   const [colar, setColar] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const alvoImport = useRef<string | null>(null);
+  // estado mais recente, para mesclar depois da leitura assíncrona dos arquivos
+  const estadoRef = useRef(estado);
+  useEffect(() => {
+    estadoRef.current = estado;
+  }, [estado]);
 
   useEffect(() => {
     const e = carregar();
@@ -157,11 +185,12 @@ export function RateioWorkspace() {
       const { lerArquivo } = await import("@/modules/rateio/xlsx");
       const sheets = (await Promise.all(lista.map(async (f) => (await lerArquivo(f)).map((s) => ({ ...s, name: lista.length > 1 ? `${f.name} › ${s.name}` : s.name }))))).flat();
       const imp = importarSheets(sheets);
-      const { estado: novo, abrir } = mesclar(estado, imp, alvoImport.current);
+      const { estado: novo, abrir } = mesclar(estadoRef.current, imp, alvoImport.current);
+      estadoRef.current = novo;
       setEstado(novo);
       if (abrir) setAba(abrir);
-      setAvisos(imp.avisos.length ? imp.avisos : ["Nenhuma tabela reconhecida no arquivo."]);
-      if (imp.maximoCompensavel) setAvisos((a) => [...a, `Cobertura ajustada para ${Math.round(imp.maximoCompensavel! * 100)}% (Máximo Compensável da planilha).`]);
+      const avisosImp = imp.avisos.length ? imp.avisos : ["Nenhuma tabela reconhecida no arquivo."];
+      setAvisos(imp.maximoCompensavel ? [...avisosImp, `Cobertura ajustada para ${Math.round(novo.params.cobertura * 100)}% (Máximo Compensável da planilha).`] : avisosImp);
     } catch (err) {
       setAvisos([`Não foi possível ler o arquivo: ${err instanceof Error ? err.message : "formato inválido"}`]);
     } finally {

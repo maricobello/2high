@@ -30,12 +30,23 @@ export function toNumber(v: unknown): number {
     if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
     else s = s.replace(/,/g, "");
   } else if (hasComma) {
-    s = s.replace(",", ".");
-  } else if (hasDot && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+    // "1,234,567" = milhares; "2,45" = decimal
+    s = /^-?\d{1,3}(,\d{3}){2,}$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  } else if (hasDot && /^-?[1-9]\d{0,2}(\.\d{3})+$/.test(s)) {
+    // "3.276.000" e "1.234" = milhares; "0.125" (zero à esquerda) não
     s = s.replace(/\./g, "");
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** Percentual: nunca passa de 100, então "33.333" é 33,333% (ponto como decimal). */
+export function toPct(v: unknown): number {
+  if (typeof v === "string") {
+    const t = v.trim().replace(/\s|%/g, "");
+    if (/^-?\d+\.\d+$/.test(t)) return Number(t);
+  }
+  return toNumber(v);
 }
 
 export function parseLigacao(raw: unknown): Ligacao | null {

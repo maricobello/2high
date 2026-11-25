@@ -3,7 +3,7 @@
  * vindas de planilha (.xlsx/.csv) ou de texto colado do Orange.
  * Independe de biblioteca: o leitor de Excel só converte cada aba em grade.
  */
-import { CONSUMO_MINIMO, norm, parseLigacao, toNumber, ucKey } from "./normalize";
+import { CONSUMO_MINIMO, norm, parseLigacao, toNumber, toPct, ucKey } from "./normalize";
 import type { Candidata, ConsumoMes, UcAtual, Usina } from "./types";
 
 export type Cell = string | number | boolean | Date | null | undefined;
@@ -19,7 +19,7 @@ type FieldMap<K extends string> = Record<K, string[]>;
 const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "subgrupo" | "pct" | "saldo" | "compensavel" | "compensado"> = {
   usina: ["nome da usina", "usina", "usina gd", "unidade geradora"],
   idUnidade: ["id da unidade", "id unidade", "id"],
-  instalacao: ["no de instalacao", "n de instalacao", "numero de instalacao", "numero da instalacao", "instalacao", "uc", "unidade consumidora", "codigo da uc"],
+  instalacao: ["no de instalacao", "n de instalacao", "no da instalacao", "no instalacao", "n instalacao", "numero de instalacao", "numero da instalacao", "instalacao", "uc", "numero da uc", "unidade consumidora", "codigo da uc"],
   apelido: ["apelido da unidade", "apelido", "endereco id", "nome da unidade"],
   subgrupo: ["subgrupo", "sub grupo", "grupo tarifario"],
   pct: ["% do rateio", "% rateio", "rateio %", "rateio", "percentual", "percentual do rateio", "% atual"],
@@ -28,19 +28,18 @@ const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "su
   compensado: ["consumo compensado kwh", "consumo compensado", "compensado", "consumo compensado (kwh)"],
 };
 
-const CAND_FIELDS: FieldMap<"instalacao" | "apelido" | "concessionaria" | "mes" | "status" | "ligacao" | "mercado" | "usina" | "media" | "consMin" | "compensavel" | "naUsinaGd"> = {
-  instalacao: ["uc", "instalacao", "no de instalacao", "numero de instalacao", "unidade consumidora"],
+const CAND_FIELDS: FieldMap<"instalacao" | "apelido" | "concessionaria" | "mes" | "status" | "ligacao" | "mercado" | "naUsinaGd" | "media" | "consMin" | "compensavel"> = {
+  instalacao: ["uc", "instalacao", "no de instalacao", "no da instalacao", "no instalacao", "n instalacao", "numero de instalacao", "numero da uc", "unidade consumidora"],
   apelido: ["endereco id", "apelido", "apelido da unidade", "nome"],
   concessionaria: ["concessionaria", "distribuidora"],
   mes: ["mes referencia", "mes de referencia", "referencia"],
   status: ["status", "situacao"],
   ligacao: ["tipo tensao", "tipo de tensao", "tipo de ligacao", "ligacao", "fases"],
   mercado: ["mercado"],
-  usina: ["usina"],
+  naUsinaGd: ["na usina gd", "usina gd atual", "usina gd", "ja na usina"],
   media: ["media kwh", "media", "consumo medio", "consumo medio kwh", "media de consumo"],
   consMin: ["cons. min", "cons min", "consumo minimo", "custo de disponibilidade"],
   compensavel: ["compensavel", "compensavel kwh"],
-  naUsinaGd: ["na usina gd", "usina gd atual", "ja na usina"],
 };
 
 const CAL_FIELDS: FieldMap<"mes" | "concessionaria" | "usina" | "ucs" | "grupo" | "fornecedor" | "responsavel" | "idReplace" | "versao" | "etapasOk" | "pct" | "etapa" | "status" | "prazo" | "atraso" | "resultado" | "motivo" | "proxima"> = {
@@ -120,7 +119,7 @@ export function parseUcs(grid: Grid): UcAtual[] | null {
       instalacao: inst,
       apelido: text(get(row, h.map.apelido)),
       subgrupo: text(get(row, h.map.subgrupo)),
-      pctAtual: toNumber(get(row, h.map.pct)),
+      pctAtual: toPct(get(row, h.map.pct)),
       saldoKwh: toNumber(get(row, h.map.saldo)),
       compensavelKwh: toNumber(get(row, h.map.compensavel)),
       compensadoKwh: toNumber(get(row, h.map.compensado)),
@@ -376,6 +375,9 @@ export function importarSheets(sheets: Sheet[]): Importacao {
         grupos.set(k, [...(grupos.get(k) ?? []), uc]);
       }
       for (const [nomeUsina, lista] of grupos) {
+        // percentual em fração (0,0245) em vez de 2,45, conferido por usina
+        const somaPct = lista.reduce((a, uc) => a + uc.pctAtual, 0);
+        if (grupos.size > 1 && somaPct > 0 && somaPct <= 1.001) for (const uc of lista) uc.pctAtual *= 100;
         const u = usinaVazia(nomeCurtoUsina(nomeUsina));
         u.ucs = lista;
         if (dados && grupos.size === 1) {
@@ -421,5 +423,19 @@ export function textoParaGrid(txt: string): Grid {
   const linhas = txt.replace(/\r/g, "").split("\n").filter((l) => l.trim());
   if (!linhas.length) return [];
   const sep = linhas[0].includes("\t") ? "\t" : linhas[0].includes(";") ? ";" : ",";
-  return linhas.map((l) => l.split(sep).map((c) => c.trim().replace(/^"(.*)"$/, "$1")));
+  const dividir = (l: string) => {
+    const out: string[] = [];
+    let campo = "";
+    let aspas = false;
+    for (const ch of l) {
+      if (ch === '"') aspas = !aspas;
+      else if (ch === sep && !aspas) {
+        out.push(campo.trim());
+        campo = "";
+      } else campo += ch;
+    }
+    out.push(campo.trim());
+    return out;
+  };
+  return linhas.map(dividir);
 }

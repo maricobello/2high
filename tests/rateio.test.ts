@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analisarProjeto, arredondarRateio, simular } from "@/modules/rateio/engine";
 import { importarSheets, nomeCurtoUsina, parseCandidatas, parseUcs, textoParaGrid, usinaVazia } from "@/modules/rateio/grid";
-import { toNumber, ucKey } from "@/modules/rateio/normalize";
+import { toNumber, toPct, ucKey } from "@/modules/rateio/normalize";
 import { PARAMETROS_PADRAO, type Candidata, type Parametros, type UcAtual, type Usina } from "@/modules/rateio/types";
 
 const P: Parametros = { ...PARAMETROS_PADRAO };
@@ -156,5 +156,57 @@ describe("leitura de planilhas", () => {
       ["UFV SAFIRA", 2, "CELESC"],
       ["UFV TURQUESA", 1, "CELESC"],
     ]);
+  });
+});
+
+describe("correções da revisão", () => {
+  it("números: zero à esquerda é decimal, milhares com vírgula, percentual com ponto", () => {
+    expect(toNumber("0.125")).toBeCloseTo(0.125);
+    expect(toNumber("1,234,567")).toBe(1234567);
+    expect(toNumber("-1.234")).toBe(-1234);
+    expect(toPct("33.333")).toBeCloseTo(33.333);
+    expect(toPct("2,45")).toBeCloseTo(2.45);
+  });
+
+  it("percentual em fração é convertido por usina num export com várias", () => {
+    const head = ["Nome da Usina", "N° de Instalação", "% do Rateio", "Saldo kWh", "Consumo Compensável kWh"];
+    const imp = importarSheets([{ name: "x", grid: [head, ["UFV A", "1", 0.6, 0, 100], ["UFV A", "2", 0.4, 0, 100], ["UFV B", "3", 0.5, 0, 100], ["UFV B", "4", 0.5, 0, 100]] }]);
+    expect(imp.usinas.flatMap((u) => u.ucs.map((c) => c.pctAtual))).toEqual([60, 40, 50, 50]);
+  });
+
+  it("CSV com vírgula respeita aspas", () => {
+    const g = textoParaGrid('N° de Instalação,% do Rateio,Consumo Compensável\n123,"2,45",100');
+    expect(parseUcs(g)![0]).toMatchObject({ pctAtual: 2.45, compensavelKwh: 100 });
+  });
+
+  it("sem retirada, UC sem necessidade fica no mínimo e não some", () => {
+    const u = usina([uc("A", 50, 1000), uc("B", 30, 1000, 100000), uc("Z", 20, 0)], 900);
+    const r = analisarProjeto([u], [], { ...P, permitirRetirar: false, incluirNovasUcs: false }).usinas[0];
+    expect(r.linhas.map((l) => l.pctProposto)).toEqual([99.98, 0.01, 0.01]);
+    expect(r.indicadores.retiradas).toBe(0);
+  });
+
+  it("qualquer mudança de percentual sai como aumentar ou reduzir", () => {
+    const u = usina([uc("A", 60, 1000), uc("B", 40, 600)], 1000);
+    const r = analisarProjeto([u], [], { ...P, incluirNovasUcs: false }).usinas[0];
+    expect(r.linhas.map((l) => l.acao)).toEqual(["aumentar", "reduzir"]);
+  });
+
+  it("alerta quando as casas decimais não comportam todas as UCs", () => {
+    const ucs = Array.from({ length: 150 }, (_, i) => uc(`U${i}`, 100 / 150, 1000));
+    const r = analisarProjeto([usina(ucs, 100000)], [], { ...P, casasDecimais: 0, pctMinimo: 1, incluirNovasUcs: false }).usinas[0];
+    expect(r.alertas[0].codigo).toBe("casas_insuficientes");
+  });
+
+  it("mês de início fora do intervalo não gera NaN", () => {
+    const r = simular([{ pct: 100, saldo: 0, comp: 100 }], usina([], 100), { ...P, mesInicio: 0 });
+    expect(Number.isFinite(r.saldoFinal)).toBe(true);
+  });
+
+  it("candidata com 'Na Usina GD' preenchida não é elegível e cabeçalhos variantes são lidos", () => {
+    const c = parseCandidatas([["Nº da Instalação", "Média kWh", "Na Usina GD"], ["123", 5000, "UFV X"]])!;
+    expect(c[0].naUsinaGd).toBe("UFV X");
+    const u = parseUcs([["N° Instalação", "% do Rateio", "Consumo Compensável kWh"], ["9", 100, 10]])!;
+    expect(u).toHaveLength(1);
   });
 });
