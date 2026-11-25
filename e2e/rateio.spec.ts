@@ -24,6 +24,10 @@ test.describe("admin: rateio GD", () => {
     await expect(page.getByRole("heading", { name: "Saldo de créditos projetado" })).toBeVisible();
     await expect(page.getByText("Soma: 100%")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Pontos de atenção" })).toBeVisible();
+    // máximo compensável: ótimo calculado em segundo plano e linha na comparação
+    await expect(page.getByRole("heading", { name: "Máximo compensável" })).toBeVisible();
+    await expect(page.getByText("Planilha modelo (célula M8)")).toBeVisible();
+    await expect(page.getByText("Máximo compensável efetivo")).toBeVisible();
 
     await page.getByRole("button", { name: "Gerar parecer" }).click();
     await expect(page.getByLabel("Texto do parecer")).toHaveValue(/Estudo de revisão do rateio|rateio/i, { timeout: 30_000 });
@@ -59,5 +63,13 @@ test.describe("admin: rateio GD", () => {
     await page.getByRole("button", { name: "Aplicar" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "UFV TESTE" })).toBeVisible();
     await expect(page.getByText("Falta a injeção da usina")).toBeVisible();
+
+    // energia consumida: o período abre uma competência por mês; colar a coluna preenche em sequência
+    await page.getByLabel("Início do período").fill("2026-01");
+    await page.getByLabel("Fim do período").fill("2026-03");
+    await expect(page.getByLabel(/Energia consumida em/)).toHaveCount(3);
+    await page.getByLabel("Energia consumida em jan/26").fill("1000");
+    await page.getByLabel("Energia consumida em fev/26").fill("2000");
+    await expect(page.getByText(/Total 3\.000 kWh · média 1\.500 kWh\/mês/)).toBeVisible();
   });
 });

@@ -14,6 +14,7 @@
  *     atual, o proposto e um cenário de estresse com consumo menor.
  */
 import { round } from "./normalize";
+import { resumoConsumo } from "./consumo";
 import type {
   Acao,
   Alerta,
@@ -531,8 +532,8 @@ function calcularIndicadores(u: Usina, linhas: LinhaRateio[], N: number, p: Para
   const m = u.meses > 0 ? u.meses : 1;
   const contratada = u.energiaContratadaPeriodo / m;
   const gerada = u.energiaGeradaPeriodo / m;
-  const consumoTotal = u.consumoMensal.reduce((a, c) => a + c.kwh, 0);
-  const consumo = u.consumoMensal.length ? consumoTotal / u.consumoMensal.length : 0;
+  // energia consumida no período (Relatório Gerencial GD): média das competências informadas
+  const consumo = resumoConsumo(u).media;
   const atuais = linhas.filter((l) => l.origem === "atual");
   const compAtual = atuais.reduce((a, l) => a + Math.max(0, l.compensavelKwh), 0);
   const necAtual = atuais.reduce((a, l) => a + l.necessidadeKwh, 0);

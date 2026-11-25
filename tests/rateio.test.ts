@@ -210,3 +210,28 @@ describe("correções da revisão", () => {
     expect(u).toHaveLength(1);
   });
 });
+
+describe("mesma usina em mais de uma aba", () => {
+  it("junta abas com as mesmas UCs e tira o nome do título quando falta a coluna", () => {
+    const comNome = [
+      ["Nome da Usina", "N° de Instalação", "% do Rateio", "Saldo kWh", "Consumo Compensável kWh"],
+      ["#1 - TIM X CELESC UFV TESTE", "111111", 60, 0, 100],
+      ["#1 - TIM X CELESC UFV TESTE", "222222", 40, 0, 100],
+    ];
+    const semNome = [
+      ["Rateio Otimizado GD — UFV Teste (#1 TIM)"],
+      [],
+      ["N° de Instalação", "% do Rateio", "Saldo kWh", "Consumo Compensável kWh"],
+      ["111111", 60, 0, 100],
+      ["222222", 40, 0, 100],
+    ];
+    const vazia = [["UC", "Endereço ID", "Média kWh", "Compensável"], ["", "", "", 0]];
+    const imp = importarSheets([
+      { name: "Rateio Teste", grid: semNome },
+      { name: "Análise do Rateio", grid: comNome },
+      { name: "Novas UCs", grid: vazia },
+    ]);
+    expect(imp.usinas.map((u) => [u.nome, u.ucs.length])).toEqual([["UFV TESTE", 2]]);
+    expect(imp.avisos.some((a) => a.includes("lista de novas UCs vazia"))).toBe(true);
+  });
+});

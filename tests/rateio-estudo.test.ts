@@ -70,6 +70,16 @@ describe("planilha modelo", () => {
     const menor = [...ru.linhas].sort((a, b) => b.compensavelKwh - a.compensavelKwh).at(-1)!;
     expect(ws.getCell(`C${ultima}`).value).toBe(menor.instalacao);
     expect((ws.getCell("H15").value as { formula: string }).formula).toBe(`SUM(H17:H${Math.max(174, ultima)})`);
+    // Máximo Compensável (M8) = ótimo calculado para as fórmulas da planilha
+    const { sugerirMaximoPlanilha } = await import("@/modules/rateio/otimo-cobertura");
+    expect(ws.getCell("M8").value).toBe(sugerirMaximoPlanilha(u, ru, p, u.maximoCompensavelPlanilha ?? 0.9)!.cobertura);
+    // energia consumida por competência: mais recente primeiro, total em C9 (fórmula T13)
+    const uc = { ...u, periodoInicio: "2026-01-01", periodoFim: "2026-03-01", meses: 3, consumoMensal: [{ mes: "2026-01", kwh: 100 }, { mes: "2026-02", kwh: 200 }, { mes: "2026-03", kwh: 300 }] };
+    const wb2 = new ExcelJS.Workbook();
+    await wb2.xlsx.load(await (await preencherModelo(uc, ru, r.candidatas, p)).arrayBuffer());
+    const ws2 = wb2.getWorksheet("Análise do Rateio")!;
+    expect([ws2.getCell("S4").value, ws2.getCell("T4").value, ws2.getCell("S6").value, ws2.getCell("T6").value]).toEqual(["MAR/26", 300, "JAN/26", 100]);
+    expect((ws2.getCell("C9").value as { formula: string }).formula).toBe("T13");
     // modelo em branco importado não vira usina
     const imp = importarSheets(await lerXlsx(await (await modeloEmBranco()).arrayBuffer()));
     expect(imp.usinas).toHaveLength(0);

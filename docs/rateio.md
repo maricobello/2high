@@ -12,8 +12,8 @@ geração distribuída e entregar o estudo em Excel.
      ("Análise do Rateio"). Colunas usadas: N° de Instalação, % do Rateio, Saldo kWh,
      Consumo Compensável kWh (e, se houver, Nome da Usina, ID, Apelido, Subgrupo,
      Consumo Compensado). Um export com várias usinas é separado pela coluna Nome da Usina.
-     A planilha modelo também traz período, energia contratada, gerada, injetada e o
-     "Máximo Compensável" (vira a cobertura).
+     A planilha modelo também traz período, energia contratada, gerada, injetada, consumo
+     mensal e o "Máximo Compensável" (fica só como referência: o sistema calcula o ótimo).
    - **Novas UCs**: UC, Endereço ID, Tipo Tensão, Média kWh (Cons. Min opcional).
 2. **Colar tabela**: copie do Orange ou do Excel, com o cabeçalho.
 3. **Fatura e tela do Orange** (na aba da usina, ou arrastando o arquivo com a usina aberta):
@@ -38,6 +38,15 @@ geração distribuída e entregar o estudo em Excel.
    - **Ganho em R$**: informe a tarifa média das UCs e o estudo mostra quanto o rateio proposto
      compensa a mais que o atual, em kWh e em reais (estimativa).
 4. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
+   - **Energia consumida no período**: com o início e o fim do período preenchidos, abre um campo
+     por competência. Para cada uma: Orange → Relatório Gerencial GD → competência → última aba →
+     total. Dá para colar a coluna do Excel no primeiro mês. Total e média aparecem na hora; a
+     média entra no balanço (consumida ÷ contratada) e na planilha modelo (S4:T12).
+   - **Máximo compensável** (card na usina): no otimizado é livre por UC, e o card mostra o
+     efetivo de hoje e do proposto. Para a regra proporcional, o sistema testa 50% a 100% com a
+     projeção completa e sugere o ótimo ("Aplicar"). Para a planilha modelo, aplica as fórmulas
+     dela (colunas L a N) a cada valor de 0% a 100% e exporta o M8 ótimo. A comparação de
+     métodos ganha a linha "Máximo compensável efetivo".
 5. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
 6. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
 7. **Exportar** (botão "Exportar estudo" para todas as usinas, ou "Exportar" na usina) abre a
@@ -90,6 +99,18 @@ antes do envio e a ficha de cada UC (diagnóstico, números e saldo mês a mês)
 
 Com cerca de 160 UCs e 80 candidatas, a solução ótima sai em poucos segundos.
 
+### Máximo compensável
+
+- **Otimizado**: livre. O modelo decide quanto do compensável de cada UC o crédito novo cobre;
+  o efetivo (crédito ÷ compensável) aparece no card e na comparação.
+- **Regra proporcional**: parâmetro. O ótimo é uma busca de 50% a 100% (passo de 1 ponto) com a
+  projeção completa em cada ponto e o critério do otimizado (consumo médio 60%, menor 40%, custo
+  por UC nova). Roda em segundo plano (~1,5 s com 300 UCs).
+- **Planilha modelo (M8)**: a regra dela é L = saldo × 30% (se compensável + agregado > injeção),
+  M = L > compensável ? compensável × M8 : compensável − L, N = M ÷ ΣM. O M8 só muda o
+  percentual das UCs que gastariam mais saldo que o compensável; o sistema testa 0% a 100% e
+  exporta o melhor (empate: mantém o valor que a planilha usava).
+
 ### Regra proporcional (comparação)
 
 - **Necessidade de cada UC** = compensável × cobertura, reduzida quando a UC tem saldo
@@ -120,4 +141,5 @@ Casas decimais aceitas variam por distribuidora (CPFL: até 2); confirme com a C
 | Excel (leitura e exportação, no navegador) | `src/modules/rateio/xlsx.ts` |
 | Parecer (resumo agregado e texto padrão) | `src/modules/rateio/parecer.ts`, `src/modules/llm/tasks/rateio.ts` |
 | Tela | `src/components/admin/rateio/` |
-| Testes | `tests/rateio.test.ts`, `tests/rateio-otimizador.test.ts`, `tests/rateio-fontes.test.ts`, `e2e/rateio.spec.ts` |
+| Máximo compensável ótimo e energia consumida | `src/modules/rateio/otimo-cobertura.ts`, `src/modules/rateio/consumo.ts` |
+| Testes | `tests/rateio.test.ts`, `tests/rateio-otimizador.test.ts`, `tests/rateio-fontes.test.ts`, `tests/rateio-maximo.test.ts`, `e2e/rateio.spec.ts` |

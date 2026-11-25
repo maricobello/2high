@@ -371,8 +371,9 @@ export function importarSheets(sheets: Sheet[]): Importacao {
       if (dados?.maximoCompensavel) imp.maximoCompensavel = dados.maximoCompensavel;
       // separa por usina quando o export traz mais de uma
       const grupos = new Map<string, UcAtual[]>();
+      const titulo = nomeNoTitulo(grid);
       for (const uc of ucs) {
-        const k = uc.usina || dados?.nome || name;
+        const k = uc.usina || dados?.nome || titulo || name;
         grupos.set(k, [...(grupos.get(k) ?? []), uc]);
       }
       for (const [nomeUsina, lista] of grupos) {
@@ -390,6 +391,7 @@ export function importarSheets(sheets: Sheet[]): Importacao {
             energiaGeradaPeriodo: dados.energiaGeradaPeriodo,
             energiaInjetadaPeriodo: dados.energiaInjetadaPeriodo,
             consumoMensal: dados.consumoMensal,
+            maximoCompensavelPlanilha: dados.maximoCompensavel,
           });
           if (/celesc/i.test(nomeUsina + dados.nome)) u.distribuidora = "CELESC";
         }
@@ -406,6 +408,10 @@ export function importarSheets(sheets: Sheet[]): Importacao {
       imp.avisos.push(`"${name}": ${cand.length} UCs candidatas`);
       continue;
     }
+    if (cand) {
+      imp.avisos.push(`"${name}": lista de novas UCs vazia`);
+      continue;
+    }
     const dados = parseDadosUsina(grid);
     if (dados) {
       const u = usinaVazia(nomeCurtoUsina(dados.nome || name));
@@ -416,7 +422,56 @@ export function importarSheets(sheets: Sheet[]): Importacao {
     }
     if (grid.some((r) => r.some((c) => text(c)))) imp.avisos.push(`"${name}": formato não reconhecido, ignorada`);
   }
+  imp.usinas = juntarRepetidas(imp.usinas, imp.avisos);
   return imp;
+}
+
+/** Nome da usina num título da aba (ex.: "Rateio Otimizado GD — UFV Safira (#399 …)" → "UFV SAFIRA"). */
+function nomeNoTitulo(grid: Grid): string {
+  for (let r = 0; r < Math.min(6, grid.length); r++)
+    for (const c of grid[r] ?? []) {
+      const m = /\b(UFV|CGH|PCH|EOL|UTE)\s+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .'-]*?)(?=\s*[(\-—–,|]|$)/i.exec(text(c));
+      if (m) return `${m[1].toUpperCase()} ${m[2].trim().toUpperCase()}`;
+    }
+  return "";
+}
+
+/**
+ * A mesma usina pode vir em mais de uma aba ou arquivo (ex.: aba de análise e aba de
+ * cálculo com as mesmas UCs). Junta usinas com o mesmo nome ou com 80%+ das UCs em comum,
+ * ficando com a versão mais completa (dados da usina e mais UCs).
+ */
+function juntarRepetidas(usinas: Usina[], avisos: string[]): Usina[] {
+  const out: Usina[] = [];
+  const completude = (u: Usina) => (u.meses > 0 ? 1e6 : 0) + u.ucs.length;
+  for (const u of usinas) {
+    const chaves = new Set(u.ucs.map((c) => c.key));
+    const igual = out.find((o) => {
+      if (norm(o.nome) === norm(u.nome)) return true;
+      if (!o.ucs.length || !u.ucs.length) return false;
+      const comuns = o.ucs.filter((c) => chaves.has(c.key)).length;
+      return comuns / Math.min(o.ucs.length, u.ucs.length) >= 0.8;
+    });
+    if (!igual) {
+      out.push(u);
+      continue;
+    }
+    const [melhor, outra] = completude(u) > completude(igual) ? [u, igual] : [igual, u];
+    // nome mais informativo: o que parece nome de usina (UFV/CGH…), senão o da versão mais completa
+    const nome = [melhor.nome, outra.nome].find((n) => /^(UFV|CGH|PCH|EOL|UTE)\s/i.test(n)) ?? melhor.nome;
+    const junta: Usina = {
+      ...melhor,
+      id: igual.id,
+      nome,
+      ucs: melhor.ucs.length ? melhor.ucs : outra.ucs,
+      distribuidora: melhor.distribuidora || outra.distribuidora,
+      ...(melhor.meses > 0 ? {} : outra.meses > 0 ? { periodoInicio: outra.periodoInicio, periodoFim: outra.periodoFim, meses: outra.meses, energiaContratadaPeriodo: outra.energiaContratadaPeriodo, energiaGeradaPeriodo: outra.energiaGeradaPeriodo, energiaInjetadaPeriodo: outra.energiaInjetadaPeriodo, consumoMensal: outra.consumoMensal } : {}),
+    };
+    out[out.indexOf(igual)] = junta;
+    const aviso = norm(outra.nome) === norm(melhor.nome) ? `${nome} veio em mais de uma aba ou arquivo: considerada uma usina só (${junta.ucs.length} UCs)` : `${outra.nome} e ${melhor.nome} têm as mesmas UCs: consideradas uma usina só, ${nome}`;
+    if (!avisos.includes(aviso)) avisos.push(aviso);
+  }
+  return out;
 }
 
 /** Converte texto colado (tabulação, ponto e vírgula ou vírgula) em grade. */

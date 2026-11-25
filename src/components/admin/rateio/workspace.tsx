@@ -34,6 +34,8 @@ import { interpretarSolucao, montarModelo, OPCOES_SOLVER, type ModeloLp } from "
 import { montarResumo, parecerPadrao } from "@/modules/rateio/parecer";
 import { PARAMETROS_PADRAO, type Alerta, type Candidata, type OtimizacaoResultado, type Parametros, type ResultadoProjeto, type ResultadoUsina, type Usina } from "@/modules/rateio/types";
 import { METODOLOGIA } from "@/modules/rateio/metodologia";
+import { coberturaEfetiva, sugerirCobertura, sugerirMaximoPlanilha, type SugestaoCobertura } from "@/modules/rateio/otimo-cobertura";
+import { competencias, definirConsumo, numerosColados, resumoConsumo, rotuloCompetencia } from "@/modules/rateio/consumo";
 import { SaldoChart } from "./chart";
 import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
 import { autoAplicar } from "@/modules/rateio/automacao";
@@ -121,6 +123,10 @@ export interface Destinos {
   usarDados: Record<string, boolean>;
 }
 
+function avisoMaximo(v: number): string {
+  return `A planilha usa Máximo Compensável de ${Math.round(v * 100)}%. O sistema calcula o valor ótimo (veja "Máximo compensável" na usina).`;
+}
+
 function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Destinos): { estado: Estado; abrir: string | null } {
   const base = atual.exemplo ? { ...VAZIO, params: atual.params, marca: atual.marca } : atual;
   const calendario = imp.calendario.length ? imp.calendario : base.calendario;
@@ -144,6 +150,7 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
         ...(nova.meses > 0 && usarDados
           ? { periodoInicio: nova.periodoInicio, periodoFim: nova.periodoFim, meses: nova.meses, energiaContratadaPeriodo: nova.energiaContratadaPeriodo, energiaGeradaPeriodo: nova.energiaGeradaPeriodo, energiaInjetadaPeriodo: nova.energiaInjetadaPeriodo, consumoMensal: nova.consumoMensal }
           : {}),
+        ...(nova.maximoCompensavelPlanilha != null ? { maximoCompensavelPlanilha: nova.maximoCompensavelPlanilha } : {}),
       };
       abrir = u.id;
     } else {
@@ -154,7 +161,8 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
   // candidatas reimportadas substituem as antigas; repetidas no mesmo arquivo ficam (o motor aponta a duplicidade)
   const novasKeys = new Set(imp.candidatas.map((c) => c.key));
   const candidatas = [...base.candidatas.filter((c) => !novasKeys.has(c.key)), ...imp.candidatas];
-  const params = imp.maximoCompensavel ? { ...base.params, cobertura: Math.min(1, Math.max(0.1, imp.maximoCompensavel)) } : base.params;
+  // o "Máximo Compensável" da planilha fica só como referência: o sistema calcula o ótimo
+  const params = base.params;
   return {
     estado: { ...base, usinas: usinas.map((u) => vincularCalendario(u, calendario)), candidatas, calendario, params, exemplo: false },
     abrir: abrir ?? (imp.calendario.length ? "calendario" : imp.candidatas.length ? "candidatas" : null),
@@ -199,6 +207,18 @@ export function RateioWorkspace() {
   const resultado = useMemo(() => analisarProjeto(usinasD, candD, paramsD, otim), [usinasD, candD, paramsD, otim]);
   // regra proporcional, sempre calculada, para comparar com o otimizado
   const resultadoProp = useMemo(() => (paramsD.metodo === "otimizado" ? analisarProjeto(usinasD, candD, { ...paramsD, metodo: "proporcional" }) : resultado), [usinasD, candD, paramsD, resultado]);
+
+  // máximo compensável ótimo da regra proporcional: busca de 50% a 100% (~1,5 s), depois que a tela assenta
+  const [sugCob, setSugCob] = useState<{ chave: string; s: SugestaoCobertura | null } | null>(null);
+  const chaveCob = useMemo(() => JSON.stringify([resultadoProp.chave, { ...paramsD, cobertura: 0, metodo: "" }]), [resultadoProp.chave, paramsD]);
+  useEffect(() => {
+    if (sugCob?.chave === chaveCob) return;
+    if (!usinasD.some((u) => u.ucs.length && injecaoMensal(u) > 0)) return;
+    const t = setTimeout(() => setSugCob({ chave: chaveCob, s: sugerirCobertura(usinasD, candD, paramsD) }), 900);
+    return () => clearTimeout(t);
+  }, [chaveCob, sugCob?.chave, usinasD, candD, paramsD]);
+  const sugestaoCobertura = sugCob?.chave === chaveCob ? sugCob.s : undefined;
+  const aplicarCobertura = (c: number) => setEstado((e) => ({ ...e, params: { ...e.params, cobertura: c } }));
 
   // otimização em segundo plano (Web Worker com HiGHS)
   const workerRef = useRef<Worker | null>(null);
@@ -302,7 +322,7 @@ export function RateioWorkspace() {
       setEstado(novo);
       if (abrir) setAba(abrir);
       const avisosImp = imp.avisos.length ? imp.avisos : ["Nenhuma tabela reconhecida no arquivo."];
-      setAvisos(imp.maximoCompensavel ? [...avisosImp, `Cobertura ajustada para ${Math.round(novo.params.cobertura * 100)}% (Máximo Compensável da planilha).`] : avisosImp);
+      setAvisos(imp.maximoCompensavel ? [...avisosImp, avisoMaximo(imp.maximoCompensavel)] : avisosImp);
     } catch (err) {
       setAvisos([`Não foi possível ler o arquivo: ${err instanceof Error ? err.message : "formato inválido"}`]);
     } finally {
@@ -421,7 +441,7 @@ export function RateioWorkspace() {
       return `${u.ucs.length} UCs importadas na ${alvoNome}${alvoNome !== u.nome ? ` (a planilha dizia ${u.nome})` : ""}.`;
     });
     const outros = imp.avisos.filter((a) => !/UCs da /.test(a));
-    setAvisos([...nomes, ...outros, ...(imp.maximoCompensavel ? [`Cobertura ajustada para ${Math.round(novo.params.cobertura * 100)}% (Máximo Compensável da planilha).`] : [])]);
+    setAvisos([...nomes, ...outros, ...(imp.maximoCompensavel ? [avisoMaximo(imp.maximoCompensavel)] : [])]);
     setPendente(null);
   }
 
@@ -523,7 +543,7 @@ export function RateioWorkspace() {
           {abaAtual === "parametros" && (
             <div className="space-y-5">
               <IdentidadeEstudo marca={estado.marca} onChange={(m) => setEstado((e) => ({ ...e, marca: m }))} />
-              <ParametrosPainel params={estado.params} onChange={(p) => setEstado((e) => ({ ...e, params: p }))} />
+              <ParametrosPainel params={estado.params} sugestao={sugestaoCobertura} onChange={(p) => setEstado((e) => ({ ...e, params: p }))} />
             </div>
           )}
           {abaAtual === "metodologia" && <Metodologia />}
@@ -534,6 +554,8 @@ export function RateioWorkspace() {
               proporcional={resultadoProp.usinas.find((r) => r.usinaId === usinaAtiva.id)}
               otimizacao={{ rodando: otimRodando || precisaOtimizar, info: otim, metodoPedido: paramsD.metodo, metodoUsado: resultado.metodo }}
               params={estado.params}
+              sugestaoCobertura={sugestaoCobertura}
+              onAplicarCobertura={aplicarCobertura}
               parecer={estado.pareceres[usinaAtiva.id]}
               calendario={itemDoCalendario(estado.calendario, usinaAtiva.nome)}
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
@@ -732,6 +754,8 @@ function UsinaPainel({
   proporcional,
   otimizacao,
   params,
+  sugestaoCobertura,
+  onAplicarCobertura,
   parecer,
   calendario,
   onChange,
@@ -747,6 +771,8 @@ function UsinaPainel({
   proporcional?: ResultadoUsina;
   otimizacao: OtimizacaoUi;
   params: Parametros;
+  sugestaoCobertura?: SugestaoCobertura | null;
+  onAplicarCobertura: (c: number) => void;
   parecer?: Parecer;
   calendario?: ItemCalendario;
   onChange: (p: Partial<Usina>) => void;
@@ -856,6 +882,8 @@ function UsinaPainel({
                 {[
                   ["Injeção mensal", `${kwh(E)} kWh`],
                   ["Contratada mensal", i.contratadaMensal ? `${kwh(i.contratadaMensal)} kWh` : "—"],
+                  ["Consumida mensal (média)", i.consumoMensal ? `${kwh(i.consumoMensal)} kWh` : "—"],
+                  ["Consumida ÷ contratada", ratio(i.consumoSobreContratada)],
                   ["Injetada ÷ contratada", ratio(i.injetadaSobreContratada)],
                   ["Gerada ÷ contratada", ratio(i.geradaSobreContratada)],
                   ["Compensável das UCs atuais", `${kwh(i.compensavelTotal)} kWh/mês`],
@@ -877,6 +905,8 @@ function UsinaPainel({
             <Comparacao atual={r} proporcional={proporcional} otimizado={r.metodo === "otimizado" ? r : undefined} otimizacao={otimizacao} params={params} />
             <ValidacaoCard validacoes={r.validacoes} />
           </div>
+
+          <MaximoCompensavel usina={usina} r={r} params={params} sugestao={sugestaoCobertura} onAplicar={onAplicarCobertura} />
 
           {r.alertas.length > 0 && (
             <Card>
@@ -941,6 +971,81 @@ function UsinaPainel({
   );
 }
 
+/** Período a partir de dois meses (AAAA-MM); recalcula o número de meses. */
+function periodo(u: Usina, ini: string, fim: string): Partial<Usina> {
+  const i = ini ? `${ini.slice(0, 7)}-01` : "";
+  const f = fim ? `${fim.slice(0, 7)}-01` : "";
+  const meses = i && f ? competencias({ periodoInicio: i, periodoFim: f, meses: 0 }).length : u.meses;
+  return { periodoInicio: i, periodoFim: f, meses: meses || u.meses, fontePeriodo: "manual" };
+}
+
+function CampoMes({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-foreground/80">{label}</span>
+      <input type="month" value={value ? value.slice(0, 7) : ""} onChange={(e) => onChange(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground [color-scheme:dark] focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none" />
+    </label>
+  );
+}
+
+/** Energia consumida no período: total de cada competência do Relatório Gerencial GD, digitado mês a mês. */
+function EnergiaConsumida({ usina, onChange }: { usina: Usina; onChange: (p: Partial<Usina>) => void }) {
+  const res = resumoConsumo(usina);
+  const contratadaMes = usina.meses > 0 ? usina.energiaContratadaPeriodo / usina.meses : 0;
+  const definir = (competencia: string, v: number | null) => onChange({ consumoMensal: definirConsumo(usina, competencia, v) });
+  // colar uma coluna do Excel preenche a partir do mês em que se colou
+  const colar = (k: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const nums = numerosColados(e.clipboardData.getData("text"));
+    if (nums.length < 2) return;
+    e.preventDefault();
+    let u: Usina = usina;
+    nums.slice(0, res.linhas.length - k).forEach((v, j) => {
+      u = { ...u, consumoMensal: definirConsumo(u, res.linhas[k + j].competencia, v) };
+    });
+    onChange({ consumoMensal: u.consumoMensal });
+  };
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium">Energia consumida no período</p>
+        {res.informados > 0 && (
+          <p className="font-mono text-xs text-muted">
+            Total {kwh(res.total)} kWh · média {kwh(res.media)} kWh/mês{contratadaMes > 0 ? ` · ${ratio(res.media / contratadaMes)} da contratada` : ""}
+          </p>
+        )}
+      </div>
+      <p className="mt-0.5 text-xs text-muted">Orange → Relatório Gerencial GD → escolha a competência → última aba → total. Digite o total de cada mês (ou cole a coluna do Excel no primeiro mês). A média entra no balanço e na planilha modelo.</p>
+      {res.linhas.length === 0 ? (
+        <p className="mt-3 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-muted">Informe o início e o fim do período para abrir os meses.</p>
+      ) : (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            {res.linhas.map((l, k) => (
+              <label key={l.competencia} className="block">
+                <span className="mb-1 block text-xs font-medium text-foreground/80">{rotuloCompetencia(l.competencia)}</span>
+                <span className="relative block">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    value={l.kwh ?? ""}
+                    onChange={(e) => definir(l.competencia, e.target.value === "" ? null : Number(e.target.value))}
+                    onPaste={(e) => colar(k, e)}
+                    aria-label={`Energia consumida em ${rotuloCompetencia(l.competencia)}`}
+                    className="h-10 w-full rounded-lg border border-border bg-card px-3 pr-10 font-mono text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                  />
+                  <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[10px] text-muted">kWh</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {res.faltando > 0 && res.informados > 0 && <p className="mt-2 text-xs text-analysis">{res.faltando} competência(s) sem valor: a média usa só as informadas.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<Usina>) => void }) {
   const faltam = !(usina.energiaInjetadaPeriodo > 0 && usina.meses > 0) && !(usina.injecaoMensalProjetada && usina.injecaoMensalProjetada > 0);
   const [aberto, setAberto] = useState(faltam);
@@ -960,6 +1065,8 @@ function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<U
             <CampoTexto label="Nome da usina" value={usina.nome} onChange={(v) => onChange({ nome: v })} />
             <CampoTexto label="Distribuidora" value={usina.distribuidora} onChange={(v) => onChange({ distribuidora: v })} />
             <CampoTexto label="Fornecedor" value={usina.fornecedor} onChange={(v) => onChange({ fornecedor: v })} />
+            <CampoMes label="Início do período" value={usina.periodoInicio} onChange={(v) => onChange(periodo(usina, v, usina.periodoFim))} />
+            <CampoMes label="Fim do período" value={usina.periodoFim} onChange={(v) => onChange(periodo(usina, usina.periodoInicio, v))} />
             <CampoNumero label="Meses da análise" value={usina.meses || null} onChange={(v) => onChange({ meses: n0(v), fontePeriodo: "manual" })} step="1" />
             <CampoNumero label="Energia contratada no período" sufixo="kWh" value={usina.energiaContratadaPeriodo || null} onChange={(v) => onChange({ energiaContratadaPeriodo: n0(v), fontePeriodo: "manual" })} />
             <CampoNumero label="Energia gerada no período" sufixo="kWh" value={usina.energiaGeradaPeriodo || null} onChange={(v) => onChange({ energiaGeradaPeriodo: n0(v), fontePeriodo: "manual" })} />
@@ -994,12 +1101,7 @@ function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<U
               </div>
             )}
           </div>
-          {usina.consumoMensal.length > 0 && (
-            <div>
-              <p className="text-sm font-medium">Consumo mensal informado</p>
-              <p className="mt-1 font-mono text-xs text-muted">{usina.consumoMensal.map((c) => `${c.mes} ${kwh(c.kwh)}`).join(" · ")}</p>
-            </div>
-          )}
+          <EnergiaConsumida usina={usina} onChange={onChange} />
         </div>
       )}
     </Card>
@@ -1125,7 +1227,7 @@ function Candidatas({ resultado, onImportar, onLimpar }: { resultado: ReturnType
   );
 }
 
-function ParametrosPainel({ params: p, onChange }: { params: Parametros; onChange: (p: Parametros) => void }) {
+function ParametrosPainel({ params: p, sugestao, onChange }: { params: Parametros; sugestao?: SugestaoCobertura | null; onChange: (p: Parametros) => void }) {
   const set = <K extends keyof Parametros>(k: K, v: Parametros[K]) => onChange({ ...p, [k]: v });
   const n = (v: number | null, fallback: number) => (v == null || !Number.isFinite(v) ? fallback : v);
   return (
@@ -1156,7 +1258,16 @@ function ParametrosPainel({ params: p, onChange }: { params: Parametros; onChang
         ))}
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <CampoNumero label="Cobertura do compensável" sufixo="%" value={Math.round(p.cobertura * 1000) / 10} onChange={(v) => set("cobertura", Math.min(1, Math.max(0.1, n(v, 90) / 100)))} dica="Parte do consumo compensável que o crédito tenta cobrir. O resto é margem para queda de consumo." />
+        <div>
+          <CampoNumero
+            label="Máximo compensável (regra proporcional)"
+            sufixo="%"
+            value={Math.round(p.cobertura * 1000) / 10}
+            onChange={(v) => set("cobertura", Math.min(1, Math.max(0.1, n(v, 90) / 100)))}
+            dica={p.metodo === "otimizado" ? "No otimizado é livre: cada UC recebe o percentual que compensa mais energia. Este valor só vale para a regra proporcional." : "Parte do consumo compensável que o crédito tenta cobrir. O resto é margem para queda de consumo."}
+          />
+          <SugestaoMaximo sugestao={sugestao} atual={p.cobertura} onAplicar={(c) => set("cobertura", c)} />
+        </div>
         <CampoNumero label="Horizonte para gastar o saldo" sufixo="meses" step="1" value={p.horizonteSaldoMeses} onChange={(v) => set("horizonteSaldoMeses", Math.max(1, Math.round(n(v, 12))))} dica="Em quantos meses o saldo acima da reserva deve ser usado." />
         <CampoNumero label="Reserva de saldo" sufixo="meses" value={p.reservaSaldoMeses} onChange={(v) => set("reservaSaldoMeses", Math.max(0, n(v, 1)))} dica="Na regra proporcional, só o saldo acima disso é gasto no horizonte. No otimizado é só desempate: ele gasta o saldo sempre que isso compensa mais energia." />
         <CampoNumero label="Casas decimais do percentual" step="1" value={p.casasDecimais} onChange={(v) => set("casasDecimais", Math.min(6, Math.max(0, Math.round(n(v, 2)))))} dica="Confirme com a distribuidora (CPFL aceita até 2)." />
@@ -1283,6 +1394,115 @@ function MetodoInfo({ otimizacao: o }: { otimizacao: OtimizacaoUi }) {
   );
 }
 
+function SugestaoMaximo({ sugestao, atual, onAplicar }: { sugestao?: SugestaoCobertura | null; atual: number; onAplicar: (c: number) => void }) {
+  if (sugestao === undefined) return <p className="mt-1.5 text-[11px] text-muted">Calculando o valor ótimo…</p>;
+  if (!sugestao) return null;
+  const igual = Math.abs(sugestao.cobertura - atual) < 0.005;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+      <span className="text-muted">
+        Ótimo calculado: <strong className="font-mono text-foreground">{Math.round(sugestao.cobertura * 100)}%</strong>
+        {!igual && sugestao.ganhoKwh > 0.5 && <span className="text-opportunity"> · +{kwh(sugestao.ganhoKwh)} kWh compensados</span>}
+        {igual && " · em uso"}
+      </span>
+      {!igual && (
+        <button type="button" onClick={() => onAplicar(sugestao.cobertura)} className="font-semibold text-primary-text hover:underline">
+          Aplicar
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Curva valor × máximo compensável (mini gráfico). */
+function CurvaMaximo({ curva, marcado, rotulo }: { curva: { cobertura: number; valor: number }[]; marcado: number; rotulo: string }) {
+  if (curva.length < 2) return null;
+  const W = 240;
+  const H = 56;
+  const xs = curva.map((c) => c.cobertura);
+  const vs = curva.map((c) => c.valor);
+  const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
+  const [v0, v1] = [Math.min(...vs), Math.max(...vs)];
+  const px = (x: number) => ((x - x0) / (x1 - x0 || 1)) * (W - 8) + 4;
+  const py = (v: number) => (v1 - v0 < 1 ? H / 2 : H - 6 - ((v - v0) / (v1 - v0)) * (H - 12));
+  const d = curva.map((c, k) => `${k ? "L" : "M"}${px(c.cobertura).toFixed(1)},${py(c.valor).toFixed(1)}`).join(" ");
+  const m = curva.reduce((a, b) => (Math.abs(b.cobertura - marcado) < Math.abs(a.cobertura - marcado) ? b : a));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-14 w-full max-w-60" role="img" aria-label={rotulo}>
+      <path d={d} fill="none" stroke="var(--primary)" strokeWidth="1.5" />
+      <circle cx={px(m.cobertura)} cy={py(m.valor)} r="3.5" fill="var(--volt)" />
+      <text x="4" y={H - 1} fontSize="8" fill="var(--muted)">{Math.round(x0 * 100)}%</text>
+      <text x={W - 4} y={H - 1} fontSize="8" fill="var(--muted)" textAnchor="end">{Math.round(x1 * 100)}%</text>
+    </svg>
+  );
+}
+
+function MaximoCompensavel({ usina, r, params, sugestao, onAplicar }: { usina: Usina; r: ResultadoUsina; params: Parametros; sugestao?: SugestaoCobertura | null; onAplicar: (c: number) => void }) {
+  const ref = usina.maximoCompensavelPlanilha ?? 0.9;
+  const planilha = useMemo(() => sugerirMaximoPlanilha(usina, r, params, ref), [usina, r, params, ref]);
+  const efAtual = coberturaEfetiva(r, "atual");
+  const efProp = coberturaEfetiva(r, "proposto");
+  const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+  const difPlanilha = planilha ? r.proposto.compensadoTotal - planilha.melhor.compensadoMedio : 0;
+  return (
+    <Card>
+      <div className="border-b border-border px-4 py-3">
+        <h3 className="font-semibold">Máximo compensável</h3>
+        <p className="text-xs text-muted">Quanto do consumo compensável o crédito novo cobre. No otimizado é livre por UC; para a regra proporcional e para a planilha modelo, o sistema testa cada valor com a projeção de {params.mesesSimulacao} meses e fica com o que compensa mais energia.</p>
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)] divide-y divide-border/60 md:grid-cols-3 md:divide-x md:divide-y-0">
+        <div className="p-4">
+          <p className="text-xs text-muted">{r.metodo === "otimizado" ? "Rateio otimizado (livre por UC)" : "Rateio proposto"}</p>
+          <p className="mt-1 font-mono text-2xl font-semibold">{pct(efProp)}</p>
+          <p className="mt-1 text-xs text-muted">Efetivo no rateio proposto. Hoje: {pct(efAtual)}.</p>
+        </div>
+        <div className="p-4">
+          <p className="text-xs text-muted">Regra proporcional</p>
+          {sugestao === undefined ? (
+            <p className="mt-1 text-sm text-muted">Calculando…</p>
+          ) : sugestao ? (
+            <>
+              <p className="mt-1 font-mono text-2xl font-semibold">{pct(sugestao.cobertura)}</p>
+              <p className="mt-1 text-xs text-muted">
+                Ótimo entre 50% e 100% (em uso: {pct(params.cobertura)}).
+                {Math.abs(sugestao.cobertura - params.cobertura) >= 0.005 && (
+                  <>
+                    {" "}
+                    {sugestao.ganhoKwh > 0.5 && <span className="text-opportunity">+{kwh(sugestao.ganhoKwh)} kWh. </span>}
+                    <button type="button" onClick={() => onAplicar(sugestao.cobertura)} className="font-semibold text-primary-text hover:underline">
+                      Aplicar
+                    </button>
+                  </>
+                )}
+              </p>
+              <CurvaMaximo curva={sugestao.curva} marcado={sugestao.cobertura} rotulo="Energia compensada por máximo compensável, regra proporcional" />
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-muted">—</p>
+          )}
+        </div>
+        <div className="p-4">
+          <p className="text-xs text-muted">Planilha modelo (célula M8)</p>
+          {planilha ? (
+            <>
+              <p className="mt-1 font-mono text-2xl font-semibold">{pct(planilha.cobertura)}</p>
+              <p className="mt-1 text-xs text-muted">
+                {usina.maximoCompensavelPlanilha != null ? `A planilha usava ${pct(usina.maximoCompensavelPlanilha)}. ` : ""}
+                {planilha.ucsAfetadas ? `Vale para ${planilha.ucsAfetadas} UC(s) com saldo alto.` : "Nenhuma UC gasta mais saldo que o compensável: o valor não muda o resultado."}
+                {planilha.ganhoKwh > 0.5 && <span className="text-opportunity"> +{kwh(planilha.ganhoKwh)} kWh.</span>} Já sai assim na exportação.
+              </p>
+              {difPlanilha > 0.5 && <p className="mt-1 text-xs text-muted">O rateio do sistema compensa {kwh(difPlanilha)} kWh a mais que a planilha.</p>}
+              {planilha.ucsAfetadas > 0 && <CurvaMaximo curva={planilha.curva} marcado={planilha.cobertura} rotulo="Energia compensada por Máximo Compensável, planilha modelo" />}
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-muted">—</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function Comparacao({ atual, proporcional, otimizado, otimizacao, params }: { atual: ResultadoUsina; proporcional?: ResultadoUsina; otimizado?: ResultadoUsina; otimizacao: OtimizacaoUi; params: Parametros }) {
   type Col = { nome: string; r: ResultadoUsina; cen: "atual" | "proposto" };
   const cols: Col[] = [{ nome: "Rateio atual", r: atual, cen: "atual" }];
@@ -1291,13 +1511,14 @@ function Comparacao({ atual, proporcional, otimizado, otimizacao, params }: { at
   const sim = (c: Col) => (c.cen === "atual" ? c.r.atual : c.r.proposto);
   const estresse = (c: Col) => (c.cen === "atual" ? null : c.r.propostoEstresse);
   const mudancas = (c: Col) => (c.cen === "atual" ? 0 : c.r.linhas.filter((l) => l.acao !== "manter").length);
-  const linhas: { label: string; v: (c: Col) => number | null; menor: boolean; fmt?: (n: number) => string }[] = [
+  const linhas: { label: string; v: (c: Col) => number | null; menor: boolean; neutro?: boolean; fmt?: (n: number) => string }[] = [
     { label: "Energia compensada (kWh)", v: (c) => sim(c).compensadoTotal, menor: false },
     { label: `Compensada com consumo ${Math.round((1 - params.fatorConsumoEstresse) * 100)}% menor`, v: (c) => estresse(c)?.compensadoTotal ?? null, menor: false },
     { label: `Saldo total no fim de ${params.mesesSimulacao} meses (kWh)`, v: (c) => sim(c).saldoFinal, menor: true },
     { label: "Consumo sem crédito (kWh)", v: (c) => sim(c).consumoDescobertoTotal, menor: true },
     { label: "Crédito novo que vira saldo (kWh)", v: (c) => sim(c).creditoParaSaldoTotal, menor: true },
-    { label: "UCs no rateio", v: (c) => (c.cen === "atual" ? c.r.indicadores.ucsAtuais : c.r.indicadores.ucsPropostas), menor: false, fmt: (n) => String(n) },
+    { label: "Máximo compensável efetivo", v: (c) => coberturaEfetiva(c.r, c.cen), menor: false, neutro: true, fmt: (n) => ratio(n) },
+    { label: "UCs no rateio", v: (c) => (c.cen === "atual" ? c.r.indicadores.ucsAtuais : c.r.indicadores.ucsPropostas), menor: false, neutro: true, fmt: (n) => String(n) },
     { label: "UCs com percentual alterado", v: mudancas, menor: true, fmt: (n) => String(n) },
   ];
   return (
@@ -1322,7 +1543,7 @@ function Comparacao({ atual, proporcional, otimizado, otimizacao, params }: { at
             {linhas.map((l) => {
               const vals = cols.map(l.v);
               const validos = vals.filter((v): v is number => v != null);
-              const melhor = l.label.startsWith("UCs no") ? null : l.menor ? Math.min(...validos) : Math.max(...validos);
+              const melhor = l.neutro ? null : l.menor ? Math.min(...validos) : Math.max(...validos);
               return (
                 <tr key={l.label} className="border-t border-border/60">
                   <td className="px-4 py-2 text-muted">{l.label}</td>

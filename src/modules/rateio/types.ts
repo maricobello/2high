@@ -75,6 +75,8 @@ export interface Usina {
   painel?: PainelOrange | null;
   /** De onde veio a injeção mensal do estudo ("manual" = não sobrescrever automaticamente). */
   fonteInjecao?: "fatura" | "manual" | null;
+  /** "Máximo Compensável" (M8) da planilha modelo importada, como referência (0 a 1). */
+  maximoCompensavelPlanilha?: number | null;
   /** De onde vieram meses, contratada, gerada e injetada do período. */
   fontePeriodo?: "painel" | "planilha" | "manual" | null;
 }

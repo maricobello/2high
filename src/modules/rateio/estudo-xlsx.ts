@@ -3,6 +3,8 @@
  * que se lê em segundos, mais a lista para envio à distribuidora e os anexos.
  * Gerado no navegador (exceljs carregado sob demanda).
  */
+import { coberturaEfetiva, sugerirMaximoPlanilha } from "./otimo-cobertura";
+import { resumoConsumo } from "./consumo";
 import type ExcelJS from "exceljs";
 import { injecaoMensal } from "./engine";
 import { ACAO_LABEL, atencaoEstudo, AVISO_ESTIMATIVA, condutaEstudo, fmt, identificacao, kpisEstudo, LEGENDA_SITUACAO, linhasAnexo, protocoloEstudo, resumoAnexo, subtituloUsina, veredito } from "./estudo-dados";
@@ -566,7 +568,7 @@ function folhaMemoria(wb: ExcelJS.Workbook, usinas: Usina[], alvo: ResultadoUsin
 
   titulo("Parâmetros");
   par("Método", metodo === "otimizado" ? "Otimização matemática (programação linear inteira, solver HiGHS)" : "Regra proporcional à necessidade");
-  par("Cobertura do consumo compensável", `${fmt(p.cobertura * 100)}%`);
+  par("Máximo compensável", metodo === "otimizado" ? "Livre por UC: o modelo escolhe o percentual que compensa mais energia" : `${fmt(p.cobertura * 100)}% do consumo compensável`);
   par("Horizonte para usar o saldo / reserva", `${p.horizonteSaldoMeses} meses / ${fmt(p.reservaSaldoMeses, 1)} mês de consumo`);
   par("Casas decimais / mínimo por UC", `${p.casasDecimais} / ${fmt(p.pctMinimo, p.casasDecimais)}%`);
   par("Projeção / cenário de estresse", `${p.mesesSimulacao} meses / consumo ${fmt(p.fatorConsumoEstresse * 100)}%`);
@@ -577,6 +579,13 @@ function folhaMemoria(wb: ExcelJS.Workbook, usinas: Usina[], alvo: ResultadoUsin
     const u = usinas.find((x) => x.id === r.usinaId)!;
     titulo(`Fontes · ${r.usinaNome}`);
     par("Energia para rateio usada", `${fmt(injecaoMensal(u))} kWh/mês`);
+    const efAt = coberturaEfetiva(r, "atual");
+    const efPr = coberturaEfetiva(r, "proposto");
+    if (efPr != null) par("Máximo compensável efetivo (atual → proposto)", `${efAt == null ? "—" : `${fmt(efAt * 100)}%`} → ${fmt(efPr * 100)}%`);
+    const sp = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha ?? 0.9);
+    if (sp) par("Máximo Compensável ótimo na planilha modelo", `${fmt(sp.cobertura * 100)}%${u.maximoCompensavelPlanilha != null ? ` (planilha usava ${fmt(u.maximoCompensavelPlanilha * 100)}%)` : ""} · busca de 0 a 100% com projeção de ${p.mesesSimulacao} meses`);
+    const cons = resumoConsumo(u);
+    if (cons.informados) par("Energia consumida no período (Relatório Gerencial GD)", `${fmt(cons.total)} kWh em ${cons.informados} competência(s) · média ${fmt(cons.media)} kWh/mês${cons.faltando ? ` · ${cons.faltando} sem valor` : ""}`);
     if (u.fatura) {
       const a = aplicacaoDaFatura(u.fatura);
       const s = scoreFatura(u.fatura, u.painel?.valores.injetada && u.painel.meses ? { kwh: u.painel.valores.injetada, meses: u.painel.meses } : null);

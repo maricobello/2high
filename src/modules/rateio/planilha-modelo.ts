@@ -4,7 +4,9 @@
  * duas colunas com o rateio proposto pelo sistema e a ação de cada UC.
  */
 import type ExcelJS from "exceljs";
+import { resumoConsumo, rotuloCompetencia } from "./consumo";
 import { injecaoMensal } from "./engine";
+import { sugerirMaximoPlanilha } from "./otimo-cobertura";
 import type { CandidataAvaliada, Parametros, ResultadoUsina, Usina } from "./types";
 
 async function carregarModelo(): Promise<ExcelJS.Workbook> {
@@ -53,14 +55,24 @@ export async function preencherModelo(u: Usina, r: ResultadoUsina, candidatas: C
   // injetada do período; sem ela, usa a injeção do estudo × meses
   const injetada = u.energiaInjetadaPeriodo || (meses ? Math.round(injecaoMensal(u) * meses) : 0);
   if (injetada) ws.getCell("C8").value = injetada;
-  ws.getCell("M8").value = p.cobertura;
+  // Máximo Compensável: o ótimo para as fórmulas desta planilha (busca de 0 a 100% com projeção)
+  const sug = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha ?? 0.9);
+  ws.getCell("M8").value = sug ? sug.cobertura : (u.maximoCompensavelPlanilha ?? 0.9);
+  if (sug) {
+    const n8 = ws.getCell("N8");
+    n8.value = `ótimo calculado${u.maximoCompensavelPlanilha != null && Math.abs(u.maximoCompensavelPlanilha - sug.cobertura) > 0.005 ? ` (antes ${Math.round(u.maximoCompensavelPlanilha * 100)}%)` : ""}`;
+    n8.font = { name: "Calibri", size: 8, italic: true, color: { argb: "FF6B7280" } };
+  }
   ws.getCell("D13").value = Math.round(r.indicadores.compensavelAgregado);
-  // consumo mensal (S4:T12, do mês mais recente para o mais antigo)
-  const cons = [...u.consumoMensal].reverse().slice(0, 9);
-  cons.forEach((c, i) => {
-    ws.getCell(4 + i, 19).value = c.mes;
+  // energia consumida no período (S4:T12, da competência mais recente para a mais antiga)
+  const consumo = resumoConsumo(u);
+  const informados = consumo.linhas.filter((l) => l.kwh != null).reverse();
+  informados.slice(0, 9).forEach((c, i) => {
+    ws.getCell(4 + i, 19).value = rotuloCompetencia(c.competencia).toUpperCase();
     ws.getCell(4 + i, 20).value = c.kwh;
   });
+  // o modelo só tem 9 linhas de consumo: com mais competências, o total vai direto em C9
+  if (informados.length > 9) ws.getCell("C9").value = Math.round(consumo.total);
 
   // --- UCs atuais (A..J) e fórmulas do modelo (L..Q); estende além da linha 174 se precisar
   const atuais = r.linhas.filter((l) => l.origem === "atual");
