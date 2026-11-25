@@ -157,6 +157,8 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
           ? { periodoInicio: nova.periodoInicio, periodoFim: nova.periodoFim, meses: nova.meses, energiaContratadaPeriodo: nova.energiaContratadaPeriodo, energiaGeradaPeriodo: nova.energiaGeradaPeriodo, energiaInjetadaPeriodo: nova.energiaInjetadaPeriodo, consumoMensal: nova.consumoMensal }
           : {}),
         ...(nova.maximoCompensavelPlanilha != null ? { maximoCompensavelPlanilha: nova.maximoCompensavelPlanilha } : {}),
+        // demanda da planilha só entra se não veio da fatura nem foi digitada
+        ...(nova.demanda && usarDados && (!u.demanda || u.demanda.fonte === "planilha") ? { demanda: nova.demanda } : {}),
       };
       abrir = u.id;
     } else {
@@ -1063,6 +1065,44 @@ function UsinaPainel({
   );
 }
 
+/** Demanda da usina: contratada, registrada, ultrapassagem e despesa (lidas da fatura). */
+function UltrapassagemDemanda({ usina, onChange }: { usina: Usina; onChange: (p: Partial<Usina>) => void }) {
+  const d = usina.demanda;
+  const set = (k: "contratadaKw" | "registradaKw" | "ultrapassagemKw" | "despesaUltrapassagem", v: number | null) => {
+    const base = d ?? { contratadaKw: null, registradaKw: null, ultrapassagemKw: null, despesaUltrapassagem: null, fonte: "manual" as const };
+    const novo = { ...base, [k]: v, fonte: "manual" as const };
+    if (k !== "ultrapassagemKw" && novo.registradaKw != null && novo.contratadaKw != null) novo.ultrapassagemKw = Math.max(0, novo.registradaKw - novo.contratadaKw);
+    onChange({ demanda: novo });
+  };
+  const ultra = (d?.ultrapassagemKw ?? 0) > 0 || (d?.despesaUltrapassagem ?? 0) > 0;
+  const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fonte = d?.fonte === "fatura" ? "lida da fatura" : d?.fonte === "planilha" ? "da planilha" : d?.fonte === "manual" ? "digitada" : null;
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium">Ultrapassagem de demanda</p>
+        {fonte && <p className="text-xs text-muted">{fonte}</p>}
+      </div>
+      <p className="mt-0.5 text-xs text-muted">Vem sozinha da fatura da usina (bloco de demandas e item &quot;Ultrapassagem de Demanda&quot;). Vai para a planilha modelo (N4 a N6).</p>
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <CampoNumero label="Demanda contratada" sufixo="kW" value={d?.contratadaKw ?? null} onChange={(v) => set("contratadaKw", v)} />
+        <CampoNumero label="Demanda registrada" sufixo="kW" value={d?.registradaKw ?? null} onChange={(v) => set("registradaKw", v)} />
+        <CampoNumero label="Ultrapassagem" sufixo="kW" value={d?.ultrapassagemKw ?? null} onChange={(v) => set("ultrapassagemKw", v)} />
+        <CampoNumero label="Despesa com ultrapassagem" sufixo="R$" value={d?.despesaUltrapassagem ?? null} onChange={(v) => set("despesaUltrapassagem", v)} />
+      </div>
+      {ultra && d && (
+        <p className="mt-2 flex gap-2 rounded-lg border border-attention/40 bg-attention/10 px-3 py-2 text-xs">
+          <TriangleAlert className="size-4 shrink-0 text-attention" />
+          <span>
+            Registrada {kwh(d.registradaKw ?? 0)} kW contra {kwh(d.contratadaKw ?? 0)} kW contratados{d.despesaUltrapassagem ? `: ${brl(d.despesaUltrapassagem)} de ultrapassagem no mês` : ""}. Não muda o rateio, mas é custo recorrente da usina: avaliar o aumento da demanda contratada
+            {d.registradaKw ? ` (cerca de ${kwh(Math.ceil(d.registradaKw / 10) * 10)} kW)` : ""}.
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Período a partir de dois meses (AAAA-MM); recalcula o número de meses. */
 function periodo(u: Usina, ini: string, fim: string): Partial<Usina> {
   const i = ini ? `${ini.slice(0, 7)}-01` : "";
@@ -1213,6 +1253,7 @@ function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<U
             )}
           </div>
           <EnergiaConsumida usina={usina} onChange={onChange} />
+          <UltrapassagemDemanda usina={usina} onChange={onChange} />
         </div>
       )}
     </Card>
@@ -1573,6 +1614,8 @@ function avaliarStatus(resultado: ResultadoProjeto, usinas: Usina[], calculando:
         if (v.nivel === "erro") erros++;
         else avisos++;
       }
+      if (u.demanda && ((u.demanda.ultrapassagemKw ?? 0) > 0 || (u.demanda.despesaUltrapassagem ?? 0) > 0))
+        itens.push({ ok: false, texto: `Fora do rateio: ultrapassagem de demanda na usina${u.demanda.despesaUltrapassagem ? ` (R$ ${u.demanda.despesaUltrapassagem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} no mês)` : ""}` });
       const okVal = r.validacoes.filter((v) => v.ok).length;
       itens.push({ ok: okVal === r.validacoes.length, texto: `Validação: ${okVal} de ${r.validacoes.length} checagens ok` });
     }

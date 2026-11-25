@@ -64,6 +64,12 @@ export async function preencherModelo(u: Usina, r: ResultadoUsina, candidatas: C
     n8.font = { name: "Calibri", size: 8, italic: true, color: { argb: "FF6B7280" } };
   }
   ws.getCell("D13").value = Math.round(r.indicadores.compensavelAgregado);
+  // ultrapassagem de demanda (N4:N6)
+  if (u.demanda) {
+    if (u.demanda.contratadaKw != null) ws.getCell("N4").value = u.demanda.contratadaKw;
+    if (u.demanda.registradaKw != null) ws.getCell("N5").value = u.demanda.registradaKw;
+    if (u.demanda.despesaUltrapassagem != null) ws.getCell("N6").value = u.demanda.despesaUltrapassagem;
+  }
   // energia consumida no período (S4:T12, da competência mais recente para a mais antiga)
   const consumo = resumoConsumo(u);
   const informados = consumo.linhas.filter((l) => l.kwh != null).reverse();

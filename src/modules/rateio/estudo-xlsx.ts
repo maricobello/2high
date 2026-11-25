@@ -587,6 +587,10 @@ function folhaMemoria(wb: ExcelJS.Workbook, usinas: Usina[], alvo: ResultadoUsin
     if (efPr != null) par("Máximo compensável efetivo (atual → proposto)", `${efAt == null ? "—" : `${fmt(efAt * 100)}%`} → ${fmt(efPr * 100)}%`);
     const sp = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha ?? 0.9);
     if (sp) par("Máximo Compensável ótimo na planilha modelo", `${fmt(sp.cobertura * 100)}%${u.maximoCompensavelPlanilha != null ? ` (planilha usava ${fmt(u.maximoCompensavelPlanilha * 100)}%)` : ""} · busca de 0 a 100% com projeção de ${p.mesesSimulacao} meses`);
+    if (u.demanda) {
+      const d = u.demanda;
+      par("Demanda da usina", `contratada ${d.contratadaKw != null ? fmt(d.contratadaKw) : "—"} kW · registrada ${d.registradaKw != null ? fmt(d.registradaKw) : "—"} kW · ultrapassagem ${d.ultrapassagemKw != null ? fmt(d.ultrapassagemKw) : "—"} kW · despesa ${d.despesaUltrapassagem != null ? `R$ ${fmt(d.despesaUltrapassagem, 2)}` : "—"} (${d.fonte === "fatura" ? "fatura" : d.fonte === "planilha" ? "planilha" : "digitada"})`);
+    }
     const cons = resumoConsumo(u);
     if (!cons.informados && u.ucs.length) par("Energia consumida no período", `não informada · estimativa pela soma do compensável das UCs: ${fmt(r.indicadores.consumoMensal)} kWh/mês`);
     if (cons.informados) par("Energia consumida no período (Relatório Gerencial GD)", `${fmt(cons.total)} kWh em ${cons.informados} competência(s) · média ${fmt(cons.media)} kWh/mês${cons.faltando ? ` · ${cons.faltando} sem valor` : ""}`);

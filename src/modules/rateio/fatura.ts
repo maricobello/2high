@@ -5,6 +5,7 @@
  * créditos com colunas FP/PT), com leitura genérica por rótulos para outros layouts.
  * Tudo o que é lido aparece na tela para conferência antes de ir para o estudo.
  */
+import { lerDemanda, type Demanda } from "./demanda";
 import { norm, toNumber, ucKey } from "./normalize";
 
 export interface SerieMensal {
@@ -40,6 +41,8 @@ export interface FaturaUsina {
   rateio: RateioFatura[];
   tabelas: TabelaMensal[];
   avisos: string[];
+  /** Demanda contratada, registrada e ultrapassagem do mês de referência (grupo A). */
+  demanda?: Demanda | null;
 }
 
 const MES: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
@@ -138,6 +141,7 @@ export function lerFaturaTexto(linhasBrutas: string[], arquivo = "fatura.pdf"): 
     rateio: [],
     tabelas,
     avisos: [],
+    demanda: lerDemanda(linhas),
   };
 
   // mês de referência: "Referência 09/2026", ou linha que começa com MM/AAAA seguida de uma data

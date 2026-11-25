@@ -613,6 +613,18 @@ function gerarAlertas(
   const a: Alerta[] = [];
   const atuais = linhas.filter((l) => l.origem === "atual");
 
+  // ultrapassagem de demanda da usina (fatura)
+  const dm = u.demanda;
+  if (dm && ((dm.ultrapassagemKw ?? 0) > 0 || (dm.despesaUltrapassagem ?? 0) > 0)) {
+    const sug = dm.registradaKw != null ? Math.ceil(dm.registradaKw / 10) * 10 : null;
+    a.push({
+      severidade: "alta",
+      codigo: "ultrapassagem_demanda",
+      titulo: `Ultrapassagem de demanda na usina${dm.despesaUltrapassagem ? `: R$ ${dm.despesaUltrapassagem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} no mês` : ""}`,
+      detalhe: `Demanda contratada de ${fmt(dm.contratadaKw ?? 0)} kW e registrada de ${fmt(dm.registradaKw ?? 0)} kW${dm.ultrapassagemKw ? ` (${fmt(dm.ultrapassagemKw)} kW acima)` : ""}. Não muda o rateio, mas é custo da usina todo mês: avaliar com a distribuidora o aumento da demanda contratada${sug ? ` para cerca de ${fmt(sug)} kW` : ""}.`,
+    });
+  }
+
   if (!atuais.length) a.push({ severidade: "alta", codigo: "sem_ucs", titulo: "Nenhuma UC no rateio", detalhe: "Importe a lista de UCs da usina (Unidade Rateio GD)." });
   if (ind.injecaoMensal <= 0)
     a.push({ severidade: "alta", codigo: "sem_injecao", titulo: "Injeção não informada", detalhe: "Informe a energia injetada no período e o número de meses, ou a injeção mensal projetada." });

@@ -128,3 +128,46 @@ describe("nota de confiança e automação", () => {
 });
 
 const NOTA = 70;
+
+describe("demanda da usina (fatura)", () => {
+  it("lê contratada, registrada, ultrapassagem e a despesa", async () => {
+    const { lerDemanda, demandaSugerida } = await import("@/modules/rateio/demanda");
+    const linhas = [
+      "(4U) Demanda  KW  12,960  25,709100  333,19  276,56 4,12  0,89  13,85  333,19 17,00  56,64 20,270000",
+      "(5N) Diferença da Demanda Contratada  KW  987,040  21,339090  21.062,54  21.062,53 4,12  0,89  1.055,24  0,00  0,00  0,00 20,270000",
+      "(65) Ultrapassagem de Demanda Injetada  KW  2.219,840  9,053580  20.097,51  20.097,51 4,12  0,89  1.006,89  0,00  0,00  0,00 8,600000",
+      "Demandas  Ponta (PT) Fora Ponta (FP)",
+      "Demanda  1000 KW",
+      "Número Medidor  99999999 Amarela R$ 0,01885  30  Medida  13KW  13KW",
+      "Constante de Faturamento  0,36  Demanda de Injeção  1000 KW  Medida G  0KW  3.220KW",
+      "Faturada  1.000KW",
+      "Ultrapassagem",
+      "2.220KW",
+    ];
+    const d = lerDemanda(linhas)!;
+    expect(d.contratadaKw).toBe(1000);
+    expect(d.contratadaConsumoKw).toBe(1000);
+    expect(d.registradaKw).toBe(3220);
+    expect(d.registradaConsumoKw).toBe(13);
+    expect(d.ultrapassagemKw).toBe(2220);
+    expect(d.despesaUltrapassagem).toBe(20097.51);
+    expect(d.itens.map((i) => i.codigo)).toEqual(["4U", "5N", "65"]);
+    expect(demandaSugerida(d)).toBe(3220);
+    expect(lerDemanda(["Consumo 123 kWh"])).toBeNull();
+  });
+
+  it("autoAplicar leva a demanda da fatura para a usina e gera o alerta", async () => {
+    const { lerFaturaTexto } = await import("@/modules/rateio/fatura");
+    const { autoAplicar } = await import("@/modules/rateio/automacao");
+    const { usinaVazia } = await import("@/modules/rateio/grid");
+    const { analisarProjeto } = await import("@/modules/rateio/engine");
+    const { PARAMETROS_PADRAO } = await import("@/modules/rateio/types");
+    const f = lerFaturaTexto(["(65) Ultrapassagem de Demanda Injetada KW 2.219,840 9,053580 20.097,51 20.097,51", "Demanda de Injeção 1000 KW Medida G 0KW 3.220KW"], "f.pdf");
+    const u = autoAplicar({ ...usinaVazia("U"), meses: 1, energiaInjetadaPeriodo: 1000, ucs: [{ key: "1", usina: "", idUnidade: "", instalacao: "1", apelido: "", subgrupo: "B3", pctAtual: 100, saldoKwh: 0, compensavelKwh: 900, compensadoKwh: 0 }], fatura: f });
+    expect(u.demanda).toMatchObject({ contratadaKw: 1000, registradaKw: 3220, despesaUltrapassagem: 20097.51, fonte: "fatura" });
+    // digitada não é sobrescrita
+    expect(autoAplicar({ ...u, demanda: { ...u.demanda!, contratadaKw: 4000, fonte: "manual" } }).demanda?.contratadaKw).toBe(4000);
+    const r = analisarProjeto([u], [], { ...PARAMETROS_PADRAO, metodo: "proporcional" }).usinas[0];
+    expect(r.alertas.some((a) => a.codigo === "ultrapassagem_demanda")).toBe(true);
+  });
+});

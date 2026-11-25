@@ -179,6 +179,7 @@ export interface DadosUsinaPlanilha {
   energiaInjetadaPeriodo: number;
   consumoMensal: ConsumoMes[];
   maximoCompensavel: number | null;
+  demanda: { contratadaKw: number | null; registradaKw: number | null; despesaUltrapassagem: number | null } | null;
 }
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -195,7 +196,7 @@ function dateText(c: Cell): string {
 /** Lê o cabeçalho da planilha modelo de rateio. Retorna null se a aba não for desse formato. */
 export function parseDadosUsina(grid: Grid): DadosUsinaPlanilha | null {
   let found = 0;
-  const d: DadosUsinaPlanilha = { nome: "", periodoInicio: "", periodoFim: "", meses: 0, energiaContratadaPeriodo: 0, energiaGeradaPeriodo: 0, energiaInjetadaPeriodo: 0, consumoMensal: [], maximoCompensavel: null };
+  const d: DadosUsinaPlanilha = { nome: "", periodoInicio: "", periodoFim: "", meses: 0, energiaContratadaPeriodo: 0, energiaGeradaPeriodo: 0, energiaInjetadaPeriodo: 0, consumoMensal: [], maximoCompensavel: null, demanda: null };
   const limit = Math.min(grid.length, 30);
   const vistos = new Set<string>();
   for (let r = 0; r < limit; r++) {
@@ -232,6 +233,15 @@ export function parseDadosUsina(grid: Grid): DadosUsinaPlanilha | null {
         once("gerada", () => (d.energiaGeradaPeriodo = num()));
       } else if (label.startsWith("energia injetada no")) {
         once("injetada", () => (d.energiaInjetadaPeriodo = num()));
+      } else if (/^(demanda contratada|demanda registrada|despesa com ultrapassagem)/.test(label) && !vistos.has(label)) {
+        vistos.add(label);
+        const v = num();
+        if (v > 0) {
+          d.demanda ??= { contratadaKw: null, registradaKw: null, despesaUltrapassagem: null };
+          if (label.startsWith("demanda contratada")) d.demanda.contratadaKw = v;
+          else if (label.startsWith("demanda registrada")) d.demanda.registradaKw = v;
+          else d.demanda.despesaUltrapassagem = v;
+        }
       } else if (label.startsWith("maximo compensavel") && !vistos.has("maximo")) {
         vistos.add("maximo");
         const v = num();
@@ -392,6 +402,9 @@ export function importarSheets(sheets: Sheet[]): Importacao {
             energiaInjetadaPeriodo: dados.energiaInjetadaPeriodo,
             consumoMensal: dados.consumoMensal,
             maximoCompensavelPlanilha: dados.maximoCompensavel,
+            demanda: dados.demanda
+              ? { ...dados.demanda, ultrapassagemKw: dados.demanda.registradaKw != null && dados.demanda.contratadaKw != null ? Math.max(0, dados.demanda.registradaKw - dados.demanda.contratadaKw) : null, fonte: "planilha" as const }
+              : null,
           });
           if (/celesc/i.test(nomeUsina + dados.nome)) u.distribuidora = "CELESC";
         }

@@ -21,7 +21,9 @@ geração distribuída e entregar o estudo em Excel.
      excedente distribuído (o que de fato vai para o rateio), consumo da usina e saldo da
      geradora. Calibrada na fatura CELESC Grupo A de GD; meses zerados e o mês de entrada em
      operação ficam fora da média. "Usar no estudo" define a injeção mensal (e a sazonalidade,
-     quando há 12 meses de operação).
+     quando há 12 meses de operação). Também lê a **demanda** (contratada, registrada, ultrapassagem
+     e a despesa com ultrapassagem), que vai para "Dados da usina", para a planilha modelo (N4:N6) e
+     vira ponto de atenção quando há ultrapassagem (não muda o rateio; é custo da usina).
    - **Recorte da tela de usinas do Orange** (bloco "Energia"): imagem (lida pelo modelo de
      visão da Groq; dá para colar com Ctrl+V) ou texto copiado da tela. Confere se o saldo
      fecha, se o saldo acumulado bate com a soma das UCs, se a injetada bate com a fatura e a
@@ -156,7 +158,7 @@ Casas decimais aceitas variam por distribuidora (CPFL: até 2); confirme com a C
 | Motor (necessidade, candidatas, arredondamento, projeção, alertas, diagnóstico, validação) | `src/modules/rateio/engine.ts` |
 | Modelo de otimização (MILP) e worker do HiGHS | `src/modules/rateio/otimizador.ts`, `src/modules/rateio/otimizador.worker.ts` |
 | Leitura de tabelas (cabeçalhos, calendário, planilha modelo) | `src/modules/rateio/grid.ts` |
-| Fatura da usina (PDF) e tela do Orange | `src/modules/rateio/pdf.ts`, `fatura.ts`, `painel.ts`, `src/components/admin/rateio/fontes.tsx` |
+| Fatura da usina (PDF), demanda e tela do Orange | `src/modules/rateio/pdf.ts`, `fatura.ts`, `demanda.ts`, `painel.ts`, `src/components/admin/rateio/fontes.tsx` |
 | Excel (leitura e exportação, no navegador) | `src/modules/rateio/xlsx.ts` |
 | Parecer (resumo agregado e texto padrão) | `src/modules/rateio/parecer.ts`, `src/modules/llm/tasks/rateio.ts` |
 | Tela | `src/components/admin/rateio/` |

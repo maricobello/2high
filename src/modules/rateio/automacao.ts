@@ -48,5 +48,10 @@ export function autoAplicar(u: Usina): Usina {
       };
     }
   }
+  // demanda da fatura (não sobrescreve o que foi digitado)
+  const d = f?.demanda;
+  if (d && out.demanda?.fonte !== "manual" && (d.contratadaKw != null || d.registradaKw != null)) {
+    out = { ...out, demanda: { contratadaKw: d.contratadaKw, registradaKw: d.registradaKw, ultrapassagemKw: d.ultrapassagemKw, despesaUltrapassagem: d.despesaUltrapassagem, fonte: "fatura" } };
+  }
   return out;
 }
