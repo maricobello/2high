@@ -83,6 +83,11 @@ export interface Usina {
   painel?: PainelOrange | null;
   /** De onde veio a injeção mensal do estudo ("manual" = não sobrescrever automaticamente). */
   fonteInjecao?: "fatura" | "manual" | null;
+  /**
+   * Rateio concluído: sai das abas e vai para o backlog. Guarda o resultado do momento da
+   * conclusão (para exportar de novo sem recalcular) e as novas UCs que entraram nela.
+   */
+  concluido?: { em: string; resultado: ResultadoUsina; candidatas: CandidataAvaliada[]; parecer: string | null } | null;
   /** Ultrapassagem de demanda da usina (fatura, planilha ou digitada). */
   demanda?: DemandaUsina | null;
   /** "Máximo Compensável" (M8) da planilha modelo importada, como referência (0 a 1). */

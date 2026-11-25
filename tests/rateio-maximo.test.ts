@@ -201,3 +201,13 @@ describe("campo numérico no formato brasileiro", () => {
     expect(formatarBr(619886.12)).toBe("619.886,12");
   });
 });
+
+describe("máximo compensável sem extremos arbitrários", () => {
+  it("curva plana: escolhe o valor coerente com a cobertura efetiva, não o primeiro da busca", () => {
+    // 2 UCs, injeção quase igual ao compensável: qualquer cobertura rende o mesmo
+    const u = usina([uc(1, 60, 70000), uc(2, 40, 60000, 5000)], 123257);
+    const s = sugerirCobertura([u], [], P)!;
+    expect(s.cobertura).toBeGreaterThan(0.5);
+    expect(Math.abs(s.cobertura - (s.melhor.efetiva ?? 0))).toBeLessThan(0.1);
+  }, 60_000);
+});

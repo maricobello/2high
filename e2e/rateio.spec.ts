@@ -67,6 +67,44 @@ test.describe("admin: rateio GD", () => {
     expect(scroll).toBeLessThanOrEqual(largura);
   });
 
+  test("exportar escolhendo usinas, concluir e reabrir", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.getByRole("button", { name: "Ver exemplo fictício" }).click();
+    await expect(page.getByRole("heading", { name: "Saldo de créditos projetado" })).toBeVisible();
+    const status = page.getByRole("button", { name: /Status do estudo/ });
+    await expect(status).not.toHaveText(/Calculando/, { timeout: 60_000 });
+
+    // duas usinas marcadas: planilha modelo aparece e sai num .zip
+    await page.getByRole("button", { name: "Exportar estudo" }).click();
+    const dlg = page.getByRole("dialog", { name: "Exportar estudo" });
+    await expect(dlg.getByRole("checkbox")).toHaveCount(2);
+    const zip = page.waitForEvent("download");
+    await dlg.getByRole("button", { name: /Planilha modelo/ }).click();
+    expect((await zip).suggestedFilename()).toMatch(/^Modelos_Rateio_.*\.zip$/);
+
+    // só uma marcada: planilha modelo .xlsx
+    await page.getByRole("button", { name: "Exportar estudo" }).click();
+    await dlg.getByRole("checkbox").first().uncheck();
+    const um = page.waitForEvent("download");
+    await dlg.getByRole("button", { name: /Planilha modelo/ }).click();
+    expect((await um).suggestedFilename()).toMatch(/^Modelo_Rateio_.*\.xlsx$/);
+
+    // concluir: sai das abas e vai para Concluídos, de onde ainda exporta
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Concluir" }).click();
+    await expect(page.getByRole("heading", { name: "Rateios concluídos" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Concluídos (1)" })).toBeVisible();
+    await page.getByRole("button", { name: "Exportar", exact: true }).click();
+    const pdf = page.waitForEvent("download");
+    await dlg.getByRole("button", { name: /PDF executivo/ }).click();
+    expect((await pdf).suggestedFilename()).toMatch(/^Estudo-de-rateio_.*\.pdf$/);
+
+    // reabrir volta para as abas
+    await page.getByRole("button", { name: "Reabrir" }).click();
+    await expect(page.getByRole("button", { name: /Concluídos/ })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Saldo de créditos projetado" })).toBeVisible();
+  });
+
   test("colar tabela de UCs cria a usina", async ({ page }) => {
     await page.getByRole("button", { name: "Colar tabela" }).click();
     await page.getByLabel("Destino").selectOption("nova");

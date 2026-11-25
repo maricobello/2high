@@ -25,6 +25,8 @@ export interface PontoCobertura {
   incluidas: number;
   /** Planilha: distância (Σ|Δ p.p.|) até o rateio do sistema. */
   distancia?: number;
+  /** Proporcional: cobertura que de fato acontece no rateio resultante (crédito ÷ compensável). */
+  efetiva?: number;
 }
 
 export interface SugestaoCobertura {
@@ -70,8 +72,11 @@ function avaliarProporcional(usinas: Usina[], candidatas: Candidata[], p: Parame
     if (u) valor += objetivo(u, ru.linhas, ru.linhas.map((l) => l.pctProposto), p);
   }
   const incluidas = r.usinas.reduce((a, u) => a + u.indicadores.incluidas, 0);
+  const ativas = r.usinas.flatMap((u) => u.linhas.filter((l) => l.pctProposto > 0));
+  const comp = ativas.reduce((a, l) => a + Math.max(0, l.compensavelKwh), 0);
   return {
     cobertura,
+    efetiva: comp > 0 ? ativas.reduce((a, l) => a + l.creditoPropostoKwh, 0) / comp : undefined,
     valor: valor - p.custoNovaUcKwh * incluidas,
     compensadoMedio: r.usinas.reduce((a, u) => a + u.proposto.compensadoTotal, 0),
     compensadoEstresse: r.usinas.reduce((a, u) => a + u.propostoEstresse.compensadoTotal, 0),
@@ -110,7 +115,9 @@ export const FAIXA_COBERTURA = { min: 0.01, max: 2 } as const;
 export function sugerirCobertura(usinas: Usina[], candidatas: Candidata[], p: Parametros): SugestaoCobertura | null {
   const validas = usinas.filter((u) => u.ucs.length && injecaoMensal(u) > 0);
   if (!validas.length) return null;
-  const { melhor, curva } = buscaLivre((c) => avaliarProporcional(validas, candidatas, p, c), FAIXA_COBERTURA.min, FAIXA_COBERTURA.max, porEnergia);
+  // empate (curva plana): fica o valor coerente com o que acontece de fato (cobertura ≈ efetiva)
+  const coerente: Desempate = (a, b) => Math.abs(a.cobertura - (a.efetiva ?? a.cobertura)) - Math.abs(b.cobertura - (b.efetiva ?? b.cobertura)) || porEnergia(a, b);
+  const { melhor, curva } = buscaLivre((c) => avaliarProporcional(validas, candidatas, p, c), FAIXA_COBERTURA.min, FAIXA_COBERTURA.max, coerente);
   // comparação com o valor em uso (só para mostrar o ganho; não influencia a escolha)
   const atual = pontoMaisProximo(curva, p.cobertura);
   return { cobertura: melhor.cobertura, ganhoKwh: melhor.compensadoMedio - atual.compensadoMedio, atual, melhor, curva };

@@ -74,8 +74,9 @@ geração distribuída e entregar o estudo em Excel.
      B3), o otimizado maximiza reais e o ganho em R$ é calculado UC a UC.
 5. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
 6. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
-7. **Exportar** (botão "Exportar estudo" para todas as usinas, ou "Exportar" na usina) abre a
-   escolha do formato:
+7. **Exportar** (botão "Exportar estudo", ou "Exportar" na usina) abre o popup: marque as usinas
+   (em andamento ou concluídas) e escolha o formato. Planilha modelo com mais de uma usina sai
+   num .zip (uma planilha por usina).
    - **PDF executivo** (para enviar): por usina, página 1 com o resumo, página 2 com parecer e
      assinaturas, e o Anexo I com as UCs (maior consumo primeiro, barra no consumo). Gerado no
      navegador, texto selecionável, fonte Geist embutida. Sem parecer gerado, entra o padrão.
@@ -94,6 +95,10 @@ geração distribuída e entregar o estudo em Excel.
    pelo sistema, com as fórmulas originais (estendidas para quantas UCs houver) e duas colunas a
    mais: rateio proposto pelo sistema e ação. O modelo em branco pode ser baixado na tela
    inicial; importado vazio, não cria usina.
+
+9. **Concluir**: na usina, "Concluir" guarda o resultado do dia e tira a usina das abas (e do
+   cálculo). Ela fica em **Concluídos**, de onde dá para exportar de novo ou reabrir. Reimportar UCs
+   numa usina concluída reabre o rateio.
 
 Os arquivos são lidos no navegador e ficam salvos só nele (botão de lixeira apaga).
 Para o parecer, só sai um resumo com totais e apelidos, sem número de instalação.

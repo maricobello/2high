@@ -16,6 +16,8 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Archive,
+  CheckCheck,
   ScrollText,
   Settings2,
   Sparkles,
@@ -159,6 +161,8 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
           ? { periodoInicio: nova.periodoInicio, periodoFim: nova.periodoFim, meses: nova.meses, energiaContratadaPeriodo: nova.energiaContratadaPeriodo, energiaGeradaPeriodo: nova.energiaGeradaPeriodo, energiaInjetadaPeriodo: nova.energiaInjetadaPeriodo, consumoMensal: nova.consumoMensal }
           : {}),
         ...(nova.maximoCompensavelPlanilha != null ? { maximoCompensavelPlanilha: nova.maximoCompensavelPlanilha } : {}),
+        // UCs novas numa usina concluída: reabre (o rateio guardado deixa de valer)
+        ...(nova.ucs.length && u.concluido ? { concluido: null } : {}),
         // demanda da planilha só entra se não veio da fatura nem foi digitada
         ...(nova.demanda && usarDados && (!u.demanda || u.demanda.fonte === "planilha") ? { demanda: nova.demanda } : {}),
       };
@@ -214,10 +218,17 @@ export function RateioWorkspace() {
     return () => clearTimeout(t);
   }, [estado, pronto]);
 
-  const usinasD = useDeferredValue(estado.usinas);
+  // usinas concluídas ficam fora do cálculo (backlog); as novas UCs que entraram nelas também
+  const ativas = useMemo(() => estado.usinas.filter((u) => !u.concluido), [estado.usinas]);
+  const concluidas = useMemo(() => estado.usinas.filter((u) => u.concluido), [estado.usinas]);
+  const candAtivas = useMemo(() => {
+    const usadas = new Set(concluidas.flatMap((u) => u.concluido!.candidatas.filter((c) => c.selecionada && c.usinaDestino === u.nome).map((c) => c.candidata.key)));
+    return usadas.size ? estado.candidatas.filter((c) => !usadas.has(c.key)) : estado.candidatas;
+  }, [estado.candidatas, concluidas]);
+  const usinasD = useDeferredValue(ativas);
   // subgrupos presentes nas UCs (para o valor do kWh por subgrupo) + B das novas UCs
   const subgrupos = useMemo(() => [...new Set([...estado.usinas.flatMap((u) => u.ucs.map((c) => chaveSubgrupo(c.subgrupo))).filter(Boolean), "B"])].sort(), [estado.usinas]);
-  const candD = useDeferredValue(estado.candidatas);
+  const candD = useDeferredValue(candAtivas);
   const paramsD = useDeferredValue(estado.params);
   const [otim, setOtim] = useState<OtimizacaoResultado | null>(null);
   const [otimRodando, setOtimRodando] = useState(false);
@@ -350,7 +361,9 @@ export function RateioWorkspace() {
   }, [calculando, resultado]);
 
   const temDados = estado.usinas.length > 0 || estado.calendario.length > 0 || estado.candidatas.length > 0;
-  const abaAtual = aba === "inicio" ? (estado.calendario.length ? "calendario" : (estado.usinas[0]?.id ?? "inicio")) : aba;
+  // aba de usina concluída (ou removida) volta para o início
+  const abaValida = aba === "inicio" || aba === "concluidos" || !estado.usinas.some((u) => u.id === aba) || ativas.some((u) => u.id === aba) ? aba : "concluidos";
+  const abaAtual = abaValida === "inicio" ? (estado.calendario.length ? "calendario" : (ativas[0]?.id ?? (concluidas.length ? "concluidos" : "inicio"))) : abaValida;
 
   function atualizarUsina(id: string, patch: Partial<Usina>) {
     // mudou o período: a injeção da fatura (se veio de 1 mês só) cede para a média do período
@@ -437,57 +450,83 @@ export function RateioWorkspace() {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
-  async function planilhaModelo(usinaId: string) {
-    const u = estado.usinas.find((x) => x.id === usinaId);
-    const r = resultado.usinas.find((x) => x.usinaId === usinaId);
-    if (!u || !r) return;
-    setOcupado(true);
-    try {
-      const { preencherModelo } = await import("@/modules/rateio/planilha-modelo");
-      const blob = await preencherModelo(u, r, resultado.candidatas.filter((c) => !c.selecionada || c.usinaDestino === u.nome), estado.params);
-      baixar(blob, `Modelo_Rateio_${u.nome.replace(/\s+/g, "-")}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    } finally {
-      setOcupado(false);
-    }
+  /** Resultado e candidatas de uma usina: calculado agora (em andamento) ou guardado na conclusão. */
+  function dadosUsina(id: string) {
+    const u = estado.usinas.find((x) => x.id === id);
+    if (!u) return null;
+    if (u.concluido) return { u, r: u.concluido.resultado, candidatas: u.concluido.candidatas, parecer: u.concluido.parecer };
+    const r = resultado.usinas.find((x) => x.usinaId === id);
+    return r ? { u, r, candidatas: resultado.candidatas.filter((c) => !c.selecionada || c.usinaDestino === u.nome), parecer: estado.pareceres[id]?.texto ?? null } : null;
   }
 
-  async function modeloBranco() {
-    const { modeloEmBranco } = await import("@/modules/rateio/planilha-modelo");
-    baixar(await modeloEmBranco(), "Modelo_Rateio_Usinas_GD.xlsx");
-  }
-
-  async function exportar(formato: "pdf" | "excel", somente?: string) {
+  /** Exporta as usinas escolhidas (em andamento ou concluídas) no formato pedido. */
+  async function exportarDocs(formato: "pdf" | "excel" | "modelo", ids: string[]) {
+    const itens = ids.map(dadosUsina).filter((x): x is NonNullable<ReturnType<typeof dadosUsina>> => !!x && x.u.ucs.length > 0);
+    if (!itens.length) return;
     setOcupado(true);
     try {
-      // sem parecer gerado, entra o parecer padrão (o documento sai sempre completo)
-      const pareceres = Object.fromEntries(
-        resultado.usinas.map((r) => {
-          const u = estado.usinas.find((x) => x.id === r.usinaId)!;
-          return [r.usinaId, estado.pareceres[r.usinaId]?.texto ?? parecerPadrao(montarResumo(u, r, estado.params))];
-        }),
-      );
+      const data = new Date().toISOString().slice(0, 10);
+      const nomeArq = (u: Usina) => u.nome.replace(/[^\w\-À-ÿ]+/g, "-");
+      if (formato === "modelo") {
+        const { preencherModelo } = await import("@/modules/rateio/planilha-modelo");
+        const arquivos = await Promise.all(itens.map(async ({ u, r, candidatas }) => ({ nome: `Modelo_Rateio_${nomeArq(u)}_${data}.xlsx`, blob: await preencherModelo(u, r, candidatas, estado.params) })));
+        if (arquivos.length === 1) baixar(arquivos[0].blob, arquivos[0].nome);
+        else {
+          const JSZip = (await import("jszip")).default;
+          const zip = new JSZip();
+          for (const a of arquivos) zip.file(a.nome, a.blob);
+          baixar(await zip.generateAsync({ type: "blob" }), `Modelos_Rateio_${data}.zip`);
+        }
+        return;
+      }
+      // resultado combinado (em andamento + concluídas) só com as escolhidas
+      const comb: ResultadoProjeto = { ...resultado, usinas: itens.map((x) => x.r), candidatas: itens.flatMap((x) => x.candidatas) };
+      const pareceres = Object.fromEntries(itens.map(({ u, r, parecer }) => [u.id, parecer ?? parecerPadrao(montarResumo(u, r, estado.params))]));
       const ciclo = Object.fromEntries(
-        estado.usinas.map((u) => {
+        itens.map(({ u }) => {
           const item = itemDoCalendario(estado.calendario, u.nome);
           return [u.id, item?.mesCiclo ? `${item.mesCiclo.slice(5, 7)}/${item.mesCiclo.slice(0, 4)}` : ""];
         }),
       );
-      const opcoes = { marca: estado.marca, pareceres, usinas: somente ? [somente] : undefined, ciclo };
-      const lista = somente ? estado.usinas.filter((u) => u.id === somente) : estado.usinas;
-      const nome = lista.map((u) => u.nome.replace(/\s+/g, "-")).join("_").slice(0, 60) || "rateio";
-      const data = new Date().toISOString().slice(0, 10);
+      const opcoes = { marca: estado.marca, pareceres, usinas: itens.map((x) => x.u.id), ciclo };
+      const nome = itens.map(({ u }) => nomeArq(u)).join("_").slice(0, 60) || "rateio";
+      const lista = itens.map((x) => x.u);
       if (formato === "pdf") {
         const { exportarPdf } = await import("@/modules/rateio/estudo-pdf");
-        baixar(await exportarPdf(estado.usinas, resultado, estado.params, opcoes), `Estudo-de-rateio_${nome}_${data}.pdf`);
+        baixar(await exportarPdf(lista, comb, estado.params, opcoes), `Estudo-de-rateio_${nome}_${data}.pdf`);
       } else {
         const { exportarEstudo } = await import("@/modules/rateio/estudo-xlsx");
-        baixar(await exportarEstudo(estado.usinas, resultado, estado.params, opcoes), `Estudo-de-rateio_${nome}_${data}.xlsx`);
+        baixar(await exportarEstudo(lista, comb, estado.params, opcoes), `Estudo-de-rateio_${nome}_${data}.xlsx`);
       }
     } catch (err) {
       setAvisos([`Não foi possível gerar o arquivo: ${err instanceof Error ? err.message : "erro"}`]);
     } finally {
       setOcupado(false);
     }
+  }
+
+  /** Marca o rateio como concluído: guarda o resultado de agora e tira a usina das abas. */
+  function concluirUsina(id: string) {
+    const r = resultado.usinas.find((x) => x.usinaId === id);
+    const u = estado.usinas.find((x) => x.id === id);
+    if (!r || !u) return;
+    if (!confirm(`Marcar o rateio da ${u.nome} como concluído? Ela sai das abas e fica em Concluídos, de onde dá para exportar ou reabrir.`)) return;
+    const snap = { em: new Date().toISOString(), resultado: r, candidatas: resultado.candidatas.filter((c) => c.selecionada && c.usinaDestino === u.nome), parecer: estado.pareceres[id]?.texto ?? null };
+    setEstado((e) => ({ ...e, usinas: e.usinas.map((x) => (x.id === id ? { ...x, concluido: snap } : x)) }));
+    registrar(`${u.nome}: rateio marcado como concluído.`, "ok");
+    setAba("concluidos");
+  }
+
+  function reabrirUsina(id: string) {
+    const u = estado.usinas.find((x) => x.id === id);
+    setEstado((e) => ({ ...e, usinas: e.usinas.map((x) => (x.id === id ? { ...x, concluido: null } : x)) }));
+    if (u) registrar(`${u.nome}: rateio reaberto.`);
+    setAba(id);
+  }
+
+  async function modeloBranco() {
+    const { modeloEmBranco } = await import("@/modules/rateio/planilha-modelo");
+    baixar(await modeloEmBranco(), "Modelo_Rateio_Usinas_GD.xlsx");
   }
 
   function carregarExemplo() {
@@ -514,9 +553,10 @@ export function RateioWorkspace() {
 
   const abas = [
     ...(estado.calendario.length ? [{ id: "calendario", label: "Calendário", icon: CalendarDays }] : []),
-    ...estado.usinas.map((u) => ({ id: u.id, label: u.nome, icon: null })),
+    ...ativas.map((u) => ({ id: u.id, label: u.nome, icon: null })),
     { id: "candidatas", label: `Novas UCs${estado.candidatas.length ? ` (${estado.candidatas.length})` : ""}`, icon: null },
     { id: "parametros", label: "Parâmetros", icon: Settings2 },
+    ...(concluidas.length ? [{ id: "concluidos", label: `Concluídos (${concluidas.length})`, icon: Archive }] : []),
     { id: "metodologia", label: "Metodologia", icon: BookOpen },
     { id: "como", label: "Como fazer", icon: ListOrdered },
   ];
@@ -540,7 +580,7 @@ export function RateioWorkspace() {
   }
 
   const statusGeral = avaliarStatus(resultado, usinasD, calculando, paramsD, otim);
-  const usinaAtiva = estado.usinas.find((u) => u.id === abaAtual);
+  const usinaAtiva = ativas.find((u) => u.id === abaAtual);
   const resAtivo = resultado.usinas.find((r) => r.usinaId === abaAtual);
 
   return (
@@ -560,7 +600,7 @@ export function RateioWorkspace() {
           <p className="mt-1 max-w-2xl text-sm text-muted">Revisão de rateio de créditos de geração distribuída: importe o calendário, as UCs da usina e as candidatas; o estudo sai pronto em Excel.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {estado.usinas.some((u) => u.ucs.length) && (
+          {ativas.some((u) => u.ucs.length) && (
             <>
               <StatusBotao status={statusGeral.nivel} texto={statusGeral.texto} aberto={painelStatus} onClick={() => setPainelStatus((v) => !v)} />
               <Button size="sm" variant="secondary" onClick={recalcular} disabled={calculando}>
@@ -585,7 +625,7 @@ export function RateioWorkspace() {
         </div>
       </div>
 
-      {painelStatus && estado.usinas.some((u) => u.ucs.length) && <PainelStatus status={statusGeral} registro={registro} onFechar={() => setPainelStatus(false)} onLimpar={() => setRegistro([])} />}
+      {painelStatus && ativas.some((u) => u.ucs.length) && <PainelStatus status={statusGeral} registro={registro} onFechar={() => setPainelStatus(false)} onLimpar={() => setRegistro([])} />}
 
       {avisos.length > 0 && (
         <div role="status" className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary-soft/60 px-4 py-3 text-sm">
@@ -653,6 +693,7 @@ export function RateioWorkspace() {
           )}
           {abaAtual === "metodologia" && <Metodologia />}
           {abaAtual === "como" && <ComoFazer />}
+          {abaAtual === "concluidos" && <Concluidos usinas={concluidas} onExportar={(id) => setExportarPopup({ somente: id })} onReabrir={reabrirUsina} />}
           {usinaAtiva && resAtivo && (
             <UsinaPainel
               usina={usinaAtiva}
@@ -666,6 +707,7 @@ export function RateioWorkspace() {
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
               onTransformar={(fn) => transformarUsina(usinaAtiva.id, fn)}
               onExportar={() => setExportarPopup({ somente: usinaAtiva.id })}
+              onConcluir={() => concluirUsina(usinaAtiva.id)}
               onTarifa={(t) => setEstado((e) => ({ ...e, params: { ...e.params, tarifaKwh: t } }))}
               onImportar={() => abrirImport(usinaAtiva.id)}
               onParecer={(p) => setEstado((e) => ({ ...e, pareceres: { ...e.pareceres, [usinaAtiva.id]: p } }))}
@@ -683,14 +725,12 @@ export function RateioWorkspace() {
 
       {exportarPopup && (
         <ExportarDialog
-          escopo={exportarPopup.somente ? (estado.usinas.find((u) => u.id === exportarPopup.somente)?.nome ?? "") : estado.usinas.length === 1 ? estado.usinas[0].nome : `Todas as usinas (${estado.usinas.filter((u) => u.ucs.length).length})`}
-          umaUsina={!!exportarPopup.somente || estado.usinas.length === 1}
+          usinas={estado.usinas.filter((u) => u.ucs.length > 0 && (u.concluido || injecaoMensal(u) > 0)).map((u) => ({ id: u.id, nome: u.nome, concluido: !!u.concluido }))}
+          inicial={exportarPopup.somente ? [exportarPopup.somente] : ativas.filter((u) => u.ucs.length > 0 && injecaoMensal(u) > 0).map((u) => u.id)}
           ocupado={ocupado}
           onFechar={() => setExportarPopup(null)}
-          onEscolher={async (f) => {
-            const somente = exportarPopup.somente ?? (estado.usinas.length === 1 ? estado.usinas[0].id : undefined);
-            if (f === "modelo") await planilhaModelo(somente!);
-            else await exportar(f, exportarPopup.somente);
+          onEscolher={async (f, ids) => {
+            await exportarDocs(f, ids);
             setExportarPopup(null);
           }}
         />
@@ -862,6 +902,7 @@ function UsinaPainel({
   onChange,
   onTransformar,
   onExportar,
+  onConcluir,
   onTarifa,
   onImportar,
   onParecer,
@@ -878,6 +919,7 @@ function UsinaPainel({
   onChange: (p: Partial<Usina>) => void;
   onTransformar: (fn: (u: Usina) => Usina) => void;
   onExportar: () => void;
+  onConcluir: () => void;
   onTarifa: (t: number) => void;
   onImportar: () => void;
   onParecer: (p: Parecer) => void;
@@ -924,6 +966,11 @@ function UsinaPainel({
           {!semUcs && E > 0 && (
             <Button size="sm" onClick={onExportar}>
               <Download className="size-4" /> Exportar
+            </Button>
+          )}
+          {!semUcs && E > 0 && (
+            <Button size="sm" variant="secondary" onClick={onConcluir} disabled={otimizacao.rodando}>
+              <CheckCheck className="size-4" /> Concluir
             </Button>
           )}
           <Button size="sm" variant="secondary" onClick={onImportar}>
@@ -2242,39 +2289,72 @@ function IdentidadeEstudo({ marca, onChange }: { marca: MarcaEstudo; onChange: (
 // ---------------------------------------------------------------------------
 
 /** Escolha do formato do estudo: PDF para enviar, Excel para trabalhar, ou a planilha modelo. */
-function ExportarDialog({ escopo, umaUsina, ocupado, onFechar, onEscolher }: { escopo: string; umaUsina: boolean; ocupado: boolean; onFechar: () => void; onEscolher: (f: "pdf" | "excel" | "modelo") => void }) {
+function ExportarDialog({
+  usinas,
+  inicial,
+  ocupado,
+  onFechar,
+  onEscolher,
+}: {
+  usinas: { id: string; nome: string; concluido: boolean }[];
+  inicial: string[];
+  ocupado: boolean;
+  onFechar: () => void;
+  onEscolher: (f: "pdf" | "excel" | "modelo", ids: string[]) => void;
+}) {
+  const [sel, setSel] = useState<string[]>(() => inicial.filter((id) => usinas.some((u) => u.id === id)));
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onFechar();
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [onFechar]);
+  const varias = sel.length > 1;
   const opcoes = [
     { f: "pdf" as const, icone: FileText, titulo: "PDF executivo", tag: "Para enviar", desc: "Resumo em 1 página, parecer com assinaturas e o Anexo I com as UCs. Pronto para mandar ou imprimir." },
     { f: "excel" as const, icone: FileSpreadsheet, titulo: "Excel completo", tag: "Para trabalhar", desc: "Estudo, Anexo I, lista de envio para a distribuidora, detalhe por UC e memória de cálculo." },
-    ...(umaUsina ? [{ f: "modelo" as const, icone: FileSpreadsheet, titulo: "Planilha modelo", tag: "Seu formato", desc: "A sua planilha de análise preenchida, com as fórmulas originais e a coluna do rateio proposto." }] : []),
+    { f: "modelo" as const, icone: FileSpreadsheet, titulo: "Planilha modelo", tag: "Seu formato", desc: varias ? "Uma planilha de análise por usina, num arquivo .zip." : "A sua planilha de análise preenchida, com as fórmulas originais e a coluna do rateio proposto." },
   ];
+  const alternar = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const todas = sel.length === usinas.length;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="exportar-titulo" onClick={onFechar}>
-      <div className="w-full max-w-lg rounded-t-2xl border border-border bg-card p-5 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border bg-card p-5 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="exportar-titulo" className="text-lg font-semibold">
-              Exportar estudo
-            </h2>
-            <p className="text-sm text-muted">{escopo}</p>
-          </div>
+          <h2 id="exportar-titulo" className="text-lg font-semibold">
+            Exportar estudo
+          </h2>
           <button type="button" onClick={onFechar} aria-label="Fechar" className="text-muted hover:text-foreground">
             <X className="size-5" />
           </button>
         </div>
+        <fieldset className="mt-3">
+          <div className="flex items-center justify-between gap-2">
+            <legend className="text-sm font-medium">Usinas</legend>
+            {usinas.length > 1 && (
+              <button type="button" onClick={() => setSel(todas ? [] : usinas.map((u) => u.id))} className="text-xs font-medium text-primary-text hover:underline">
+                {todas ? "Limpar" : "Todas"}
+              </button>
+            )}
+          </div>
+          <div className="mt-2 max-h-44 space-y-1 overflow-y-auto">
+            {usinas.map((u) => (
+              <label key={u.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-subtle">
+                <input type="checkbox" checked={sel.includes(u.id)} onChange={() => alternar(u.id)} className="size-4 accent-[var(--primary)]" />
+                <span className="min-w-0 flex-1 truncate">{u.nome}</span>
+                {u.concluido && <span className="rounded-full bg-opportunity/15 px-2 py-0.5 text-[10px] font-semibold text-opportunity">Concluído</span>}
+              </label>
+            ))}
+            {!usinas.length && <p className="text-sm text-muted">Nenhuma usina com UCs e injeção para exportar.</p>}
+          </div>
+        </fieldset>
         <div className="mt-4 space-y-2">
           {opcoes.map((o, i) => (
             <button
               key={o.f}
               type="button"
-              disabled={ocupado}
-              onClick={() => onEscolher(o.f)}
-              className={cn("flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60", i === 0 ? "border-primary bg-primary-soft/40 hover:bg-primary-soft/70" : "border-border hover:bg-subtle")}
+              disabled={ocupado || !sel.length}
+              onClick={() => onEscolher(o.f, sel)}
+              className={cn("flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-50", i === 0 ? "border-primary bg-primary-soft/40 hover:bg-primary-soft/70" : "border-border hover:bg-subtle")}
             >
               <o.icone className={cn("mt-0.5 size-5 shrink-0", i === 0 ? "text-primary-text" : "text-muted")} />
               <span className="min-w-0 flex-1">
@@ -2287,6 +2367,7 @@ function ExportarDialog({ escopo, umaUsina, ocupado, onFechar, onEscolher }: { e
             </button>
           ))}
         </div>
+        {!sel.length && usinas.length > 0 && <p className="mt-3 text-sm text-analysis">Marque ao menos uma usina.</p>}
         {ocupado && (
           <p className="mt-3 flex items-center gap-2 text-sm text-muted">
             <Loader2 className="size-4 animate-spin" /> Gerando o arquivo…
@@ -2294,5 +2375,46 @@ function ExportarDialog({ escopo, umaUsina, ocupado, onFechar, onEscolher }: { e
         )}
       </div>
     </div>
+  );
+}
+
+/** Rateios concluídos (backlog): o que foi decidido, quando, e as ações de exportar e reabrir. */
+function Concluidos({ usinas, onExportar, onReabrir }: { usinas: Usina[]; onExportar: (id: string) => void; onReabrir: (id: string) => void }) {
+  const ordenadas = [...usinas].sort((a, b) => (b.concluido?.em ?? "").localeCompare(a.concluido?.em ?? ""));
+  return (
+    <Card>
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="font-semibold">Rateios concluídos</h2>
+        <p className="text-xs text-muted">Ficam guardados com o resultado do dia da conclusão. Exportar gera os documentos de novo; reabrir volta a usina para as abas e recalcula.</p>
+      </div>
+      <ul>
+        {ordenadas.map((u) => {
+          const c = u.concluido!;
+          const r = c.resultado;
+          const ganho = r.proposto.compensadoTotal - r.atual.compensadoTotal;
+          return (
+            <li key={u.id} className="flex flex-col gap-3 border-t border-border/60 px-4 py-3 first:border-t-0 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 font-medium">
+                  <CheckCheck className="size-4 shrink-0 text-opportunity" />
+                  <span className="truncate">{u.nome}</span>
+                </p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {[u.distribuidora, `concluído em ${new Date(c.em).toLocaleDateString("pt-BR")}`, `${r.indicadores.ucsPropostas} UCs`, r.metodo === "otimizado" ? "otimizado" : "regra proporcional", `${ganho >= 0 ? "+" : ""}${kwh(ganho)} kWh em ${r.proposto.meses.length} meses`].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" variant="secondary" onClick={() => onExportar(u.id)}>
+                  <Download className="size-4" /> Exportar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => onReabrir(u.id)}>
+                  Reabrir
+                </Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
