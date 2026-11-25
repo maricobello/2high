@@ -40,7 +40,8 @@ export interface ModeloLp {
 }
 
 /** Opções do solver (mesmo formato do HiGHS). */
-export const OPCOES_SOLVER = { time_limit: 25, mip_rel_gap: 0.002, presolve: "on", output_flag: false } as const;
+/** Tolerância de 1e-6: na prática, ótimo exato (na base de teste, mesma resposta com 0,2% e 0%). */
+export const OPCOES_SOLVER = { time_limit: 25, mip_rel_gap: 1e-6, presolve: "on", output_flag: false } as const;
 
 /**
  * Penalidade (por kWh) de terminar abaixo da reserva. Pequena de propósito: guardar crédito
