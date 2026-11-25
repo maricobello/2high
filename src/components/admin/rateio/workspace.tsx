@@ -1414,7 +1414,7 @@ function ParametrosPainel({ params: p, sugestao, subgrupos, onChange }: { params
           <CampoNumero
             label="Máximo compensável (regra proporcional)"
             sufixo="%"
-            value={Math.round(p.cobertura * 1000) / 10}
+            value={p.coberturaAutomatica !== false && sugestao === undefined ? null : Math.round(p.cobertura * 1000) / 10}
             onChange={(v) => onChange({ ...p, coberturaAutomatica: false, cobertura: Math.min(FAIXA_COBERTURA.max, Math.max(FAIXA_COBERTURA.min, n(v, 90) / 100)) })}
             dica={p.metodo === "otimizado" ? "No otimizado é livre por UC. Este valor só vale para a regra proporcional (comparação)." : "Parte do consumo compensável que o crédito tenta cobrir."}
           />
@@ -1715,8 +1715,7 @@ function PainelStatus({ status, registro, onFechar, onLimpar }: { status: Status
 }
 
 function MaximoCompensavel({ usina, r, params, sugestao }: { usina: Usina; r: ResultadoUsina; params: Parametros; sugestao?: SugestaoCobertura | null }) {
-  const ref = usina.maximoCompensavelPlanilha ?? 0.9;
-  const planilha = useMemo(() => sugerirMaximoPlanilha(usina, r, params, ref), [usina, r, params, ref]);
+  const planilha = useMemo(() => sugerirMaximoPlanilha(usina, r, params, usina.maximoCompensavelPlanilha), [usina, r, params]);
   const efAtual = coberturaEfetiva(r, "atual");
   const efProp = coberturaEfetiva(r, "proposto");
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
@@ -1748,7 +1747,10 @@ function MaximoCompensavel({ usina, r, params, sugestao }: { usina: Usina; r: Re
               <p className="mt-1 font-mono text-2xl font-semibold">{pct(planilha.cobertura)}</p>
               <p className="mt-1 text-xs text-muted">
                 {usina.maximoCompensavelPlanilha != null ? `Antes: ${pct(usina.maximoCompensavelPlanilha)}. ` : ""}
-                {planilha.ucsAfetadas ? `Muda o percentual de ${planilha.ucsAfetadas} UC(s) com saldo alto${planilha.ganhoKwh > 0.5 ? ` (+${kwh(planilha.ganhoKwh)} kWh)` : ""}.` : "Nenhuma UC tem saldo alto o bastante para o valor fazer diferença."} Já sai preenchido na exportação.
+                {planilha.semEfeito
+                  ? "Nenhuma UC tem saldo alto o bastante para a fórmula do M8 agir: vai o máximo compensável efetivo do rateio do sistema."
+                  : `Calculado para as fórmulas da planilha: muda o percentual de ${planilha.ucsAfetadas} UC(s) com saldo alto${planilha.ganhoKwh > 0.5 ? ` (+${kwh(planilha.ganhoKwh)} kWh)` : ""}.`}{" "}
+                Já sai preenchido na exportação.
               </p>
               {difPlanilha > 0.5 && <p className="mt-1 text-xs text-muted">Mesmo assim, o rateio do sistema compensa {kwh(difPlanilha)} kWh a mais que a planilha.</p>}
             </>

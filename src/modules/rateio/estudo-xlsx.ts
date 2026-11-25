@@ -585,8 +585,12 @@ function folhaMemoria(wb: ExcelJS.Workbook, usinas: Usina[], alvo: ResultadoUsin
     const efAt = coberturaEfetiva(r, "atual");
     const efPr = coberturaEfetiva(r, "proposto");
     if (efPr != null) par("Máximo compensável efetivo (atual → proposto)", `${efAt == null ? "—" : `${fmt(efAt * 100)}%`} → ${fmt(efPr * 100)}%`);
-    const sp = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha ?? 0.9);
-    if (sp) par("Máximo Compensável ótimo na planilha modelo", `${fmt(sp.cobertura * 100)}%${u.maximoCompensavelPlanilha != null ? ` (planilha usava ${fmt(u.maximoCompensavelPlanilha * 100)}%)` : ""} · busca de 0 a 100% com projeção de ${p.mesesSimulacao} meses`);
+    const sp = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha);
+    if (sp)
+      par(
+        "Máximo Compensável na planilha modelo (M8)",
+        `${fmt(sp.cobertura * 100, 1)}%${u.maximoCompensavelPlanilha != null ? ` (planilha usava ${fmt(u.maximoCompensavelPlanilha * 100, 1)}%)` : ""} · ${sp.semEfeito ? "nenhuma UC passa pela regra do M8: vai o máximo compensável efetivo do rateio do sistema" : `busca livre de 0% a 200% com projeção de ${p.mesesSimulacao} meses e o critério do otimizador (${sp.ucsAfetadas} UC(s) afetadas)`}`,
+      );
     if (u.demanda) {
       const d = u.demanda;
       par("Demanda da usina", `contratada ${d.contratadaKw != null ? fmt(d.contratadaKw) : "—"} kW · registrada ${d.registradaKw != null ? fmt(d.registradaKw) : "—"} kW · ultrapassagem ${d.ultrapassagemKw != null ? fmt(d.ultrapassagemKw) : "—"} kW · despesa ${d.despesaUltrapassagem != null ? `R$ ${fmt(d.despesaUltrapassagem, 2)}` : "—"} (${d.fonte === "fatura" ? "fatura" : d.fonte === "planilha" ? "planilha" : "digitada"})`);

@@ -124,13 +124,18 @@ Com cerca de 160 UCs e 80 candidatas, a solução ótima sai em poucos segundos.
 
 - **Otimizado**: livre. O modelo decide quanto do compensável de cada UC o crédito novo cobre;
   o efetivo (crédito ÷ compensável) aparece no card e na comparação.
-- **Regra proporcional**: parâmetro. O ótimo é uma busca livre de 1% a 200% (grade de 5 pontos,
-  depois 1 ponto em volta dos 3 melhores e 0,1 ponto em volta do melhor; a curva tem vales) com
-  a projeção completa em cada ponto e o critério do otimizado. Roda num Web Worker.
+- **Regra proporcional**: parâmetro, sem valor padrão. O ótimo é uma busca livre de 1% a 200%
+  (grade de 5 pontos, depois 1 ponto em volta dos 3 melhores e 0,1 ponto em volta do melhor; a
+  curva tem vales) com a projeção completa em cada ponto e o critério do otimizador. Roda num
+  Web Worker e entra sozinho.
 - **Planilha modelo (M8)**: a regra dela é L = saldo × 30% (se compensável + agregado > injeção),
   M = L > compensável ? compensável × M8 : compensável − L, N = M ÷ ΣM. O M8 só muda o
-  percentual das UCs que gastariam mais saldo que o compensável; o sistema faz a mesma busca
-  livre (0% a 200%) e exporta o melhor (empate: mantém o valor que a planilha usava).
+  percentual das UCs que gastariam mais saldo que o compensável. **Não há valor padrão**: o
+  sistema faz a busca livre (0% a 200%) com o mesmo critério do otimizador (compensação das UCs
+  nos dois cenários, valor do kWh por subgrupo, saldo encalhado no fim, reserva e estabilidade);
+  empate fica com o valor cuja fórmula mais se aproxima do rateio do sistema. Sem UC afetada, a
+  fórmula dá o mesmo rateio para qualquer M8 e vai o máximo compensável efetivo do rateio do
+  sistema. O valor que a planilha usava só serve para mostrar o ganho.
 
 ### Regra proporcional (comparação)
 

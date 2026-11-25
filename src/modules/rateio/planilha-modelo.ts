@@ -55,14 +55,14 @@ export async function preencherModelo(u: Usina, r: ResultadoUsina, candidatas: C
   // injetada do período; sem ela, usa a injeção do estudo × meses
   const injetada = u.energiaInjetadaPeriodo || (meses ? Math.round(injecaoMensal(u) * meses) : 0);
   if (injetada) ws.getCell("C8").value = injetada;
-  // Máximo Compensável: o ótimo para as fórmulas desta planilha (busca de 0 a 100% com projeção)
-  const sug = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha ?? 0.9);
-  ws.getCell("M8").value = sug ? sug.cobertura : (u.maximoCompensavelPlanilha ?? 0.9);
-  if (sug) {
-    const n8 = ws.getCell("N8");
-    n8.value = `ótimo calculado${u.maximoCompensavelPlanilha != null && Math.abs(u.maximoCompensavelPlanilha - sug.cobertura) > 0.005 ? ` (antes ${Math.round(u.maximoCompensavelPlanilha * 100)}%)` : ""}`;
-    n8.font = { name: "Calibri", size: 8, italic: true, color: { argb: "FF6B7280" } };
-  }
+  // Máximo Compensável: sempre calculado (sem valor padrão) pelo critério do otimizador
+  const sug = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha);
+  ws.getCell("M8").value = sug ? sug.cobertura : null;
+  const n8 = ws.getCell("N8");
+  n8.value = !sug
+    ? "não calculado: falta a injeção da usina"
+    : `${sug.semEfeito ? "calculado: máx. compensável efetivo do rateio do sistema" : "calculado: ótimo para estas fórmulas"}${u.maximoCompensavelPlanilha != null && Math.abs(u.maximoCompensavelPlanilha - sug.cobertura) > 0.0005 ? ` (antes ${Math.round(u.maximoCompensavelPlanilha * 1000) / 10}%)` : ""}`;
+  n8.font = { name: "Calibri", size: 8, italic: true, color: { argb: "FF6B7280" } };
   ws.getCell("D13").value = Math.round(r.indicadores.compensavelAgregado);
   // ultrapassagem de demanda (N4:N6)
   if (u.demanda) {

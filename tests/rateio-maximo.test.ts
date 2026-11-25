@@ -38,18 +38,23 @@ describe("máximo compensável", () => {
     const r = analisarProjeto([u], [], P).usinas[0];
     const s = sugerirMaximoPlanilha(u, r, P, 0.9)!;
     expect(s.ucsAfetadas).toBe(1);
+    expect(s.semEfeito).toBe(false);
     expect(s.cobertura).toBeLessThan(0.9);
+    // sem o valor antigo, a escolha é a mesma (não há padrão)
+    expect(sugerirMaximoPlanilha(u, r, P)!.cobertura).toBe(s.cobertura);
     expect(s.melhor.valor).toBeGreaterThanOrEqual(Math.max(...s.curva.map((c) => c.valor)) - 1);
     expect(s.ganhoKwh).toBeGreaterThan(0);
   });
 
-  it("planilha: sem UC afetada, mantém o valor de referência", () => {
+  it("planilha: sem UC afetada, não usa padrão: vai o máximo compensável efetivo do rateio", () => {
     const u = usina([uc(1, 50, 1000), uc(2, 50, 1000)], 1500);
     const r = analisarProjeto([u], [], P).usinas[0];
-    const s = sugerirMaximoPlanilha(u, r, P, 0.5)!;
+    const s = sugerirMaximoPlanilha(u, r, P)!;
     expect(s.ucsAfetadas).toBe(0);
-    expect(s.cobertura).toBe(0.5);
-    expect(s.ganhoKwh).toBe(0);
+    expect(s.semEfeito).toBe(true);
+    expect(s.cobertura).toBeCloseTo(coberturaEfetiva(r, "proposto")!, 3);
+    // o valor antigo da planilha não muda a escolha
+    expect(sugerirMaximoPlanilha(u, r, P, 0.5)!.cobertura).toBe(s.cobertura);
   });
 
   it("regra proporcional: busca livre (abaixo e acima de 100%) acha o melhor ponto avaliado", () => {
