@@ -331,3 +331,14 @@ describe("período do Orange × fatura de 1 mês", () => {
     expect(injecaoMensal(comPeriodo)).toBe(120000);
   });
 });
+
+describe("origem da injeção do estudo", () => {
+  it("explica a conta: período do recorte, digitada ou fatura", async () => {
+    const { origemInjecao } = await import("@/modules/rateio/origem");
+    const { usinaVazia } = await import("@/modules/rateio/grid");
+    const base = usinaVazia("U");
+    expect(origemInjecao({ ...base, meses: 7, energiaInjetadaPeriodo: 996163, fontePeriodo: "painel" })).toBe('996.163 kWh ("Injetada" do recorte do Orange) ÷ 7 meses = 142.309 kWh/mês.');
+    expect(origemInjecao({ ...base, injecaoMensalProjetada: 150000, fonteInjecao: "manual" })).toMatch(/Digitada.*150\.000/);
+    expect(origemInjecao(base)).toMatch(/Falta a injeção/);
+  });
+});

@@ -46,6 +46,7 @@ import { autoAplicar } from "@/modules/rateio/automacao";
 import { MARCA_PADRAO, MARCA_REPLACE, type MarcaEstudo } from "@/modules/rateio/estudo-xlsx";
 import { kwh, MESES_CURTOS, pct1, ratio } from "./format";
 import { EntradaNumero } from "./numero";
+import { origemInjecao } from "@/modules/rateio/origem";
 import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
 interface Parecer {
@@ -1222,10 +1223,15 @@ function DadosUsina({ usina, onChange }: { usina: Usina; onChange: (p: Partial<U
       <button type="button" onClick={() => setAberto((v) => !v)} aria-expanded={aberto} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
         <span className="font-semibold">Dados da usina</span>
         <span className="flex items-center gap-2 text-xs text-muted">
-          {faltam ? <Badge tone="attention">Falta a injeção</Badge> : `Injeção do estudo ${kwh(injecaoMensal(usina))} kWh/mês${usina.fonteInjecao === "fatura" ? " (fatura)" : usina.fontePeriodo === "painel" ? " (tela do Orange)" : ""}`}
+          {faltam ? <Badge tone="attention">Falta a injeção</Badge> : <span title={origemInjecao(usina)}>{`Injeção do estudo ${kwh(injecaoMensal(usina))} kWh/mês${usina.fonteInjecao === "fatura" ? " (fatura)" : usina.fontePeriodo === "painel" ? " (tela do Orange)" : ""}`}</span>}
           <span aria-hidden>{aberto ? "▲" : "▼"}</span>
         </span>
       </button>
+      {!faltam && (
+        <p className="-mt-1 px-4 pb-3 text-xs text-muted">
+          <span className="font-medium text-foreground/80">De onde vem a injeção:</span> {origemInjecao(usina)}
+        </p>
+      )}
       {aberto && (
         <div className="space-y-5 border-t border-border p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
