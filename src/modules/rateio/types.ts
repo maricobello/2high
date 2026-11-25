@@ -118,6 +118,11 @@ export interface Parametros {
   custoNovaUcKwh: number;
   /** Tarifa média das UCs (R$/kWh, com impostos) para mostrar o resultado em reais. 0 = não informada. */
   tarifaKwh: number;
+  /**
+   * Valor do kWh compensado por subgrupo (R$/kWh), ex.: { A4: 0.52, B3: 0.89 }. Vazio = todo kWh
+   * vale o mesmo. Com valores, o otimizador maximiza reais em vez de kWh.
+   */
+  valorKwhSubgrupo?: Record<string, number>;
 }
 
 export const PARAMETROS_PADRAO: Parametros = {
@@ -223,6 +228,8 @@ export interface Cenario {
   saldoFinalPorUc: number[];
   /** Saldo acima da reserva de cada UC no fim (crédito parado). */
   saldoAcimaReserva: number;
+  /** Energia compensada de cada UC no período. */
+  compensadoPorUc: number[];
   /** Saldo de cada UC ao fim de cada mês (UC → meses). */
   saldoPorUcMes: number[][];
   /** Compensado ÷ injetado no período (pode passar de 100% quando consome saldo). */
@@ -278,6 +285,8 @@ export interface CandidataAvaliada {
 
 export interface ResultadoUsina {
   metodo: "otimizado" | "proporcional";
+  /** Refino exato do otimizado na grade de percentuais da distribuidora. */
+  refino?: { trocas: number; ganhoObjetivo: number; ganhoKwh: number };
   validacoes: Validacao[];
   usinaId: string;
   usinaNome: string;

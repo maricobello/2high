@@ -29,6 +29,8 @@
 import { chaveEntradas, injecaoMensal, normalizarPerfil } from "./engine";
 import type { CandidataAvaliada, OtimizacaoResultado, Parametros, Usina } from "./types";
 import { norm } from "./normalize";
+import { constantesObjetivo, PESO_RESERVA } from "./refinar";
+import { pesosValor, SUBGRUPO_CANDIDATA } from "./valor";
 
 export interface ModeloLp {
   chave: string;
@@ -43,11 +45,7 @@ export interface ModeloLp {
 /** Tolerância de 1e-6: na prática, ótimo exato (na base de teste, mesma resposta com 0,2% e 0%). */
 export const OPCOES_SOLVER = { time_limit: 25, mip_rel_gap: 1e-6, presolve: "on", output_flag: false } as const;
 
-/**
- * Penalidade (por kWh) de terminar abaixo da reserva. Pequena de propósito: guardar crédito
- * não tem valor econômico (é dinheiro parado); a reserva só desempata soluções equivalentes.
- */
-const PESO_RESERVA = 0.05;
+export { PESO_RESERVA };
 
 const num = (v: number) => {
   if (!Number.isFinite(v)) return "0";
@@ -63,13 +61,8 @@ function compat(a: string, b: string) {
 
 export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p: Parametros): ModeloLp {
   const T = Math.max(1, p.mesesSimulacao);
-  const cenarios = [
-    { peso: 0.6, fator: 1 },
-    { peso: 0.4, fator: p.fatorConsumoEstresse },
-  ];
-  const beta = 1; // saldo acima da reserva no fim conta como crédito perdido
+  const { cenarios, beta, delta } = constantesObjetivo(p);
   const gamma = p.custoNovaUcKwh; // custo (kWh) de incluir uma UC
-  const delta = 0.25; // peso da estabilidade por kWh/mês movido
   const pmin = p.pctMinimo;
 
   const obj: string[] = [];
@@ -90,14 +83,16 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
     const Ecum = E.reduce<number[]>((acc, v) => [...acc, (acc.at(-1) ?? 0) + v], []);
     const Emed = Ecum[T - 1] / T;
 
-    type Uc = { col: string; comp: number; saldo: number; reserva: number; pct0: number; bin?: string; cand?: string };
-    const lista: Uc[] = u.ucs.map((c, i) => ({ col: `x${ui}_${i}`, comp: Math.max(0, c.compensavelKwh), saldo: Math.max(0, c.saldoKwh), reserva: p.reservaSaldoMeses * Math.max(0, c.compensavelKwh), pct0: c.pctAtual }));
+    type Uc = { col: string; comp: number; saldo: number; reserva: number; pct0: number; valor: number; bin?: string; cand?: string };
     const cands = p.incluirNovasUcs ? elegiveis.filter((c) => compat(c.candidata.concessionaria, u.distribuidora)) : [];
+    // valor do kWh por UC (foco em lucro); candidatas são de baixa tensão (grupo B)
+    const vals = pesosValor([...u.ucs.map((c) => c.subgrupo), ...cands.map(() => SUBGRUPO_CANDIDATA)], p);
+    const lista: Uc[] = u.ucs.map((c, i) => ({ col: `x${ui}_${i}`, comp: Math.max(0, c.compensavelKwh), saldo: Math.max(0, c.saldoKwh), reserva: p.reservaSaldoMeses * Math.max(0, c.compensavelKwh), pct0: c.pctAtual, valor: vals[i] }));
     const mapaCands: ModeloLp["mapa"][number]["candidatas"] = [];
     cands.forEach((c, j) => {
       const col = `y${ui}_${j}`;
       const bin = `z${ui}_${j}`;
-      lista.push({ col, comp: c.candidata.compensavelKwh, saldo: 0, reserva: 0, pct0: 0, bin, cand: c.candidata.key });
+      lista.push({ col, comp: c.candidata.compensavelKwh, saldo: 0, reserva: 0, pct0: 0, valor: vals[u.ucs.length + j], bin, cand: c.candidata.key });
       mapaCands.push({ key: c.candidata.key, col, bin });
       candUsinas.set(c.candidata.key, [...(candUsinas.get(c.candidata.key) ?? []), bin]);
     });
@@ -139,7 +134,7 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
           as.push(a);
           nVars++;
           bounds.push(` 0 <= ${a} <= ${num(cons)}`);
-          obj.push(`- ${num(s.peso)} ${a}`);
+          obj.push(`- ${num(s.peso * l.valor)} ${a}`);
           rows.push(` s${si}_${ui}_${i}_${t}: ${as.map((v) => `+ ${v}`).join(" ")} - ${num(Ecum[t] / 100)} ${l.col} <= ${num(l.saldo)}`);
         }
         // reserva (cenário médio): o saldo é gasto sozinho sempre que falta crédito, então
@@ -156,7 +151,7 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
         }
         const e = `e${si}_${ui}_${i}`;
         nVars++;
-        obj.push(`+ ${num(s.peso * beta)} ${e}`);
+        obj.push(`+ ${num(s.peso * beta * l.valor)} ${e}`);
         rows.push(` f${si}_${ui}_${i}: ${e} - ${num(Ecum[T - 1] / 100)} ${l.col} ${as.map((v) => `+ ${v}`).join(" ")} >= ${num(l.saldo - l.reserva)}`);
       });
     });

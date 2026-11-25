@@ -4,9 +4,10 @@
  * - No método otimizado ele é livre: o modelo (MILP) escolhe o percentual de cada UC que
  *   maximiza a energia compensada; o máximo compensável é um resultado (coberturaEfetiva).
  * - Na regra proporcional e na planilha modelo ele é um parâmetro. Para esses dois casos,
- *   o valor ótimo sai de uma busca exaustiva (0–100%, passo de 1 ponto) com a projeção
- *   completa de 12 meses em cada ponto e o mesmo critério do otimizador: energia compensada
- *   esperada (consumo médio 60%, consumo menor 40%) menos um custo por UC incluída.
+ *   o valor ótimo sai de uma busca livre (sem faixa fixa: de ~0% a 200%, do grosso para o
+ *   fino até 0,1 ponto) com a projeção completa em cada ponto e o mesmo critério do
+ *   otimizador: energia compensada esperada (consumo médio 60%, consumo menor 40%) menos um
+ *   custo por UC incluída.
  */
 import { analisarProjeto, arredondarRateio, injecaoMensal, simular } from "./engine";
 import type { Candidata, Parametros, ResultadoUsina, Usina } from "./types";
@@ -49,13 +50,38 @@ function avaliarProporcional(usinas: Usina[], candidatas: Candidata[], p: Parame
   return { cobertura, valor: PESO_MEDIO * medio + (1 - PESO_MEDIO) * estresse - p.custoNovaUcKwh * incluidas, compensadoMedio: medio, compensadoEstresse: estresse, incluidas };
 }
 
-/** Cobertura ótima da regra proporcional (50% a 100%). ~1,5 s com 300 UCs: rode fora do caminho da tela. */
+/**
+ * Busca livre (do grosso para o fino) num intervalo: grade de 5 pontos, depois de 1 ponto em
+ * volta dos 3 melhores, depois de 0,1 ponto em volta do melhor. A curva não é côncava (tem
+ * vales), por isso começa com a grade inteira e refina mais de um candidato.
+ */
+function buscaLivre(avaliar: (c: number) => PontoCobertura, min: number, max: number, referencia: number): { melhor: PontoCobertura; curva: PontoCobertura[] } {
+  const vistos = new Map<number, PontoCobertura>();
+  const r1 = (v: number) => Math.round(v * 1000) / 1000;
+  const ponto = (c: number) => {
+    const k = r1(Math.min(max, Math.max(min, c)));
+    if (!vistos.has(k)) vistos.set(k, avaliar(k));
+    return vistos.get(k)!;
+  };
+  for (let c = min; c <= max + 1e-9; c += 0.05) ponto(c);
+  ponto(max);
+  ponto(referencia);
+  const top = (n: number) => [...vistos.values()].sort((a, b) => b.valor - a.valor).slice(0, n);
+  for (const t of top(3)) for (let d = -0.04; d <= 0.04 + 1e-9; d += 0.01) ponto(t.cobertura + d);
+  const m = top(1)[0];
+  for (let d = -0.009; d <= 0.009 + 1e-9; d += 0.001) ponto(m.cobertura + d);
+  const curva = [...vistos.values()].sort((a, b) => a.cobertura - b.cobertura);
+  return { melhor: melhorDaCurva(curva, referencia), curva };
+}
+
+/** Faixa da busca do máximo compensável (livre: abaixo e acima de 100%). */
+export const FAIXA_COBERTURA = { min: 0.01, max: 2 } as const;
+
+/** Máximo compensável ótimo da regra proporcional, busca livre de 1% a 200%. Pesado (~3 s com 300 UCs): rode num worker. */
 export function sugerirCobertura(usinas: Usina[], candidatas: Candidata[], p: Parametros): SugestaoCobertura | null {
   const validas = usinas.filter((u) => u.ucs.length && injecaoMensal(u) > 0);
   if (!validas.length) return null;
-  const curva: PontoCobertura[] = [];
-  for (let k = 50; k <= 100; k++) curva.push(avaliarProporcional(validas, candidatas, p, k / 100));
-  const melhor = melhorDaCurva(curva, p.cobertura);
+  const { melhor, curva } = buscaLivre((c) => avaliarProporcional(validas, candidatas, p, c), FAIXA_COBERTURA.min, FAIXA_COBERTURA.max, p.cobertura);
   const atual = pontoMaisProximo(curva, p.cobertura);
   return { cobertura: melhor.cobertura, ganhoKwh: melhor.compensadoMedio - atual.compensadoMedio, atual, melhor, curva };
 }
@@ -104,15 +130,15 @@ export function sugerirMaximoPlanilha(u: Usina, r: ResultadoUsina, p: Parametros
   const agregado = r.indicadores.compensavelAgregado;
   const compTotal = base.reduce((a, l) => a + l.comp, 0);
   const ucsAfetadas = compTotal + agregado > E ? base.filter((l) => l.saldo * 0.3 > l.comp).length : 0;
-  const curva: PontoCobertura[] = [];
-  for (let k = 0; k <= 100; k++) {
-    const pct = rateioPlanilha(base, E, agregado, k / 100, p);
+  const avaliar = (m: number): PontoCobertura => {
+    const pct = rateioPlanilha(base, E, agregado, m, p);
     const sim = base.map((l, i) => ({ pct: pct[i], saldo: l.saldo, comp: l.comp }));
     const medio = simular(sim, u, p).compensadoTotal;
     const estresse = simular(sim, u, p, p.fatorConsumoEstresse).compensadoTotal;
-    curva.push({ cobertura: k / 100, valor: PESO_MEDIO * medio + (1 - PESO_MEDIO) * estresse, compensadoMedio: medio, compensadoEstresse: estresse, incluidas: 0 });
-  }
-  const melhor = melhorDaCurva(curva, referencia);
+    return { cobertura: m, valor: PESO_MEDIO * medio + (1 - PESO_MEDIO) * estresse, compensadoMedio: medio, compensadoEstresse: estresse, incluidas: 0 };
+  };
+  // sem UC afetada o M8 não muda nada: não precisa buscar
+  const { melhor, curva } = ucsAfetadas ? buscaLivre(avaliar, 0, FAIXA_COBERTURA.max, referencia) : { melhor: avaliar(referencia), curva: [avaliar(referencia)] };
   const atual = pontoMaisProximo(curva, referencia);
   return { cobertura: melhor.cobertura, ganhoKwh: melhor.compensadoMedio - atual.compensadoMedio, atual, melhor, curva, compensadoSistema: r.proposto.compensadoTotal, ucsAfetadas };
 }
@@ -124,4 +150,23 @@ export function coberturaEfetiva(r: ResultadoUsina, qual: "atual" | "proposto"):
   if (comp <= 0) return null;
   const cred = linhas.reduce((a, l) => a + (qual === "atual" ? l.creditoAtualKwh : l.creditoPropostoKwh), 0);
   return cred / comp;
+}
+
+/**
+ * Limite físico da energia compensada no período (cenário médio): cada UC usa no máximo o
+ * próprio consumo; o saldo de uma UC só serve a ela; a injeção do período é o resto.
+ * Nenhum rateio passa disso — serve de régua para "quão perto do melhor possível".
+ */
+export function limiteFisico(r: ResultadoUsina, qual: "atual" | "proposto", meses: number): number {
+  const linhas = qual === "atual" ? r.linhas.filter((l) => l.origem === "atual") : r.linhas;
+  const injetado = (qual === "atual" ? r.atual : r.proposto).injetadoTotal;
+  let doSaldo = 0;
+  let falta = 0;
+  for (const l of linhas) {
+    const cons = Math.max(0, l.compensavelKwh) * meses;
+    const s = Math.min(cons, Math.max(0, l.saldoKwh));
+    doSaldo += s;
+    falta += cons - s;
+  }
+  return doSaldo + Math.min(injetado, falta);
 }

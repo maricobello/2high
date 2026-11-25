@@ -5,6 +5,7 @@
 import { injecaoMensal } from "./engine";
 import { scoreFatura } from "./fatura";
 import { scorePainel } from "./painel";
+import { usaValorPorSubgrupo, valorCompensado } from "./valor";
 import type { Acao, LinhaRateio, Parametros, ResultadoProjeto, ResultadoUsina, Usina } from "./types";
 
 export const fmt = (n: number, d = 0) => n.toLocaleString("pt-BR", { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -66,9 +67,13 @@ export interface Kpi {
 
 export function kpisEstudo(r: ResultadoUsina, p: Parametros): Kpi[] {
   const ganho = r.proposto.compensadoTotal - r.atual.compensadoTotal;
+  const vA = valorCompensado(r, "atual", p);
+  const vP = valorCompensado(r, "proposto", p);
+  const reais = vA != null && vP != null ? vP - vA : null;
+  const notaReais = usaValorPorSubgrupo(p) ? "valor do kWh por subgrupo" : `tarifa ${fmt(p.tarifaKwh, 2)} R$/kWh`;
   return [
     { titulo: "Energia compensada a mais", valor: `${ganho >= 0 ? "+" : ""}${fmt(ganho)} kWh`, nota: "vs. rateio atual", destaque: true },
-    { titulo: "Ganho estimado", valor: p.tarifaKwh > 0 ? brl(ganho * p.tarifaKwh) : "—", nota: p.tarifaKwh > 0 ? `tarifa ${fmt(p.tarifaKwh, 2)} R$/kWh` : "informe a tarifa no estudo", destaque: true },
+    { titulo: "Ganho estimado", valor: reais != null ? brl(reais) : "—", nota: reais != null ? notaReais : "informe a tarifa no estudo", destaque: true },
     { titulo: "Crédito parado no fim", valor: `${fmt(r.proposto.saldoFinal)} kWh`, nota: `hoje ${fmt(r.atual.saldoInicial)} · sem mudar ${fmt(r.atual.saldoFinal)}`, destaque: false },
     { titulo: "Consumo sem crédito", valor: `${fmt(r.proposto.consumoDescobertoTotal)} kWh`, nota: `sem mudar: ${fmt(r.atual.consumoDescobertoTotal)}`, destaque: false },
   ];

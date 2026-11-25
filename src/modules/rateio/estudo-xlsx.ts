@@ -573,6 +573,9 @@ function folhaMemoria(wb: ExcelJS.Workbook, usinas: Usina[], alvo: ResultadoUsin
   par("Casas decimais / mínimo por UC", `${p.casasDecimais} / ${fmt(p.pctMinimo, p.casasDecimais)}%`);
   par("Projeção / cenário de estresse", `${p.mesesSimulacao} meses / consumo ${fmt(p.fatorConsumoEstresse * 100)}%`);
   if (p.tarifaKwh > 0) par("Tarifa média das UCs", `${fmt(p.tarifaKwh, 2)} R$/kWh`);
+  const valores = Object.entries(p.valorKwhSubgrupo ?? {}).filter(([, v]) => v > 0);
+  if (valores.length) par("Valor do kWh por subgrupo (objetivo em R$)", valores.map(([k, v]) => `${k} ${fmt(v, 2)}`).join(" · "));
+  if (metodo === "otimizado") par("Refino", "Ótimo exato na grade de percentuais da distribuidora (trocas de 1% até a última casa decimal)");
   row++;
 
   for (const r of alvo) {

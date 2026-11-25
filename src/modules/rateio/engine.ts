@@ -15,6 +15,8 @@
  */
 import { round } from "./normalize";
 import { resumoConsumo } from "./consumo";
+import { constantesObjetivo, refinarRateio, type ItemRefino } from "./refinar";
+import { pesosValor, SUBGRUPO_CANDIDATA, usaValorPorSubgrupo } from "./valor";
 import type {
   Acao,
   Alerta,
@@ -42,6 +44,13 @@ export function injecaoMensal(u: Usina): number {
   return u.meses > 0 ? u.energiaInjetadaPeriodo / u.meses : 0;
 }
 
+/** Injeção de cada mês da projeção (com sazonalidade), a partir do mês de início. */
+export function serieInjecao(u: Usina, p: Pick<Parametros, "mesesSimulacao" | "mesInicio">): number[] {
+  const E0 = injecaoMensal(u);
+  const perfil = normalizarPerfil(u.perfilSazonal);
+  return Array.from({ length: Math.max(1, p.mesesSimulacao) }, (_, t) => E0 * perfil[(((Math.round(p.mesInicio) - 1 + t) % 12) + 12) % 12]);
+}
+
 /** Fatores de sazonalidade normalizados (média 1). Vazio ou inválido = 1 em todos os meses. */
 export function normalizarPerfil(perfil: number[]): number[] {
   if (perfil.length !== 12 || perfil.some((v) => !(v >= 0))) return Array(12).fill(1);
@@ -55,7 +64,8 @@ export function chaveEntradas(usinas: Usina[], candidatas: CandidataAvaliada[], 
   const s = JSON.stringify([
     usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh])]),
     candidatas.filter((c) => c.elegivel).map((c) => [c.candidata.key, c.candidata.compensavelKwh, c.candidata.concessionaria]),
-    { ...p, tarifaKwh: 0 },
+    // a tarifa média só muda o ótimo quando há valores por subgrupo (é o valor padrão dos demais)
+    { ...p, tarifaKwh: usaValorPorSubgrupo(p) ? p.tarifaKwh : 0 },
   ]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -122,6 +132,7 @@ export function simular(ucs: UcSim[], usina: Usina, p: Parametros, fatorConsumo 
   const perfil = normalizarPerfil(usina.perfilSazonal);
   const saldos = ucs.map((u) => Math.max(0, u.saldo));
   const saldoPorUcMes: number[][] = ucs.map(() => []);
+  const compensadoPorUc = ucs.map(() => 0);
   const saldoInicial = saldos.reduce((a, b) => a + b, 0);
   const meses: CenarioMes[] = [];
   let injetadoTotal = 0;
@@ -144,6 +155,7 @@ export function simular(ucs: UcSim[], usina: Usina, p: Parametros, fatorConsumo 
       const usoSaldo = Math.min(saldos[i], resto);
       saldos[i] += credito - usoNovo - usoSaldo;
       compensado += usoNovo + usoSaldo;
+      compensadoPorUc[i] += usoNovo + usoSaldo;
       diretoTotal += usoNovo;
       paraSaldo += credito - usoNovo;
       descoberto += resto - usoSaldo;
@@ -166,6 +178,7 @@ export function simular(ucs: UcSim[], usina: Usina, p: Parametros, fatorConsumo 
     saldoFinal,
     saldoFinalPorUc: saldos,
     saldoPorUcMes,
+    compensadoPorUc,
     saldoAcimaReserva: saldos.reduce((a, v, i) => a + Math.max(0, v - p.reservaSaldoMeses * Math.max(0, ucs[i].comp)), 0),
     aproveitamento: injetadoTotal > 0 ? compensadoTotal / injetadoTotal : 0,
     aproveitamentoDireto: injetadoTotal > 0 ? diretoTotal / injetadoTotal : 0,
@@ -356,9 +369,26 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros, p
   if (pesosFixos && pesosFixos.length === todos.length) pesos = pesosFixos.map((w) => (w > 1e-9 ? w : 0));
   // sem nenhuma necessidade (ex.: todas com saldo alto e retirada desligada): mantém o atual
   const semNecessidade = !pesosFixos && todos.every((n) => n.retirar || n.necessidade <= 0);
-  const pctProposto = semNecessidade
+  let pctProposto = semNecessidade
     ? [...usina.ucs.map((u) => u.pctAtual), ...novas.map(() => 0)]
     : arredondarRateio(pesos, p.casasDecimais, p.pctMinimo);
+
+  // otimizado: refino exato na grade da distribuidora (o arredondamento do ótimo contínuo perde energia)
+  let refino: ResultadoUsina["refino"];
+  if (pesosFixos && !semNecessidade && E > 0) {
+    const vals = pesosValor([...usina.ucs.map((u) => u.subgrupo), ...novas.map(() => SUBGRUPO_CANDIDATA)], p);
+    const itens: ItemRefino[] = [
+      ...usina.ucs.map((u, i) => ({ comp: u.compensavelKwh, saldo: u.saldoKwh, pct0: u.pctAtual, valor: vals[i], reserva: p.reservaSaldoMeses * Math.max(0, u.compensavelKwh), ativo: pesos[i] > 0 })),
+      ...novas.map((c, j) => ({ comp: c.compensavelKwh, saldo: 0, pct0: 0, valor: vals[usina.ucs.length + j], reserva: 0, ativo: pesos[usina.ucs.length + j] > 0 })),
+    ];
+    const ref = refinarRateio(itens, pctProposto, serieInjecao(usina, p), constantesObjetivo(p), p.casasDecimais, p.pctMinimo);
+    const esperado = (pct: number[]) => {
+      const sim = [...usina.ucs.map((u, i) => ({ pct: pct[i], saldo: u.saldoKwh, comp: u.compensavelKwh })), ...novas.map((c, j) => ({ pct: pct[usina.ucs.length + j], saldo: 0, comp: c.compensavelKwh }))];
+      return 0.6 * simular(sim, usina, p).compensadoTotal + 0.4 * simular(sim, usina, p, p.fatorConsumoEstresse).compensadoTotal;
+    };
+    refino = { trocas: ref.trocas, ganhoObjetivo: ref.depois - ref.antes, ganhoKwh: ref.trocas ? esperado(ref.pct) - esperado(pctProposto) : 0 };
+    pctProposto = ref.pct;
+  }
 
   const simAtual = simular(usina.ucs.map((u) => ({ pct: u.pctAtual, saldo: u.saldoKwh, comp: u.compensavelKwh })), usina, p);
   const ucsProp = [
@@ -452,7 +482,7 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros, p
     });
 
   const validacoes = validarRateio(usina, linhas, indicadores, simAtual, simProp, simEstresse, p);
-  return { metodo: pesosFixos ? "otimizado" : "proporcional", validacoes, usinaId: usina.id, usinaNome: usina.nome, linhas, atual: simAtual, proposto: simProp, propostoEstresse: simEstresse, indicadores, alertas };
+  return { metodo: pesosFixos ? "otimizado" : "proporcional", refino, validacoes, usinaId: usina.id, usinaNome: usina.nome, linhas, atual: simAtual, proposto: simProp, propostoEstresse: simEstresse, indicadores, alertas };
 }
 
 function motivoOtim(comp: number, saldo: number, credAtual: number, credProp: number, fimAtual: number, fimProp: number): string {

@@ -43,10 +43,13 @@ geração distribuída e entregar o estudo em Excel.
      total. Dá para colar a coluna do Excel no primeiro mês. Total e média aparecem na hora; a
      média entra no balanço (consumida ÷ contratada) e na planilha modelo (S4:T12).
    - **Máximo compensável** (card na usina): no otimizado é livre por UC, e o card mostra o
-     efetivo de hoje e do proposto. Para a regra proporcional, o sistema testa 50% a 100% com a
-     projeção completa e sugere o ótimo ("Aplicar"). Para a planilha modelo, aplica as fórmulas
-     dela (colunas L a N) a cada valor de 0% a 100% e exporta o M8 ótimo. A comparação de
-     métodos ganha a linha "Máximo compensável efetivo".
+     efetivo de hoje e do proposto. Para a regra proporcional e para a planilha modelo (M8), o
+     sistema faz uma busca livre (sem faixa fixa: 1% a 200% e 0% a 200%, do grosso para o fino
+     até 0,1 ponto) com a projeção completa e sugere o ótimo ("Aplicar"); a planilha exportada
+     já sai com o M8 ótimo. A comparação de métodos ganha "Do limite físico possível" e
+     "Máximo compensável efetivo".
+   - **Valor do kWh por subgrupo** (Parâmetros, opcional): com R$/kWh por subgrupo (ex.: A4 e
+     B3), o otimizado maximiza reais e o ganho em R$ é calculado UC a UC.
 5. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
 6. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
 7. **Exportar** (botão "Exportar estudo" para todas as usinas, ou "Exportar" na usina) abre a
@@ -90,9 +93,18 @@ modelo acompanha UC por UC, mês a mês:
   (binária), permanência de UC atual (binária);
 - restrições: soma 100%, saldo de cada UC nunca negativo mês a mês, mínimo por UC,
   cada candidata em no máximo uma usina;
-- objetivo: maximizar a energia compensada em dois cenários (consumo médio 60%,
-  consumo menor 40%), com custo por UC incluída e desempates (mudar pouco o rateio
-  atual, manter a reserva de saldo).
+- objetivo: maximizar a energia compensada (ou os reais, com valor por subgrupo) em dois
+  cenários (consumo médio 60%, consumo menor 40%), com custo por UC incluída e desempates
+  (mudar pouco o rateio atual, manter a reserva de saldo).
+
+**Refino exato** (`refinar.ts`): o objetivo se separa por UC e o ganho de cada UC é côncavo no
+percentual. Partindo do ótimo contínuo arredondado, o refino troca 1%, 0,1% … até a última
+casa decimal entre pares de UCs enquanto houver ganho; sem troca que melhore, é o ótimo global
+na grade da distribuidora (teste confere com força bruta). Na Safira: +1.428 kWh em 12 meses
+sobre o simples arredondamento.
+
+**Limite físico**: nenhum rateio compensa mais que Σ min(consumo, saldo) + min(injeção, consumo
+que o saldo não cobre). A comparação mostra quanto de cada rateio chega a esse teto.
 
 A tela mostra a comparação com o rateio atual e com a regra proporcional, a validação
 antes do envio e a ficha de cada UC (diagnóstico, números e saldo mês a mês).
@@ -103,13 +115,13 @@ Com cerca de 160 UCs e 80 candidatas, a solução ótima sai em poucos segundos.
 
 - **Otimizado**: livre. O modelo decide quanto do compensável de cada UC o crédito novo cobre;
   o efetivo (crédito ÷ compensável) aparece no card e na comparação.
-- **Regra proporcional**: parâmetro. O ótimo é uma busca de 50% a 100% (passo de 1 ponto) com a
-  projeção completa em cada ponto e o critério do otimizado (consumo médio 60%, menor 40%, custo
-  por UC nova). Roda em segundo plano (~1,5 s com 300 UCs).
+- **Regra proporcional**: parâmetro. O ótimo é uma busca livre de 1% a 200% (grade de 5 pontos,
+  depois 1 ponto em volta dos 3 melhores e 0,1 ponto em volta do melhor; a curva tem vales) com
+  a projeção completa em cada ponto e o critério do otimizado. Roda num Web Worker.
 - **Planilha modelo (M8)**: a regra dela é L = saldo × 30% (se compensável + agregado > injeção),
   M = L > compensável ? compensável × M8 : compensável − L, N = M ÷ ΣM. O M8 só muda o
-  percentual das UCs que gastariam mais saldo que o compensável; o sistema testa 0% a 100% e
-  exporta o melhor (empate: mantém o valor que a planilha usava).
+  percentual das UCs que gastariam mais saldo que o compensável; o sistema faz a mesma busca
+  livre (0% a 200%) e exporta o melhor (empate: mantém o valor que a planilha usava).
 
 ### Regra proporcional (comparação)
 
@@ -141,5 +153,6 @@ Casas decimais aceitas variam por distribuidora (CPFL: até 2); confirme com a C
 | Excel (leitura e exportação, no navegador) | `src/modules/rateio/xlsx.ts` |
 | Parecer (resumo agregado e texto padrão) | `src/modules/rateio/parecer.ts`, `src/modules/llm/tasks/rateio.ts` |
 | Tela | `src/components/admin/rateio/` |
-| Máximo compensável ótimo e energia consumida | `src/modules/rateio/otimo-cobertura.ts`, `src/modules/rateio/consumo.ts` |
+| Máximo compensável ótimo, limite físico e energia consumida | `src/modules/rateio/otimo-cobertura.ts`, `cobertura.worker.ts`, `consumo.ts` |
+| Refino exato e valor por subgrupo | `src/modules/rateio/refinar.ts`, `src/modules/rateio/valor.ts` |
 | Testes | `tests/rateio.test.ts`, `tests/rateio-otimizador.test.ts`, `tests/rateio-fontes.test.ts`, `tests/rateio-maximo.test.ts`, `e2e/rateio.spec.ts` |

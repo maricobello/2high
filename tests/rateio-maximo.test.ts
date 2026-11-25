@@ -3,7 +3,9 @@ import { competencias, consumoPorCompetencia, definirConsumo, numerosColados, re
 import { analisarProjeto } from "@/modules/rateio/engine";
 import { exemplo } from "@/modules/rateio/exemplo";
 import { usinaVazia } from "@/modules/rateio/grid";
-import { coberturaEfetiva, rateioPlanilha, sugerirCobertura, sugerirMaximoPlanilha } from "@/modules/rateio/otimo-cobertura";
+import { coberturaEfetiva, limiteFisico, rateioPlanilha, sugerirCobertura, sugerirMaximoPlanilha } from "@/modules/rateio/otimo-cobertura";
+import { constantesObjetivo, refinarRateio, valorUc, type ItemRefino } from "@/modules/rateio/refinar";
+import { pesosValor, valorCompensado } from "@/modules/rateio/valor";
 import { PARAMETROS_PADRAO, type Parametros, type UcAtual, type Usina } from "@/modules/rateio/types";
 
 const P: Parametros = { ...PARAMETROS_PADRAO, metodo: "proporcional" };
@@ -50,15 +52,16 @@ describe("máximo compensável", () => {
     expect(s.ganhoKwh).toBe(0);
   });
 
-  it("regra proporcional: busca de 50% a 100% acha o melhor ponto da curva", () => {
+  it("regra proporcional: busca livre (abaixo e acima de 100%) acha o melhor ponto avaliado", () => {
     const ex = exemplo();
     const s = sugerirCobertura(ex.usinas, ex.candidatas, { ...P, cobertura: 0.6 })!;
-    expect(s.curva).toHaveLength(51);
-    expect(s.cobertura).toBeGreaterThanOrEqual(0.5);
-    expect(s.cobertura).toBeLessThanOrEqual(1);
+    expect(s.curva[0].cobertura).toBeLessThanOrEqual(0.05);
+    expect(s.curva.at(-1)!.cobertura).toBeGreaterThanOrEqual(1.95);
     expect(s.melhor.valor).toBeGreaterThanOrEqual(Math.max(...s.curva.map((c) => c.valor)) - 1);
+    // refinado até 0,1 ponto em volta do melhor
+    expect(s.curva.some((c) => Math.abs(c.cobertura - s.cobertura - 0.001) < 1e-9 || Math.abs(c.cobertura - s.cobertura + 0.001) < 1e-9)).toBe(true);
     expect(s.ganhoKwh).toBeCloseTo(s.melhor.compensadoMedio - s.atual.compensadoMedio, 6);
-  }, 30_000);
+  }, 60_000);
 
   it("sem injeção não sugere", () => {
     expect(sugerirCobertura([usina([uc(1, 100, 100)], 0)], [], P)).toBeNull();
@@ -109,5 +112,67 @@ describe("energia consumida no período", () => {
   it("a média entra no indicador de consumo da usina", () => {
     const u: Usina = { ...usina([uc(1, 100, 1000)], 1000), periodoInicio: "2026-01-01", periodoFim: "2026-02-01", meses: 2, consumoMensal: [{ mes: "2026-01", kwh: 800 }, { mes: "2026-02", kwh: 1200 }] };
     expect(analisarProjeto([u], [], P).usinas[0].indicadores.consumoMensal).toBe(1000);
+  });
+});
+
+describe("refino exato do otimizado", () => {
+  const K = constantesObjetivo(PARAMETROS_PADRAO);
+  const E = Array(12).fill(1000);
+  const item = (comp: number, saldo: number, pct0: number, valor = 1): ItemRefino => ({ comp, saldo, pct0, valor, reserva: comp, ativo: true });
+
+  it("o ganho de cada UC é côncavo no percentual", () => {
+    const it0 = item(400, 900, 20);
+    const v = Array.from({ length: 101 }, (_, k) => valorUc(it0, k, E, K));
+    for (let k = 1; k < 100; k++) expect(v[k + 1] - v[k]).toBeLessThanOrEqual(v[k] - v[k - 1] + 1e-9);
+  });
+
+  it("chega ao ótimo global da grade (confere com força bruta)", () => {
+    const itens = [item(500, 0, 30), item(300, 2500, 40), item(250, 100, 30, 1.4)];
+    const f = (x: number[]) => x.reduce((a, p, i) => a + valorUc(itens[i], p, E, K), 0);
+    let melhor = -Infinity;
+    for (let a = 1; a <= 98; a++) for (let b = 1; a + b <= 99; b++) melhor = Math.max(melhor, f([a, b, 100 - a - b]));
+    const r = refinarRateio(itens, [34, 33, 33], E, K, 0, 1);
+    expect(r.pct.reduce((a, b) => a + b, 0)).toBe(100);
+    expect(r.depois).toBeCloseTo(melhor, 6);
+    expect(r.depois).toBeGreaterThanOrEqual(r.antes);
+  });
+
+  it("UC fora do rateio fica em 0 e o mínimo é respeitado", () => {
+    const itens = [item(500, 0, 50), { ...item(300, 0, 50), ativo: false }, item(0, 0, 0)];
+    const r = refinarRateio(itens, [99.99, 0, 0.01], E, K, 2, 0.01);
+    expect(r.pct[1]).toBe(0);
+    expect(r.pct[2]).toBeGreaterThanOrEqual(0.01);
+    expect(r.pct.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 9);
+  });
+
+  it("com valor por subgrupo, o crédito escasso vai primeiro para o kWh mais caro", () => {
+    const pesos = pesosValor(["A4", "B3"], { valorKwhSubgrupo: { A4: 0.5, B3: 1 }, tarifaKwh: 0 });
+    expect(pesos[1]).toBeGreaterThan(pesos[0]);
+    // injeção de 1000 para 2 UCs de 800: a B3 recebe quase todo o seu consumo (o resto é
+    // margem para o cenário de consumo menor, que não deixa crédito encalhar)
+    const itens = [item(800, 0, 50, pesos[0]), item(800, 0, 50, pesos[1])];
+    const r = refinarRateio(itens, [50, 50], E, K, 2, 0.01);
+    expect(r.pct[1]).toBeGreaterThan(75);
+    expect(r.pct[1]).toBeLessThanOrEqual(80);
+    expect(pesosValor(["A4", "B3"], { valorKwhSubgrupo: {}, tarifaKwh: 0.9 })).toEqual([1, 1]);
+  });
+
+  it("no motor: otimizado refinado soma 100%, não perde para o arredondado e respeita o limite físico", () => {
+    const u = usina([uc(1, 30, 900, 200), uc(2, 30, 700, 5000), uc(3, 20, 400), uc(4, 20, 300, 50)], 2000);
+    // pesos contínuos "do MILP" de propósito fora da grade
+    const pO = { ...P, metodo: "otimizado" as const };
+    const chave = analisarProjeto([u], [], pO).chave;
+    const otim = { chave, status: "Optimal", otimo: true, objetivo: 0, tempoMs: 0, variaveis: 0, restricoes: 0, porUsina: { u: { pctAtuais: [33.333, 13.333, 33.334, 20], novas: [] } } };
+    const r = analisarProjeto([u], [], pO, otim).usinas[0];
+    expect(r.metodo).toBe("otimizado");
+    expect(r.refino).toBeDefined();
+    expect(r.refino!.ganhoObjetivo).toBeGreaterThanOrEqual(0);
+    expect(r.linhas.reduce((a, l) => a + l.pctProposto, 0)).toBeCloseTo(100, 6);
+    expect(r.proposto.compensadoTotal).toBeLessThanOrEqual(limiteFisico(r, "proposto", P.mesesSimulacao) + 1e-6);
+    expect(r.atual.compensadoTotal).toBeLessThanOrEqual(limiteFisico(r, "atual", P.mesesSimulacao) + 1e-6);
+    // R$ UC a UC
+    const pv = { ...P, tarifaKwh: 0, valorKwhSubgrupo: { B3: 0.9 } };
+    expect(valorCompensado(r, "proposto", pv)).toBeCloseTo(r.proposto.compensadoTotal * 0.9, 3);
+    expect(valorCompensado(r, "proposto", { ...P, tarifaKwh: 0 })).toBeNull();
   });
 });

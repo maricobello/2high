@@ -28,6 +28,7 @@ test.describe("admin: rateio GD", () => {
     await expect(page.getByRole("heading", { name: "Máximo compensável" })).toBeVisible();
     await expect(page.getByText("Planilha modelo (célula M8)")).toBeVisible();
     await expect(page.getByText("Máximo compensável efetivo")).toBeVisible();
+    await expect(page.getByText("Do limite físico possível")).toBeVisible();
 
     await page.getByRole("button", { name: "Gerar parecer" }).click();
     await expect(page.getByLabel("Texto do parecer")).toHaveValue(/Estudo de revisão do rateio|rateio/i, { timeout: 30_000 });
