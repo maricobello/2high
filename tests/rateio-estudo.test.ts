@@ -14,7 +14,14 @@ describe("estudo em Excel", () => {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await blob.arrayBuffer());
     const nomes = wb.worksheets.map((w) => w.name);
-    expect(nomes).toEqual(["Estudo UFV EXEMPLO NORTE", "Envio UFV EXEMPLO NORTE", "Estudo UFV EXEMPLO SUL", "Envio UFV EXEMPLO SUL", "Detalhe por UC", "Novas UCs", "Memória de cálculo"]);
+    expect(nomes).toEqual(["Estudo UFV EXEMPLO NORTE", "Anexo I UFV EXEMPLO NORTE", "Envio UFV EXEMPLO NORTE", "Estudo UFV EXEMPLO SUL", "Anexo I UFV EXEMPLO SUL", "Envio UFV EXEMPLO SUL", "Detalhe por UC", "Novas UCs", "Memória de cálculo"]);
+    // anexo: uma linha por UC (atuais + novas), totais de 100%
+    const anexo = wb.getWorksheet("Anexo I UFV EXEMPLO NORTE")!;
+    const ru = r.usinas[0];
+    const tot = anexo.getRow(6 + ru.linhas.length + 1);
+    expect(tot.getCell(2).value).toBe("TOTAL");
+    expect(tot.getCell(5).value).toBeCloseTo(100, 6);
+    expect(tot.getCell(6).value).toBeCloseTo(100, 6);
     const estudo = wb.getWorksheet("Estudo UFV EXEMPLO NORTE")!;
     expect(estudo.getCell("A1").value).toBe("REPLACE");
     expect(estudo.getCell("A2").value).toBe("Estudo de rateio de créditos");

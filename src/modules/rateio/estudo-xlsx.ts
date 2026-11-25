@@ -125,6 +125,7 @@ export async function exportarEstudo(usinas: Usina[], resultado: ResultadoProjet
   for (const r of alvo) {
     const u = usinas.find((x) => x.id === r.usinaId)!;
     folhaEstudo(wb, u, r, p, marca, C, logoId, emissao, opcoes.pareceres?.[r.usinaId], opcoes.ciclo?.[r.usinaId], resultado.metodo);
+    folhaAnexo(wb, u, r, p, marca, C, emissao);
     folhaEnvio(wb, u, r, p, marca, C, emissao);
   }
   folhaDetalhe(wb, alvo, p, marca, C);
@@ -275,7 +276,7 @@ function folhaEstudo(
     celula(row, 4, row, 8, ACAO_EFEITO[a], { font: { color: { argb: MUDO } }, borda: true });
     row++;
   });
-  celula(row, 1, row, 8, `Lista completa na aba "${nomeAba(`Envio ${r.usinaNome}`)}" (para a distribuidora) e em "Detalhe por UC" (motivo de cada UC).`, { font: { size: 8, italic: true, color: { argb: MUDO } } });
+  celula(row, 1, row, 8, `UC por UC no Anexo I (aba "${nomeAba(`Anexo I ${r.usinaNome}`)}"); lista para a distribuidora na aba "${nomeAba(`Envio ${r.usinaNome}`)}"; motivo de cada UC em "Detalhe por UC".`, { font: { size: 8, italic: true, color: { argb: MUDO } } });
   row += 2;
 
   // --- 4. Validação
@@ -344,6 +345,99 @@ function folhaEstudo(
   });
   ws.getRow(row).height = 22;
   ws.pageSetup.printArea = `A1:H${row}`;
+}
+
+// ---------------------------------------------------------------------------
+// Anexo I: as UCs no rateio, hoje e como ficam
+
+function folhaAnexo(wb: ExcelJS.Workbook, u: Usina, r: ResultadoUsina, p: Parametros, marca: MarcaEstudo, C: Cores, emissao: string) {
+  const ws = wb.addWorksheet(nomeAba(`Anexo I ${r.usinaNome}`), { properties: { tabColor: { argb: C.marca } } });
+  paginaRetrato(ws, marca, `Anexo I · UCs no rateio · ${r.usinaNome}`);
+  const pctFmt = p.casasDecimais > 0 ? `0.${"0".repeat(p.casasDecimais)}` : "0";
+  const varFmt = p.casasDecimais > 0 ? `+0.${"0".repeat(p.casasDecimais)};-0.${"0".repeat(p.casasDecimais)};0` : "+0;-0;0";
+  const cols: { t: string; w: number; fmt?: string; dir?: boolean; centro?: boolean }[] = [
+    { t: "Nº", w: 5, centro: true },
+    { t: "UC (instalação)", w: 17 },
+    { t: "Apelido", w: 13 },
+    { t: "Situação hoje", w: 13 },
+    { t: "% atual", w: 8, fmt: pctFmt, dir: true },
+    { t: "% proposto", w: 9, fmt: pctFmt, dir: true },
+    { t: "Variação (p.p.)", w: 9, fmt: varFmt, dir: true },
+    { t: "Ação", w: 9 },
+    { t: "Consumo compensável (kWh/mês)", w: 12, fmt: KWH, dir: true },
+    { t: "Saldo hoje (meses)", w: 9, fmt: "0.0", dir: true },
+  ];
+  ws.columns = cols.map((c) => ({ width: c.w }));
+  const n = cols.length;
+
+  // cabeçalho do anexo
+  ws.mergeCells(1, 1, 1, n);
+  ws.getCell(1, 1).value = `${marca.empresa ? `${marca.empresa.toUpperCase()} · ` : ""}ANEXO I`;
+  ws.getCell(1, 1).font = { name: "Calibri", size: 9, bold: true, color: { argb: C.texto } };
+  ws.mergeCells(2, 1, 2, n);
+  ws.getCell(2, 1).value = `UCs no rateio · ${r.usinaNome}`;
+  ws.getCell(2, 1).font = { name: "Calibri", size: 15, bold: true, color: { argb: TXT } };
+  const atuais = r.linhas.filter((l) => l.origem === "atual");
+  const novas = r.linhas.filter((l) => l.origem === "nova");
+  const f = 10 ** p.casasDecimais;
+  const soma = (k: "pctAtual" | "pctProposto") => Math.round(r.linhas.reduce((a, l) => a + l[k], 0) * f) / f;
+  ws.mergeCells(3, 1, 3, n);
+  ws.getCell(3, 1).value = `${u.distribuidora ? `${u.distribuidora} · ` : ""}emitido em ${emissao} · hoje ${atuais.length} UCs (${fmt(soma("pctAtual"), p.casasDecimais)}%) → proposto ${r.indicadores.ucsPropostas} UCs (${fmt(soma("pctProposto"), p.casasDecimais)}%)`;
+  ws.getCell(3, 1).font = { name: "Calibri", size: 9.5, color: { argb: MUDO } };
+  for (let c = 1; c <= n; c++) ws.getCell(4, c).border = { bottom: { style: "medium", color: { argb: C.marca } } };
+  ws.getRow(4).height = 6;
+
+  const H = 6;
+  const h = ws.getRow(H);
+  h.values = cols.map((c) => c.t);
+  h.height = 30;
+  h.eachCell((c, k) => {
+    c.font = { name: "Calibri", size: 8.5, bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: GRAFITE } };
+    c.border = { bottom: { style: "medium", color: { argb: C.marca } } };
+    c.alignment = { vertical: "middle", wrapText: true, horizontal: cols[k - 1].dir ? "right" : cols[k - 1].centro ? "center" : "left", indent: k === 8 ? 1 : 0 };
+  });
+
+  // como estão hoje: maior participação primeiro; novas UCs no fim
+  const ordenadas = [...atuais.sort((a, b) => b.pctAtual - a.pctAtual || b.pctProposto - a.pctProposto), ...novas.sort((a, b) => b.pctProposto - a.pctProposto)];
+  ordenadas.forEach((l, k) => {
+    const row = ws.addRow([k + 1, l.instalacao, l.apelido || "—", l.diagnostico.rotulo, l.pctAtual, l.pctProposto, l.pctProposto - l.pctAtual, ACAO_LABEL[l.acao], l.compensavelKwh, l.origem === "nova" ? null : l.mesesSaldoHoje]);
+    row.height = 15;
+    row.eachCell({ includeEmpty: true }, (c, i) => {
+      const col = cols[i - 1];
+      c.font = { name: "Calibri", size: 8.5, color: { argb: TXT } };
+      if (col.fmt) c.numFmt = col.fmt;
+      c.alignment = { vertical: "middle", horizontal: col.dir ? "right" : col.centro ? "center" : "left" };
+      c.border = { bottom: { style: "hair", color: { argb: LINHA } } };
+      if (k % 2) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: FUNDO } };
+    });
+    row.getCell(1).font = { name: "Calibri", size: 8, color: { argb: MUDO } };
+    row.getCell(6).font = { name: "Calibri", size: 8.5, bold: true, color: { argb: TXT } };
+    const d = l.pctProposto - l.pctAtual;
+    row.getCell(7).font = { name: "Calibri", size: 8.5, color: { argb: Math.abs(d) < 10 ** -p.casasDecimais / 2 ? MUDO : d > 0 ? OK : ATENCAO } };
+    row.getCell(8).font = { name: "Calibri", size: 8.5, bold: true, color: { argb: ACAO_COR[l.acao] } };
+    row.getCell(8).alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+  });
+
+  const tot = ws.addRow(["", "TOTAL", "", "", soma("pctAtual"), soma("pctProposto"), null, "", r.linhas.reduce((a, l) => a + Math.max(0, l.compensavelKwh), 0), null]);
+  tot.eachCell({ includeEmpty: true }, (c, i) => {
+    const col = cols[i - 1];
+    c.font = { name: "Calibri", size: 9, bold: true, color: { argb: TXT } };
+    if (col.fmt) c.numFmt = col.fmt;
+    c.alignment = { horizontal: col.dir ? "right" : "left" };
+    c.border = { top: { style: "medium", color: { argb: C.marca } } };
+  });
+  const leg = ws.addRow([]);
+  ws.mergeCells(leg.number + 1, 1, leg.number + 1, n);
+  const nota = ws.getCell(leg.number + 1, 1);
+  nota.value = "Situação hoje: Recebe demais = crédito maior que o consumo (vira saldo); Recebe pouco = crédito e saldo cobrem bem menos que a meta; Saldo parado = saldo acima do horizonte; Risco de vencer = saldo acima de 60 meses. Variação em pontos percentuais.";
+  nota.font = { name: "Calibri", size: 7.5, italic: true, color: { argb: MUDO } };
+  nota.alignment = { wrapText: true, vertical: "top" };
+  ws.getRow(leg.number + 1).height = 24;
+
+  ws.views = [{ showGridLines: false, state: "frozen", ySplit: H }];
+  ws.autoFilter = { from: { row: H, column: 1 }, to: { row: H, column: n } };
+  ws.pageSetup.printTitlesRow = `${H}:${H}`;
 }
 
 // ---------------------------------------------------------------------------

@@ -44,6 +44,9 @@ geração distribuída e entregar o estudo em Excel.
    "prontuário", pronto para envio e impressão em A4:
    - *Estudo* (por usina): página 1 com identificação, resultado em 4 números, conduta (o que
      muda), validação ✓/✗ e pontos de atenção; página 2 com parecer e assinaturas;
+   - *Anexo I* (por usina): tabela de todas as UCs, como estão hoje e como ficam (situação,
+     % atual, % proposto, variação, ação, consumo e saldo), com totais e cabeçalho repetido
+     em cada página;
    - *Envio* (por usina): só instalação e percentual, soma 100%;
    - *Detalhe por UC*, *Novas UCs* e *Memória de cálculo* (parâmetros, fontes, projeção e
      metodologia).
