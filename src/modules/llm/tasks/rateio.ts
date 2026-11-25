@@ -45,3 +45,32 @@ export async function redigirParecerRateio(resumo: ResumoParecer): Promise<Parec
     return { texto: padrao, fonte: "template", falhas: [err instanceof Error ? err.message : "falha"] };
   }
 }
+
+const SYSTEM_PAINEL = `Você lê recortes da tela de gestão de usinas do sistema Orange (bloco "Energia", em kWh).
+Devolva SOMENTE os números que aparecem na imagem, sem calcular nada, no formato brasileiro já convertido para número JSON (ex.: "3.239.006" -> 3239006; "-535.480,0" -> -535480).
+Campos (use null quando o rótulo não aparecer): estimada, injetada, compensada, saldoInicial, saldoUtilizado, saldoVencido, saldoAdicionado, saldoAcumulado, geracaoRealizada, consumoUsina, divergencia (Divergência de Faturamento), balancoInjetada (Balanço Energia Injetada).
+Responda só com o objeto JSON.`;
+
+/** Lê o recorte da tela do Orange (imagem) com o modelo de visão. */
+export async function lerPainelImagem(dataUrl: string): Promise<{ valores: Record<string, number | null> | null; erro?: string }> {
+  const llm = getLLM();
+  if (!llm.available) return { valores: null, erro: "IA não configurada" };
+  try {
+    const raw = await llm.chat(
+      [
+        { role: "system", content: SYSTEM_PAINEL },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Leia os valores deste recorte. Só JSON." },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+      { tier: "vision", json: true, temperature: 0, maxTokens: 600, task: "painel_orange_imagem" },
+    );
+    return { valores: parseJsonResponse<Record<string, number | null>>(raw) };
+  } catch (err) {
+    return { valores: null, erro: err instanceof Error ? err.message : "falha" };
+  }
+}

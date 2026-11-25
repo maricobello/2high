@@ -34,6 +34,7 @@ import { montarResumo, parecerPadrao } from "@/modules/rateio/parecer";
 import { PARAMETROS_PADRAO, type Alerta, type Candidata, type OtimizacaoResultado, type Parametros, type ResultadoProjeto, type ResultadoUsina, type Usina } from "@/modules/rateio/types";
 import { METODOLOGIA } from "@/modules/rateio/metodologia";
 import { SaldoChart } from "./chart";
+import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
 import { kwh, MESES_CURTOS, ratio } from "./format";
 import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
@@ -228,7 +229,40 @@ export function RateioWorkspace() {
   }
 
   async function importar(files: FileList | File[]) {
-    const lista = [...files];
+    const todos = [...files];
+    // PDF (fatura da usina) e imagem (recorte do Orange) vão para a usina aberta
+    const docs = todos.filter((f) => /\.(pdf|png|jpe?g|webp)$/i.test(f.name) || /^(application\/pdf|image\/)/.test(f.type));
+    const lista = todos.filter((f) => !docs.includes(f));
+    if (docs.length) {
+      const alvo = estadoRef.current.usinas.find((u) => u.id === (alvoImport.current ?? aba));
+      if (!alvo) setAvisos(["Abra a aba da usina antes de enviar a fatura (PDF) ou o recorte do Orange."]);
+      else {
+        setOcupado(true);
+        const msgs: string[] = [];
+        for (const d of docs) {
+          try {
+            if (/pdf/i.test(d.type) || /\.pdf$/i.test(d.name)) {
+              const fat = await lerFaturaArquivo(d);
+              atualizarUsina(alvo.id, { fatura: fat, distribuidora: alvo.distribuidora || fat.distribuidora });
+              msgs.push(`Fatura "${d.name}" lida na ${alvo.nome}${fat.mesReferencia ? ` (referência ${fat.mesReferencia.slice(5, 7)}/${fat.mesReferencia.slice(0, 4)})` : ""}. Confira e clique em "Usar no estudo".`);
+            } else {
+              const valores = await lerPainelImagemArquivo(d);
+              atualizarUsina(alvo.id, { painel: { valores, meses: alvo.painel?.meses ?? (alvo.meses || null), fonte: "imagem", lidoEm: new Date().toISOString() } });
+              msgs.push(`Recorte do Orange lido na ${alvo.nome}. Confira os valores e clique em "Usar no estudo".`);
+            }
+          } catch (err) {
+            msgs.push(`"${d.name}": ${err instanceof Error ? err.message : "não foi possível ler"}`);
+          }
+        }
+        setAvisos(msgs);
+        setOcupado(false);
+      }
+      if (!lista.length) {
+        alvoImport.current = null;
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+    }
     if (!lista.length) return;
     setOcupado(true);
     try {
@@ -314,7 +348,7 @@ export function RateioWorkspace() {
         if (e.dataTransfer.files.length) importar(e.dataTransfer.files);
       }}
     >
-      <input ref={inputRef} type="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt" multiple hidden onChange={(e) => e.target.files && importar(e.target.files)} />
+      <input ref={inputRef} type="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt,.pdf,.png,.jpg,.jpeg,.webp" multiple hidden onChange={(e) => e.target.files && importar(e.target.files)} />
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
@@ -648,6 +682,7 @@ function UsinaPainel({
       </div>
 
       <DadosUsina usina={usina} onChange={onChange} />
+      <FontesUsina usina={usina} onChange={onChange} />
 
       {semUcs ? (
         <Card className="p-8 text-center">

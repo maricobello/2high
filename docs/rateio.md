@@ -16,10 +16,21 @@ geração distribuída e entregar o estudo em Excel.
      "Máximo Compensável" (vira a cobertura).
    - **Novas UCs**: UC, Endereço ID, Tipo Tensão, Média kWh (Cons. Min opcional).
 2. **Colar tabela**: copie do Orange ou do Excel, com o cabeçalho.
-3. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
-4. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
-5. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
-6. **Exportar estudo**: Resumo, Rateio proposto, uma aba *Envio* por usina (instalação +
+3. **Fatura e tela do Orange** (na aba da usina, ou arrastando o arquivo com a usina aberta):
+   - **Fatura da usina (PDF)**: lida no navegador. Traz, mês a mês, energia injetada,
+     excedente distribuído (o que de fato vai para o rateio), consumo da usina e saldo da
+     geradora. Calibrada na fatura CELESC Grupo A de GD; meses zerados e o mês de entrada em
+     operação ficam fora da média. "Usar no estudo" define a injeção mensal (e a sazonalidade,
+     quando há 12 meses de operação).
+   - **Recorte da tela de usinas do Orange** (bloco "Energia"): imagem (lida pelo modelo de
+     visão da Groq; dá para colar com Ctrl+V) ou texto copiado da tela. Confere se o saldo
+     fecha, se o saldo acumulado bate com a soma das UCs, se a injetada bate com a fatura e a
+     divergência de faturamento. "Usar no estudo" preenche meses, energia contratada
+     (Estimada), gerada e injetada do período.
+4. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
+5. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
+6. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
+7. **Exportar estudo**: Resumo, Rateio proposto, uma aba *Envio* por usina (instalação +
    percentual, soma 100%), Novas UCs, Alertas, Projeção e Metodologia.
 
 Os arquivos são lidos no navegador e ficam salvos só nele (botão de lixeira apaga).
@@ -77,7 +88,8 @@ Casas decimais aceitas variam por distribuidora (CPFL: até 2); confirme com a C
 | Motor (necessidade, candidatas, arredondamento, projeção, alertas, diagnóstico, validação) | `src/modules/rateio/engine.ts` |
 | Modelo de otimização (MILP) e worker do HiGHS | `src/modules/rateio/otimizador.ts`, `src/modules/rateio/otimizador.worker.ts` |
 | Leitura de tabelas (cabeçalhos, calendário, planilha modelo) | `src/modules/rateio/grid.ts` |
+| Fatura da usina (PDF) e tela do Orange | `src/modules/rateio/pdf.ts`, `fatura.ts`, `painel.ts`, `src/components/admin/rateio/fontes.tsx` |
 | Excel (leitura e exportação, no navegador) | `src/modules/rateio/xlsx.ts` |
 | Parecer (resumo agregado e texto padrão) | `src/modules/rateio/parecer.ts`, `src/modules/llm/tasks/rateio.ts` |
 | Tela | `src/components/admin/rateio/` |
-| Testes | `tests/rateio.test.ts`, `tests/rateio-otimizador.test.ts`, `e2e/rateio.spec.ts` |
+| Testes | `tests/rateio.test.ts`, `tests/rateio-otimizador.test.ts`, `tests/rateio-fontes.test.ts`, `e2e/rateio.spec.ts` |

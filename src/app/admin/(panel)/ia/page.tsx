@@ -15,6 +15,7 @@ const TASK_LABELS: Record<string, string> = {
   classificar_mensagem: "Classificar mensagem",
   mensagem_follow_up: "Mensagem de follow-up",
   parecer_rateio: "Parecer de rateio GD",
+  painel_orange_imagem: "Tela do Orange (imagem)",
   outros: "Outros",
 };
 const REPORT_TASKS = new Set(["leitura_fatura_texto", "leitura_fatura_imagem", "explicacao_relatorio"]);

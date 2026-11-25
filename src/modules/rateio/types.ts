@@ -3,6 +3,9 @@
  * Todos os valores de energia em kWh; consumo, compensação e injeção são médias MENSAIS.
  */
 
+import type { FaturaUsina } from "./fatura";
+import type { PainelOrange } from "./painel";
+
 export type Ligacao = "mono" | "bi" | "tri";
 
 /** UC que já está no rateio da usina (vem do Orange / "Unidade Rateio GD"). */
@@ -66,6 +69,10 @@ export interface Usina {
   perfilSazonal: number[];
   consumoMensal: ConsumoMes[];
   ucs: UcAtual[];
+  /** Fatura da UC geradora lida do PDF. */
+  fatura?: FaturaUsina | null;
+  /** Bloco "Energia" da tela de usinas do Orange. */
+  painel?: PainelOrange | null;
 }
 
 export interface Parametros {
