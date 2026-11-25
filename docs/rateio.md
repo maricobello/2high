@@ -1,0 +1,59 @@
+# Rateio GD
+
+Ferramenta do admin (`/admin/rateio`) para revisar o rateio de créditos de usinas de
+geração distribuída e entregar o estudo em Excel.
+
+## Como usar
+
+1. **Importar planilhas** (ou arrastar para a página). Pode mandar tudo de uma vez:
+   - **Calendário de rateio** (aba "Acompanhamento"): vira a aba *Calendário*, com etapa,
+     prazo e atraso de cada usina. "Analisar" abre a usina no estudo.
+   - **UCs da usina**: export da *Unidade Rateio GD* do Orange ou a planilha modelo
+     ("Análise do Rateio"). Colunas usadas: N° de Instalação, % do Rateio, Saldo kWh,
+     Consumo Compensável kWh (e, se houver, Nome da Usina, ID, Apelido, Subgrupo,
+     Consumo Compensado). Um export com várias usinas é separado pela coluna Nome da Usina.
+     A planilha modelo também traz período, energia contratada, gerada, injetada e o
+     "Máximo Compensável" (vira a cobertura).
+   - **Novas UCs**: UC, Endereço ID, Tipo Tensão, Média kWh (Cons. Min opcional).
+2. **Colar tabela**: copie do Orange ou do Excel, com o cabeçalho.
+3. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
+4. Revise os **pontos de atenção** e a tabela por UC (toque numa linha para ver o motivo).
+5. **Gerar parecer** (texto padrão ou redigido pela IA, com os números conferidos).
+6. **Exportar estudo**: Resumo, Rateio proposto, uma aba *Envio* por usina (instalação +
+   percentual, soma 100%), Novas UCs, Alertas, Projeção e Metodologia.
+
+Os arquivos são lidos no navegador e ficam salvos só nele (botão de lixeira apaga).
+Para o parecer, só sai um resumo com totais e apelidos, sem número de instalação.
+
+## Metodologia
+
+O texto completo fica em `src/modules/rateio/metodologia.ts` (aba Metodologia da tela e
+do Excel). Em resumo:
+
+- **Necessidade de cada UC** = compensável × cobertura, reduzida quando a UC tem saldo
+  acima da reserva: o excesso é gasto no horizonte definido. A margem (1 − cobertura)
+  também sai do saldo enquanto ele existir.
+- **Novas UCs** entram quando a necessidade não absorve a injeção: sem duplicidade, fora
+  de outra usina, mesma distribuidora, acima do compensável mínimo. Primeiro as sem
+  pendência de cadastro, das maiores para as menores; a última é a menor que fecha a conta.
+  "Gastar o saldo no horizonte" agrega mais consumo; "Só equilibrar a usina" agrega só o
+  que falta sem contar a queima.
+- **Percentual** proporcional à necessidade, arredondado pelo maior resto (soma 100%,
+  mínimo por UC). Sobra de injeção ocupa primeiro a margem de cada UC.
+- **Projeção** mês a mês para o rateio atual, o proposto e um cenário de consumo menor,
+  com sazonalidade opcional.
+
+Regras de referência: créditos valem 60 meses e os mais antigos são usados primeiro
+(REN ANEEL 1.000, art. 655-L); a alteração vale no ciclo seguinte ao pedido (art. 655-H).
+Casas decimais aceitas variam por distribuidora (CPFL: até 2); confirme com a CELESC.
+
+## Código
+
+| Parte | Arquivo |
+|---|---|
+| Motor (necessidade, candidatas, arredondamento, projeção, alertas) | `src/modules/rateio/engine.ts` |
+| Leitura de tabelas (cabeçalhos, calendário, planilha modelo) | `src/modules/rateio/grid.ts` |
+| Excel (leitura e exportação, no navegador) | `src/modules/rateio/xlsx.ts` |
+| Parecer (resumo agregado e texto padrão) | `src/modules/rateio/parecer.ts`, `src/modules/llm/tasks/rateio.ts` |
+| Tela | `src/components/admin/rateio/` |
+| Testes | `tests/rateio.test.ts` |
