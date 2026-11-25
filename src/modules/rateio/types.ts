@@ -84,6 +84,8 @@ export interface Usina {
 export interface Parametros {
   /** Fração do compensável de cada UC que o rateio tenta cobrir (ex.: 0,9 = 90%). */
   cobertura: number;
+  /** O sistema escolhe a cobertura ótima sozinho (padrão). false = valor digitado. */
+  coberturaAutomatica?: boolean;
   /** Em quantos meses o saldo acima da reserva deve ser consumido. */
   horizonteSaldoMeses: number;
   /** Saldo mantido como reserva, em meses de consumo compensável. */
@@ -127,6 +129,7 @@ export interface Parametros {
 
 export const PARAMETROS_PADRAO: Parametros = {
   cobertura: 0.9,
+  coberturaAutomatica: true,
   horizonteSaldoMeses: 12,
   reservaSaldoMeses: 1,
   casasDecimais: 2,
@@ -253,6 +256,8 @@ export interface Indicadores {
   contratadaMensal: number;
   geradaMensal: number;
   consumoMensal: number;
+  /** true = sem valores do Relatório Gerencial GD: estimado pela soma do compensável das UCs. */
+  consumoEstimado: boolean;
   compensavelTotal: number;
   saldoTotal: number;
   geradaSobreContratada: number | null;

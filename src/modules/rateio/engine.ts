@@ -14,7 +14,7 @@
  *     atual, o proposto e um cenário de estresse com consumo menor.
  */
 import { round } from "./normalize";
-import { resumoConsumo } from "./consumo";
+import { estimativaConsumo, resumoConsumo } from "./consumo";
 import { constantesObjetivo, refinarRateio, type ItemRefino } from "./refinar";
 import { pesosValor, SUBGRUPO_CANDIDATA, usaValorPorSubgrupo } from "./valor";
 import type {
@@ -65,7 +65,8 @@ export function chaveEntradas(usinas: Usina[], candidatas: CandidataAvaliada[], 
     usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh])]),
     candidatas.filter((c) => c.elegivel).map((c) => [c.candidata.key, c.candidata.compensavelKwh, c.candidata.concessionaria]),
     // a tarifa média só muda o ótimo quando há valores por subgrupo (é o valor padrão dos demais)
-    { ...p, tarifaKwh: usaValorPorSubgrupo(p) ? p.tarifaKwh : 0 },
+    // a cobertura só vale para a regra proporcional (o otimizado não usa): não invalida a otimização
+    { ...p, tarifaKwh: usaValorPorSubgrupo(p) ? p.tarifaKwh : 0, cobertura: 0, coberturaAutomatica: null },
   ]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -562,8 +563,11 @@ function calcularIndicadores(u: Usina, linhas: LinhaRateio[], N: number, p: Para
   const m = u.meses > 0 ? u.meses : 1;
   const contratada = u.energiaContratadaPeriodo / m;
   const gerada = u.energiaGeradaPeriodo / m;
-  // energia consumida no período (Relatório Gerencial GD): média das competências informadas
-  const consumo = resumoConsumo(u).media;
+  // energia consumida no período (Relatório Gerencial GD): média das competências digitadas;
+  // sem nenhuma, estima pela soma do compensável das UCs
+  const res = resumoConsumo(u);
+  const consumoEstimado = res.informados === 0;
+  const consumo = consumoEstimado ? estimativaConsumo(u) : res.media;
   const atuais = linhas.filter((l) => l.origem === "atual");
   const compAtual = atuais.reduce((a, l) => a + Math.max(0, l.compensavelKwh), 0);
   const necAtual = atuais.reduce((a, l) => a + l.necessidadeKwh, 0);
@@ -576,6 +580,7 @@ function calcularIndicadores(u: Usina, linhas: LinhaRateio[], N: number, p: Para
     contratadaMensal: contratada,
     geradaMensal: gerada,
     consumoMensal: consumo,
+    consumoEstimado,
     compensavelTotal: compAtual,
     saldoTotal: atuais.reduce((a, l) => a + Math.max(0, l.saldoKwh), 0),
     geradaSobreContratada: div(gerada, contratada),

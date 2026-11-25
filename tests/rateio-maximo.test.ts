@@ -111,7 +111,13 @@ describe("energia consumida no período", () => {
 
   it("a média entra no indicador de consumo da usina", () => {
     const u: Usina = { ...usina([uc(1, 100, 1000)], 1000), periodoInicio: "2026-01-01", periodoFim: "2026-02-01", meses: 2, consumoMensal: [{ mes: "2026-01", kwh: 800 }, { mes: "2026-02", kwh: 1200 }] };
-    expect(analisarProjeto([u], [], P).usinas[0].indicadores.consumoMensal).toBe(1000);
+    const ind = analisarProjeto([u], [], P).usinas[0].indicadores;
+    expect(ind.consumoMensal).toBe(1000);
+    expect(ind.consumoEstimado).toBe(false);
+    // sem valores digitados: estimativa pela soma do compensável das UCs
+    const est = analisarProjeto([{ ...u, ucs: [uc(1, 60, 1000), uc(2, 40, 500)], consumoMensal: [] }], [], P).usinas[0].indicadores;
+    expect(est.consumoEstimado).toBe(true);
+    expect(est.consumoMensal).toBe(1500);
   });
 });
 

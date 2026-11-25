@@ -588,6 +588,7 @@ function folhaMemoria(wb: ExcelJS.Workbook, usinas: Usina[], alvo: ResultadoUsin
     const sp = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha ?? 0.9);
     if (sp) par("Máximo Compensável ótimo na planilha modelo", `${fmt(sp.cobertura * 100)}%${u.maximoCompensavelPlanilha != null ? ` (planilha usava ${fmt(u.maximoCompensavelPlanilha * 100)}%)` : ""} · busca de 0 a 100% com projeção de ${p.mesesSimulacao} meses`);
     const cons = resumoConsumo(u);
+    if (!cons.informados && u.ucs.length) par("Energia consumida no período", `não informada · estimativa pela soma do compensável das UCs: ${fmt(r.indicadores.consumoMensal)} kWh/mês`);
     if (cons.informados) par("Energia consumida no período (Relatório Gerencial GD)", `${fmt(cons.total)} kWh em ${cons.informados} competência(s) · média ${fmt(cons.media)} kWh/mês${cons.faltando ? ` · ${cons.faltando} sem valor` : ""}`);
     if (u.fatura) {
       const a = aplicacaoDaFatura(u.fatura);

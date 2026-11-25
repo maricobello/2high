@@ -29,6 +29,13 @@ test.describe("admin: rateio GD", () => {
     await expect(page.getByText("Planilha modelo (célula M8)")).toBeVisible();
     await expect(page.getByText("Máximo compensável efetivo")).toBeVisible();
     await expect(page.getByText("Do limite físico possível")).toBeVisible();
+    // status geral, recalcular e registro do cálculo
+    const status = page.getByRole("button", { name: /Status do estudo/ });
+    await expect(status).not.toHaveText(/Calculando/, { timeout: 30_000 });
+    await page.getByRole("button", { name: "Recalcular" }).click();
+    await expect(status).not.toHaveText(/Calculando/, { timeout: 30_000 });
+    await status.click();
+    await expect(page.getByRole("list", { name: "Registro do cálculo" })).toContainText("Recálculo pedido");
 
     await page.getByRole("button", { name: "Gerar parecer" }).click();
     await expect(page.getByLabel("Texto do parecer")).toHaveValue(/Estudo de revisão do rateio|rateio/i, { timeout: 30_000 });

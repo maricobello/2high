@@ -37,16 +37,23 @@ geração distribuída e entregar o estudo em Excel.
      planilha for de outra usina.
    - **Ganho em R$**: informe a tarifa média das UCs e o estudo mostra quanto o rateio proposto
      compensa a mais que o atual, em kWh e em reais (estimativa).
-4. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**.
+4. Confira **Dados da usina** (a injeção é obrigatória) e os **Parâmetros**. No topo:
+   - **Status** (verde "Tudo ok", amarelo com avisos, vermelho com pendências, azul calculando):
+     abre o resumo por usina (energia, otimização, % do limite físico, validação) e o
+     **registro do cálculo** (importações, otimização, máximo compensável escolhido, resultado).
+   - **Recalcular**: refaz otimização, refino, máximo compensável e validação.
    - **Energia consumida no período**: com o início e o fim do período preenchidos, abre um campo
      por competência. Para cada uma: Orange → Relatório Gerencial GD → competência → última aba →
      total. Dá para colar a coluna do Excel no primeiro mês. Total e média aparecem na hora; a
-     média entra no balanço (consumida ÷ contratada) e na planilha modelo (S4:T12).
-   - **Máximo compensável** (card na usina): no otimizado é livre por UC, e o card mostra o
-     efetivo de hoje e do proposto. Para a regra proporcional e para a planilha modelo (M8), o
-     sistema faz uma busca livre (sem faixa fixa: 1% a 200% e 0% a 200%, do grosso para o fino
-     até 0,1 ponto) com a projeção completa e sugere o ótimo ("Aplicar"); a planilha exportada
-     já sai com o M8 ótimo. A comparação de métodos ganha "Do limite físico possível" e
+     média entra no balanço (consumida ÷ contratada) e na planilha modelo (S4:T12). É a soma do
+     consumo de todas as UCs; sem valores digitados, o sistema usa sozinho uma estimativa (soma do
+     consumo compensável das UCs, um pouco abaixo do real), marcada como "estimada".
+   - **Máximo compensável** (card na usina, **automático**): quanto do consumo de cada UC o
+     crédito novo cobre (o resto sai do saldo da UC). No otimizado é livre por UC; para a regra
+     proporcional e para a planilha modelo (M8), o sistema faz uma busca livre (1% a 200% e 0% a
+     200%, do grosso para o fino até 0,1 ponto) e usa o melhor valor sozinho, sem "aplicar"; a
+     planilha exportada já sai com o M8 ótimo. Para fixar um valor, desmarque "Automático" em
+     Parâmetros. A comparação de métodos ganha "Do limite físico possível" e
      "Máximo compensável efetivo".
    - **Valor do kWh por subgrupo** (Parâmetros, opcional): com R$/kWh por subgrupo (ex.: A4 e
      B3), o otimizado maximiza reais e o ganho em R$ é calculado UC a UC.

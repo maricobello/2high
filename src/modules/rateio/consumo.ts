@@ -3,7 +3,7 @@
  * competência é digitado mês a mês; a planilha modelo soma e tira a média do período.
  */
 import { toNumber } from "./normalize";
-import type { ConsumoMes, Usina } from "./types";
+import type { ConsumoMes, UcAtual, Usina } from "./types";
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const LIMITE = 24;
@@ -99,4 +99,13 @@ export function numerosColados(texto: string): number[] {
     .map((s) => s.trim())
     .filter((s) => /\d/.test(s))
     .map((s) => toNumber(s));
+}
+
+/**
+ * Estimativa da energia consumida por mês quando o Relatório Gerencial GD não foi digitado:
+ * soma do consumo compensável médio das UCs. Fica um pouco abaixo do real (não inclui o
+ * custo de disponibilidade de cada UC).
+ */
+export function estimativaConsumo(u: { ucs: Pick<UcAtual, "compensavelKwh">[] }): number {
+  return u.ucs.reduce((a, c) => a + Math.max(0, c.compensavelKwh), 0);
 }

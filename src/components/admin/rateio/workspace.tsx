@@ -14,6 +14,8 @@ import {
   Info,
   Loader2,
   Plus,
+  RefreshCw,
+  ScrollText,
   Settings2,
   Sparkles,
   Trash2,
@@ -36,7 +38,7 @@ import { PARAMETROS_PADRAO, type Alerta, type Candidata, type OtimizacaoResultad
 import { METODOLOGIA } from "@/modules/rateio/metodologia";
 import { coberturaEfetiva, FAIXA_COBERTURA, limiteFisico, sugerirMaximoPlanilha, type SugestaoCobertura } from "@/modules/rateio/otimo-cobertura";
 import { chaveSubgrupo, valorCompensado } from "@/modules/rateio/valor";
-import { competencias, definirConsumo, numerosColados, resumoConsumo, rotuloCompetencia } from "@/modules/rateio/consumo";
+import { competencias, definirConsumo, estimativaConsumo, numerosColados, resumoConsumo, rotuloCompetencia } from "@/modules/rateio/consumo";
 import { SaldoChart } from "./chart";
 import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
 import { autoAplicar } from "@/modules/rateio/automacao";
@@ -95,6 +97,7 @@ function validarParametros(p: Parametros): Parametros {
     metodo: p.metodo === "proporcional" ? "proporcional" : "otimizado",
     custoNovaUcKwh: Math.max(0, n(p.custoNovaUcKwh, D.custoNovaUcKwh)),
     tarifaKwh: Math.max(0, n(p.tarifaKwh, D.tarifaKwh)),
+    coberturaAutomatica: typeof p.coberturaAutomatica === "boolean" ? p.coberturaAutomatica : true,
     valorKwhSubgrupo: Object.fromEntries(Object.entries(p.valorKwhSubgrupo ?? {}).filter(([k, v]) => k && typeof v === "number" && Number.isFinite(v) && v > 0)),
   };
 }
@@ -176,6 +179,11 @@ export function RateioWorkspace() {
   const [pronto, setPronto] = useState(false);
   const [aba, setAba] = useState<string>("inicio");
   const [avisos, setAvisos] = useState<string[]>([]);
+  // registro simples do que o sistema fez (só nesta sessão)
+  const [registro, setRegistro] = useState<ItemRegistro[]>([]);
+  const registrar = (texto: string, tipo: ItemRegistro["tipo"] = "info") =>
+    setRegistro((r) => [{ hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), texto, tipo }, ...r].slice(0, 80));
+  const [painelStatus, setPainelStatus] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [colar, setColar] = useState(false);
   const [exportarPopup, setExportarPopup] = useState<{ somente?: string } | null>(null);
@@ -214,7 +222,7 @@ export function RateioWorkspace() {
 
   // máximo compensável ótimo da regra proporcional: busca livre de 1% a 200%, num Web Worker
   const [sugCob, setSugCob] = useState<{ chave: string; s: SugestaoCobertura | null } | null>(null);
-  const chaveCob = useMemo(() => JSON.stringify([resultadoProp.chave, { ...paramsD, cobertura: 0, metodo: "" }]), [resultadoProp.chave, paramsD]);
+  const chaveCob = useMemo(() => JSON.stringify([resultadoProp.chave, { ...paramsD, cobertura: 0, coberturaAutomatica: null, metodo: "" }]), [resultadoProp.chave, paramsD]);
   const cobWorker = useRef<Worker | null>(null);
   const cobPedido = useRef<{ id: number; chave: string } | null>(null);
   useEffect(() => {
@@ -239,7 +247,15 @@ export function RateioWorkspace() {
   }, [chaveCob, sugCob?.chave, usinasD, candD, paramsD]);
   useEffect(() => () => cobWorker.current?.terminate(), []);
   const sugestaoCobertura = sugCob?.chave === chaveCob ? sugCob.s : undefined;
-  const aplicarCobertura = (c: number) => setEstado((e) => ({ ...e, params: { ...e.params, cobertura: c } }));
+  // máximo compensável automático: o melhor valor entra sozinho, sem "aplicar"
+  useEffect(() => {
+    if (!sugestaoCobertura || estado.params.coberturaAutomatica === false) return;
+    if (Math.abs(sugestaoCobertura.cobertura - estado.params.cobertura) < 0.0005) return;
+    const c = sugestaoCobertura.cobertura;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEstado((e) => ({ ...e, params: { ...e.params, cobertura: c } }));
+    registrar(`Máximo compensável da regra proporcional escolhido automaticamente: ${(c * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% (o que compensa mais energia).`, "ok");
+  }, [sugestaoCobertura, estado.params.coberturaAutomatica, estado.params.cobertura]);
 
   // otimização em segundo plano (Web Worker com HiGHS)
   const workerRef = useRef<Worker | null>(null);
@@ -248,6 +264,8 @@ export function RateioWorkspace() {
   const precisaOtimizar = paramsD.metodo === "otimizado" && usinasD.some((u) => u.ucs.length) && otim?.chave !== resultado.chave;
   useEffect(() => {
     if (!precisaOtimizar) return;
+    // o mesmo problema já está sendo resolvido (ex.: só mudou a cobertura, que o otimizado não usa)
+    if ([...pedidos.current.values()].some((m) => m.chave === resultado.chave)) return;
     const t = setTimeout(() => {
       const modelo = montarModelo(usinasD, resultado.candidatas, paramsD);
       if (!modelo.mapa.length) return;
@@ -260,6 +278,7 @@ export function RateioWorkspace() {
           if (!pedidos.current.size) setOtimRodando(false);
           if (ev.data.erro) {
             setOtim({ chave: m.chave, status: "Erro", otimo: false, objetivo: 0, tempoMs: 0, variaveis: m.variaveis, restricoes: m.restricoes, porUsina: {}, erro: ev.data.erro });
+            registrar(`Otimização falhou (${ev.data.erro}). Usando a regra proporcional.`, "erro");
             return;
           }
           setOtim(interpretarSolucao(m, ev.data.status ?? "", ev.data.objetivo ?? 0, ev.data.colunas ?? {}, ev.data.tempoMs ?? 0));
@@ -274,12 +293,56 @@ export function RateioWorkspace() {
       pedidos.current.clear();
       pedidos.current.set(id, modelo);
       setOtimRodando(true);
+      registrar(`Otimizando: ${modelo.variaveis.toLocaleString("pt-BR")} variáveis, ${modelo.restricoes.toLocaleString("pt-BR")} restrições.`);
       const colunas = modelo.mapa.flatMap((m) => [...m.atuais, ...m.candidatas.flatMap((c) => [c.col, c.bin])]);
       workerRef.current.postMessage({ id, lp: modelo.lp, opcoes: OPCOES_SOLVER, colunas });
     }, 500);
     return () => clearTimeout(t);
   }, [precisaOtimizar, resultado.chave, resultado.candidatas, usinasD, paramsD]);
   useEffect(() => () => workerRef.current?.terminate(), []);
+
+  /** Refaz tudo: otimização, refino, máximo compensável e validação. */
+  function recalcular() {
+    setOtim(null);
+    setSugCob(null);
+    resumoRef.current = "";
+    registrar("Recálculo pedido: refazendo otimização, refino, máximo compensável e validação.");
+  }
+
+  // resumo no registro quando um cálculo termina
+  const calculando = otimRodando || precisaOtimizar || (sugestaoCobertura === undefined && usinasD.some((u) => u.ucs.length && injecaoMensal(u) > 0));
+  const resumoRef = useRef("");
+  useEffect(() => {
+    if (calculando) return;
+    const chave = `${resultado.chave}|${resultado.metodo}|${otim?.tempoMs ?? 0}`;
+    if (resumoRef.current === chave) return;
+    resumoRef.current = chave;
+    const novos: [string, ItemRegistro["tipo"]][] = [];
+    for (const r of resultado.usinas) {
+      const u = usinasD.find((x) => x.id === r.usinaId);
+      if (!u || !u.ucs.length) continue;
+      if (injecaoMensal(u) <= 0) {
+        novos.push([`${r.usinaNome}: falta a energia injetada da usina (fatura ou dados da usina).`, "erro"]);
+        continue;
+      }
+      const erros = r.validacoes.filter((v) => !v.ok && v.nivel === "erro").length;
+      const avs = r.validacoes.filter((v) => !v.ok && v.nivel !== "erro").length;
+      const ok = r.validacoes.length - erros - avs;
+      const lim = limiteFisico(r, "proposto", paramsD.mesesSimulacao);
+      const partes = [
+        r.metodo === "otimizado" ? `otimizado${otim?.otimo ? " (ótimo comprovado)" : ""}` : "regra proporcional",
+        r.refino && r.refino.ganhoKwh > 0.5 ? `refino exato +${kwh(r.refino.ganhoKwh)} kWh` : null,
+        `${kwh(r.proposto.compensadoTotal - r.atual.compensadoTotal)} kWh a mais que o rateio atual em ${paramsD.mesesSimulacao} meses`,
+        lim > 0 ? `${pct1(r.proposto.compensadoTotal / lim)} do limite físico` : null,
+        `validação ${ok} de ${r.validacoes.length} ok${erros ? `, ${erros} reprovada(s)` : ""}${avs ? `, ${avs} aviso(s)` : ""}`,
+      ].filter(Boolean);
+      novos.push([`${r.usinaNome}: ${partes.join(" · ")}.`, erros ? "erro" : avs ? "atencao" : "ok"]);
+    }
+    // registro é só um diário do que o cálculo fez (não alimenta outro cálculo)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    for (const [t, tipo] of novos) registrar(t, tipo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calculando, resultado]);
 
   const temDados = estado.usinas.length > 0 || estado.calendario.length > 0 || estado.candidatas.length > 0;
   const abaAtual = aba === "inicio" ? (estado.calendario.length ? "calendario" : (estado.usinas[0]?.id ?? "inicio")) : aba;
@@ -344,6 +407,7 @@ export function RateioWorkspace() {
       if (abrir) setAba(abrir);
       const avisosImp = imp.avisos.length ? imp.avisos : ["Nenhuma tabela reconhecida no arquivo."];
       setAvisos(imp.maximoCompensavel ? [...avisosImp, avisoMaximo(imp.maximoCompensavel)] : avisosImp);
+      avisosImp.forEach((a) => registrar(`Importado: ${a}`));
     } catch (err) {
       setAvisos([`Não foi possível ler o arquivo: ${err instanceof Error ? err.message : "formato inválido"}`]);
     } finally {
@@ -463,9 +527,11 @@ export function RateioWorkspace() {
     });
     const outros = imp.avisos.filter((a) => !/UCs da /.test(a));
     setAvisos([...nomes, ...outros, ...(imp.maximoCompensavel ? [avisoMaximo(imp.maximoCompensavel)] : [])]);
+    [...nomes, ...outros].forEach((a) => registrar(`Importado: ${a}`));
     setPendente(null);
   }
 
+  const statusGeral = avaliarStatus(resultado, usinasD, calculando, paramsD, otim);
   const usinaAtiva = estado.usinas.find((u) => u.id === abaAtual);
   const resAtivo = resultado.usinas.find((r) => r.usinaId === abaAtual);
 
@@ -486,6 +552,14 @@ export function RateioWorkspace() {
           <p className="mt-1 max-w-2xl text-sm text-muted">Revisão de rateio de créditos de geração distribuída: importe o calendário, as UCs da usina e as candidatas; o estudo sai pronto em Excel.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {estado.usinas.some((u) => u.ucs.length) && (
+            <>
+              <StatusBotao status={statusGeral.nivel} texto={statusGeral.texto} aberto={painelStatus} onClick={() => setPainelStatus((v) => !v)} />
+              <Button size="sm" variant="secondary" onClick={recalcular} disabled={calculando}>
+                <RefreshCw className={cn("size-4", calculando && "animate-spin")} /> Recalcular
+              </Button>
+            </>
+          )}
           <Button size="sm" onClick={() => abrirImport()} disabled={ocupado}>
             {ocupado ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Importar planilhas
           </Button>
@@ -502,6 +576,8 @@ export function RateioWorkspace() {
           )}
         </div>
       </div>
+
+      {painelStatus && estado.usinas.some((u) => u.ucs.length) && <PainelStatus status={statusGeral} registro={registro} onFechar={() => setPainelStatus(false)} onLimpar={() => setRegistro([])} />}
 
       {avisos.length > 0 && (
         <div role="status" className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary-soft/60 px-4 py-3 text-sm">
@@ -576,7 +652,6 @@ export function RateioWorkspace() {
               otimizacao={{ rodando: otimRodando || precisaOtimizar, info: otim, metodoPedido: paramsD.metodo, metodoUsado: resultado.metodo }}
               params={estado.params}
               sugestaoCobertura={sugestaoCobertura}
-              onAplicarCobertura={aplicarCobertura}
               parecer={estado.pareceres[usinaAtiva.id]}
               calendario={itemDoCalendario(estado.calendario, usinaAtiva.nome)}
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
@@ -776,7 +851,6 @@ function UsinaPainel({
   otimizacao,
   params,
   sugestaoCobertura,
-  onAplicarCobertura,
   parecer,
   calendario,
   onChange,
@@ -793,7 +867,6 @@ function UsinaPainel({
   otimizacao: OtimizacaoUi;
   params: Parametros;
   sugestaoCobertura?: SugestaoCobertura | null;
-  onAplicarCobertura: (c: number) => void;
   parecer?: Parecer;
   calendario?: ItemCalendario;
   onChange: (p: Partial<Usina>) => void;
@@ -903,7 +976,7 @@ function UsinaPainel({
                 {[
                   ["Injeção mensal", `${kwh(E)} kWh`],
                   ["Contratada mensal", i.contratadaMensal ? `${kwh(i.contratadaMensal)} kWh` : "—"],
-                  ["Consumida mensal (média)", i.consumoMensal ? `${kwh(i.consumoMensal)} kWh` : "—"],
+                  [i.consumoEstimado ? "Consumida mensal (estimada)" : "Consumida mensal (média)", i.consumoMensal ? `${kwh(i.consumoMensal)} kWh` : "—"],
                   ["Consumida ÷ contratada", ratio(i.consumoSobreContratada)],
                   ["Injetada ÷ contratada", ratio(i.injetadaSobreContratada)],
                   ["Gerada ÷ contratada", ratio(i.geradaSobreContratada)],
@@ -927,7 +1000,7 @@ function UsinaPainel({
             <ValidacaoCard validacoes={r.validacoes} />
           </div>
 
-          <MaximoCompensavel usina={usina} r={r} params={params} sugestao={sugestaoCobertura} onAplicar={onAplicarCobertura} />
+          <MaximoCompensavel usina={usina} r={r} params={params} sugestao={sugestaoCobertura} />
 
           {r.alertas.length > 0 && (
             <Card>
@@ -1012,6 +1085,7 @@ function CampoMes({ label, value, onChange }: { label: string; value: string; on
 /** Energia consumida no período: total de cada competência do Relatório Gerencial GD, digitado mês a mês. */
 function EnergiaConsumida({ usina, onChange }: { usina: Usina; onChange: (p: Partial<Usina>) => void }) {
   const res = resumoConsumo(usina);
+  const estimativa = estimativaConsumo(usina);
   const contratadaMes = usina.meses > 0 ? usina.energiaContratadaPeriodo / usina.meses : 0;
   const definir = (competencia: string, v: number | null) => onChange({ consumoMensal: definirConsumo(usina, competencia, v) });
   // colar uma coluna do Excel preenche a partir do mês em que se colou
@@ -1035,7 +1109,13 @@ function EnergiaConsumida({ usina, onChange }: { usina: Usina; onChange: (p: Par
           </p>
         )}
       </div>
-      <p className="mt-0.5 text-xs text-muted">Orange → Relatório Gerencial GD → escolha a competência → última aba → total. Digite o total de cada mês (ou cole a coluna do Excel no primeiro mês). A média entra no balanço e na planilha modelo.</p>
+      <p className="mt-0.5 text-xs text-muted">Soma do consumo de todas as UCs. Orange → Relatório Gerencial GD → escolha a competência → última aba → total. Digite o total de cada mês (ou cole a coluna do Excel no primeiro mês). A média entra no balanço e na planilha modelo.</p>
+      {res.informados === 0 && estimativa > 0 && (
+        <p className="mt-2 rounded-lg border border-primary/30 bg-primary-soft/40 px-3 py-2 text-xs">
+          Sem valores digitados, o sistema usa uma estimativa automática: soma do consumo compensável das {usina.ucs.length} UCs ≈ <strong className="font-mono">{kwh(estimativa)} kWh/mês</strong>
+          {contratadaMes > 0 ? ` (${ratio(estimativa / contratadaMes)} da contratada)` : ""}. Fica um pouco abaixo do real (não inclui o consumo mínimo de cada UC). Para o número exato, digite o total do relatório.
+        </p>
+      )}
       {res.linhas.length === 0 ? (
         <p className="mt-3 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-muted">Informe o início e o fim do período para abrir os meses.</p>
       ) : (
@@ -1284,10 +1364,13 @@ function ParametrosPainel({ params: p, sugestao, subgrupos, onChange }: { params
             label="Máximo compensável (regra proporcional)"
             sufixo="%"
             value={Math.round(p.cobertura * 1000) / 10}
-            onChange={(v) => set("cobertura", Math.min(FAIXA_COBERTURA.max, Math.max(FAIXA_COBERTURA.min, n(v, 90) / 100)))}
-            dica={p.metodo === "otimizado" ? "No otimizado é livre: cada UC recebe o percentual que compensa mais energia. Este valor só vale para a regra proporcional." : "Parte do consumo compensável que o crédito tenta cobrir. O resto é margem para queda de consumo."}
+            onChange={(v) => onChange({ ...p, coberturaAutomatica: false, cobertura: Math.min(FAIXA_COBERTURA.max, Math.max(FAIXA_COBERTURA.min, n(v, 90) / 100)) })}
+            dica={p.metodo === "otimizado" ? "No otimizado é livre por UC. Este valor só vale para a regra proporcional (comparação)." : "Parte do consumo compensável que o crédito tenta cobrir."}
           />
-          <SugestaoMaximo sugestao={sugestao} atual={p.cobertura} onAplicar={(c) => set("cobertura", c)} />
+          <label className="mt-1.5 flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={p.coberturaAutomatica !== false} onChange={(e) => set("coberturaAutomatica", e.target.checked)} className="size-3.5 accent-[var(--primary)]" />
+            Automático (recomendado){p.coberturaAutomatica !== false && sugestao === undefined ? ": calculando…" : ""}
+          </label>
         </div>
         <CampoNumero label="Horizonte para gastar o saldo" sufixo="meses" step="1" value={p.horizonteSaldoMeses} onChange={(v) => set("horizonteSaldoMeses", Math.max(1, Math.round(n(v, 12))))} dica="Em quantos meses o saldo acima da reserva deve ser usado." />
         <CampoNumero label="Reserva de saldo" sufixo="meses" value={p.reservaSaldoMeses} onChange={(v) => set("reservaSaldoMeses", Math.max(0, n(v, 1)))} dica="Na regra proporcional, só o saldo acima disso é gasto no horizonte. No otimizado é só desempate: ele gasta o saldo sempre que isso compensa mais energia." />
@@ -1437,92 +1520,173 @@ function MetodoInfo({ otimizacao: o, refino }: { otimizacao: OtimizacaoUi; refin
   );
 }
 
-function SugestaoMaximo({ sugestao, atual, onAplicar }: { sugestao?: SugestaoCobertura | null; atual: number; onAplicar: (c: number) => void }) {
-  if (sugestao === undefined) return <p className="mt-1.5 text-[11px] text-muted">Calculando o valor ótimo…</p>;
-  if (!sugestao) return null;
-  const igual = Math.abs(sugestao.cobertura - atual) < 0.005;
+interface ItemRegistro {
+  hora: string;
+  texto: string;
+  tipo: "ok" | "info" | "atencao" | "erro";
+}
+
+type NivelStatus = "ok" | "atencao" | "erro" | "calculando";
+
+interface StatusGeral {
+  nivel: NivelStatus;
+  texto: string;
+  usinas: { nome: string; itens: { ok: boolean | null; texto: string }[] }[];
+}
+
+/** Semáforo geral: energia da usina, otimização, máximo compensável e validação de cada usina. */
+function avaliarStatus(resultado: ResultadoProjeto, usinas: Usina[], calculando: boolean, p: Parametros, otim: OtimizacaoResultado | null): StatusGeral {
+  let erros = 0;
+  let avisos = 0;
+  const lista: StatusGeral["usinas"] = [];
+  for (const r of resultado.usinas) {
+    const u = usinas.find((x) => x.id === r.usinaId);
+    if (!u || !u.ucs.length) continue;
+    const itens: { ok: boolean | null; texto: string }[] = [];
+    const E = injecaoMensal(u);
+    itens.push(E > 0 ? { ok: true, texto: `Energia da usina: ${kwh(E)} kWh/mês` } : { ok: false, texto: "Falta a energia injetada (fatura ou dados da usina)" });
+    if (E <= 0) erros++;
+    if (p.metodo === "otimizado") {
+      if (calculando) itens.push({ ok: null, texto: "Otimização em andamento…" });
+      else if (r.metodo === "otimizado") itens.push({ ok: true, texto: `Rateio otimizado${otim?.otimo ? " (ótimo comprovado)" : ""}${r.refino && r.refino.ganhoKwh > 0.5 ? ` · refino exato +${kwh(r.refino.ganhoKwh)} kWh` : ""}` });
+      else if (E > 0) {
+        itens.push({ ok: false, texto: `Otimização indisponível${otim?.erro ? ` (${otim.erro})` : ""}: usando a regra proporcional` });
+        avisos++;
+      }
+    }
+    if (E > 0) {
+      const lim = limiteFisico(r, "proposto", p.mesesSimulacao);
+      if (lim > 0) itens.push({ ok: true, texto: `Compensa ${pct1(r.proposto.compensadoTotal / lim)} do máximo físico possível (${kwh(r.proposto.compensadoTotal - r.atual.compensadoTotal)} kWh a mais que hoje)` });
+      for (const v of r.validacoes) {
+        if (v.ok) continue;
+        itens.push({ ok: false, texto: `${v.nivel === "erro" ? "Reprovado" : "Aviso"}: ${v.titulo}` });
+        if (v.nivel === "erro") erros++;
+        else avisos++;
+      }
+      const okVal = r.validacoes.filter((v) => v.ok).length;
+      itens.push({ ok: okVal === r.validacoes.length, texto: `Validação: ${okVal} de ${r.validacoes.length} checagens ok` });
+    }
+    lista.push({ nome: r.usinaNome, itens });
+  }
+  const nivel: NivelStatus = calculando ? "calculando" : erros ? "erro" : avisos ? "atencao" : "ok";
+  const texto = nivel === "calculando" ? "Calculando…" : nivel === "ok" ? "Tudo ok" : nivel === "erro" ? `${erros} pendência${erros > 1 ? "s" : ""}` : `${avisos} aviso${avisos > 1 ? "s" : ""}`;
+  return { nivel, texto, usinas: lista };
+}
+
+const COR_STATUS: Record<NivelStatus, string> = {
+  ok: "border-opportunity/50 bg-opportunity/15 text-opportunity",
+  atencao: "border-analysis/50 bg-analysis/15 text-analysis",
+  erro: "border-attention/50 bg-attention/15 text-attention",
+  calculando: "border-primary/50 bg-primary-soft/60 text-primary-text",
+};
+
+function IconeStatus({ nivel, className }: { nivel: NivelStatus | "info"; className?: string }) {
+  if (nivel === "calculando") return <Loader2 className={cn("animate-spin", className)} />;
+  if (nivel === "ok") return <CircleCheck className={className} />;
+  if (nivel === "erro") return <CircleX className={className} />;
+  if (nivel === "atencao") return <TriangleAlert className={className} />;
+  return <Info className={className} />;
+}
+
+function StatusBotao({ status, texto, aberto, onClick }: { status: NivelStatus; texto: string; aberto: boolean; onClick: () => void }) {
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-      <span className="text-muted">
-        Ótimo calculado: <strong className="font-mono text-foreground">{Math.round(sugestao.cobertura * 100)}%</strong>
-        {!igual && sugestao.ganhoKwh > 0.5 && <span className="text-opportunity"> · +{kwh(sugestao.ganhoKwh)} kWh compensados</span>}
-        {igual && " · em uso"}
-      </span>
-      {!igual && (
-        <button type="button" onClick={() => onAplicar(sugestao.cobertura)} className="font-semibold text-primary-text hover:underline">
-          Aplicar
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={aberto}
+      aria-label={`Status do estudo: ${texto}. Ver detalhes e registro`}
+      className={cn("inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors", COR_STATUS[status])}
+    >
+      <IconeStatus nivel={status} className="size-4" />
+      {texto}
+    </button>
+  );
+}
+
+function PainelStatus({ status, registro, onFechar, onLimpar }: { status: StatusGeral; registro: ItemRegistro[]; onFechar: () => void; onLimpar: () => void }) {
+  const corTipo = { ok: "text-opportunity", info: "text-muted", atencao: "text-analysis", erro: "text-attention" } as const;
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <h3 className="flex items-center gap-2 font-semibold">
+          <IconeStatus nivel={status.nivel} className={cn("size-4", COR_STATUS[status.nivel].split(" ").at(-1))} />
+          {status.nivel === "ok" ? "Tudo certo: rateio otimizado e validado" : status.nivel === "calculando" ? "Calculando…" : status.nivel === "erro" ? "Há pendências antes de enviar" : "Pronto, com avisos"}
+        </h3>
+        <button type="button" onClick={onFechar} className="text-muted hover:text-foreground" aria-label="Fechar status">
+          <X className="size-4" />
         </button>
-      )}
-    </div>
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)] divide-y divide-border/60 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+        <div className="space-y-4 p-4">
+          {status.usinas.map((u) => (
+            <div key={u.nome}>
+              <p className="text-sm font-semibold">{u.nome}</p>
+              <ul className="mt-1.5 space-y-1">
+                {u.itens.map((it, k) => (
+                  <li key={k} className="flex gap-2 text-sm">
+                    <IconeStatus nivel={it.ok == null ? "calculando" : it.ok ? "ok" : "atencao"} className={cn("mt-0.5 size-4 shrink-0", it.ok == null ? "text-primary-text" : it.ok ? "text-opportunity" : "text-analysis")} />
+                    <span className="min-w-0">{it.texto}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <ScrollText className="size-4 text-primary-text" /> Registro do cálculo
+            </p>
+            {registro.length > 0 && (
+              <button type="button" onClick={onLimpar} className="text-xs text-muted hover:text-foreground">
+                Limpar
+              </button>
+            )}
+          </div>
+          {registro.length === 0 ? (
+            <p className="mt-2 text-xs text-muted">Nada registrado nesta sessão ainda. Use &quot;Recalcular&quot; para refazer tudo.</p>
+          ) : (
+            <ol className="mt-2 max-h-72 space-y-1.5 overflow-y-auto pr-1" aria-label="Registro do cálculo">
+              {registro.map((r, k) => (
+                <li key={k} className="flex gap-2 text-xs">
+                  <span className="shrink-0 font-mono text-muted">{r.hora}</span>
+                  <span className={cn("min-w-0", corTipo[r.tipo] === "text-muted" ? "text-foreground/85" : corTipo[r.tipo])}>{r.texto}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
 
-/** Curva valor × máximo compensável (mini gráfico). */
-function CurvaMaximo({ curva, marcado, rotulo }: { curva: { cobertura: number; valor: number }[]; marcado: number; rotulo: string }) {
-  if (curva.length < 2) return null;
-  const W = 240;
-  const H = 56;
-  const xs = curva.map((c) => c.cobertura);
-  const vs = curva.map((c) => c.valor);
-  const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
-  const [v0, v1] = [Math.min(...vs), Math.max(...vs)];
-  const px = (x: number) => ((x - x0) / (x1 - x0 || 1)) * (W - 8) + 4;
-  const py = (v: number) => (v1 - v0 < 1 ? H / 2 : H - 6 - ((v - v0) / (v1 - v0)) * (H - 12));
-  const d = curva.map((c, k) => `${k ? "L" : "M"}${px(c.cobertura).toFixed(1)},${py(c.valor).toFixed(1)}`).join(" ");
-  const m = curva.reduce((a, b) => (Math.abs(b.cobertura - marcado) < Math.abs(a.cobertura - marcado) ? b : a));
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-14 w-full max-w-60" role="img" aria-label={rotulo}>
-      <path d={d} fill="none" stroke="var(--primary)" strokeWidth="1.5" />
-      <circle cx={px(m.cobertura)} cy={py(m.valor)} r="3.5" fill="var(--volt)" />
-      <text x="4" y={H - 1} fontSize="8" fill="var(--muted)">{Math.round(x0 * 100)}%</text>
-      <text x={W - 4} y={H - 1} fontSize="8" fill="var(--muted)" textAnchor="end">{Math.round(x1 * 100)}%</text>
-    </svg>
-  );
-}
-
-function MaximoCompensavel({ usina, r, params, sugestao, onAplicar }: { usina: Usina; r: ResultadoUsina; params: Parametros; sugestao?: SugestaoCobertura | null; onAplicar: (c: number) => void }) {
+function MaximoCompensavel({ usina, r, params, sugestao }: { usina: Usina; r: ResultadoUsina; params: Parametros; sugestao?: SugestaoCobertura | null }) {
   const ref = usina.maximoCompensavelPlanilha ?? 0.9;
   const planilha = useMemo(() => sugerirMaximoPlanilha(usina, r, params, ref), [usina, r, params, ref]);
   const efAtual = coberturaEfetiva(r, "atual");
   const efProp = coberturaEfetiva(r, "proposto");
-  const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+  const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
   const difPlanilha = planilha ? r.proposto.compensadoTotal - planilha.melhor.compensadoMedio : 0;
+  const auto = params.coberturaAutomatica !== false;
   return (
     <Card>
-      <div className="border-b border-border px-4 py-3">
-        <h3 className="font-semibold">Máximo compensável</h3>
-        <p className="text-xs text-muted">Quanto do consumo compensável o crédito novo cobre. No otimizado é livre por UC; para a regra proporcional e para a planilha modelo, o sistema faz uma busca livre (sem faixa fixa, até 0,1 ponto), projeta {params.mesesSimulacao} meses em cada valor e fica com o que compensa mais energia.</p>
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <h3 className="font-semibold">Máximo compensável</h3>
+          <p className="mt-0.5 max-w-3xl text-xs text-muted">
+            É quanto do consumo de cada UC o crédito novo da usina cobre; o resto sai do saldo acumulado da própria UC. O sistema escolhe sozinho o valor que compensa mais energia. Não precisa ajustar nada.
+          </p>
+        </div>
+        <Badge tone="opportunity">Automático</Badge>
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] divide-y divide-border/60 md:grid-cols-3 md:divide-x md:divide-y-0">
         <div className="p-4">
-          <p className="text-xs text-muted">{r.metodo === "otimizado" ? "Rateio otimizado (livre por UC)" : "Rateio proposto"}</p>
+          <p className="text-xs text-muted">{r.metodo === "otimizado" ? "Rateio que vai ser enviado (otimizado)" : "Rateio proposto"}</p>
           <p className="mt-1 font-mono text-2xl font-semibold">{pct(efProp)}</p>
-          <p className="mt-1 text-xs text-muted">Efetivo no rateio proposto. Hoje: {pct(efAtual)}.</p>
-        </div>
-        <div className="p-4">
-          <p className="text-xs text-muted">Regra proporcional</p>
-          {sugestao === undefined ? (
-            <p className="mt-1 text-sm text-muted">Calculando…</p>
-          ) : sugestao ? (
-            <>
-              <p className="mt-1 font-mono text-2xl font-semibold">{pct(sugestao.cobertura)}</p>
-              <p className="mt-1 text-xs text-muted">
-                Ótimo da busca livre (em uso: {pct(params.cobertura)}).
-                {Math.abs(sugestao.cobertura - params.cobertura) >= 0.005 && (
-                  <>
-                    {" "}
-                    {sugestao.ganhoKwh > 0.5 && <span className="text-opportunity">+{kwh(sugestao.ganhoKwh)} kWh. </span>}
-                    <button type="button" onClick={() => onAplicar(sugestao.cobertura)} className="font-semibold text-primary-text hover:underline">
-                      Aplicar
-                    </button>
-                  </>
-                )}
-              </p>
-              <CurvaMaximo curva={sugestao.curva} marcado={sugestao.cobertura} rotulo="Energia compensada por máximo compensável, regra proporcional" />
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-muted">—</p>
-          )}
+          <p className="mt-1 text-xs text-muted">
+            Hoje: {pct(efAtual)}. {r.metodo === "otimizado" ? "Escolhido UC a UC: quem tem saldo grande recebe menos crédito novo, quem não tem recebe mais." : "Média das UCs no rateio proposto."}
+          </p>
         </div>
         <div className="p-4">
           <p className="text-xs text-muted">Planilha modelo (célula M8)</p>
@@ -1530,15 +1694,26 @@ function MaximoCompensavel({ usina, r, params, sugestao, onAplicar }: { usina: U
             <>
               <p className="mt-1 font-mono text-2xl font-semibold">{pct(planilha.cobertura)}</p>
               <p className="mt-1 text-xs text-muted">
-                {usina.maximoCompensavelPlanilha != null ? `A planilha usava ${pct(usina.maximoCompensavelPlanilha)}. ` : ""}
-                {planilha.ucsAfetadas ? `Vale para ${planilha.ucsAfetadas} UC(s) com saldo alto.` : "Nenhuma UC gasta mais saldo que o compensável: o valor não muda o resultado."}
-                {planilha.ganhoKwh > 0.5 && <span className="text-opportunity"> +{kwh(planilha.ganhoKwh)} kWh.</span>} Já sai assim na exportação.
+                {usina.maximoCompensavelPlanilha != null ? `Antes: ${pct(usina.maximoCompensavelPlanilha)}. ` : ""}
+                {planilha.ucsAfetadas ? `Muda o percentual de ${planilha.ucsAfetadas} UC(s) com saldo alto${planilha.ganhoKwh > 0.5 ? ` (+${kwh(planilha.ganhoKwh)} kWh)` : ""}.` : "Nenhuma UC tem saldo alto o bastante para o valor fazer diferença."} Já sai preenchido na exportação.
               </p>
-              {difPlanilha > 0.5 && <p className="mt-1 text-xs text-muted">O rateio do sistema compensa {kwh(difPlanilha)} kWh a mais que a planilha.</p>}
-              {planilha.ucsAfetadas > 0 && <CurvaMaximo curva={planilha.curva} marcado={planilha.cobertura} rotulo="Energia compensada por Máximo Compensável, planilha modelo" />}
+              {difPlanilha > 0.5 && <p className="mt-1 text-xs text-muted">Mesmo assim, o rateio do sistema compensa {kwh(difPlanilha)} kWh a mais que a planilha.</p>}
             </>
           ) : (
             <p className="mt-1 text-sm text-muted">—</p>
+          )}
+        </div>
+        <div className="p-4">
+          <p className="text-xs text-muted">Regra proporcional (só para comparação)</p>
+          {sugestao === undefined ? (
+            <p className="mt-1 flex items-center gap-2 text-sm text-muted">
+              <Loader2 className="size-4 animate-spin" /> Calculando…
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 font-mono text-2xl font-semibold">{pct(params.cobertura)}</p>
+              <p className="mt-1 text-xs text-muted">{auto ? "Escolhido automaticamente: o valor (de 1% a 200%) que compensa mais energia." : `Valor manual (o melhor seria ${pct(sugestao?.cobertura ?? null)}).`}</p>
+            </>
           )}
         </div>
       </div>
