@@ -41,7 +41,7 @@ export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRat
   const [filtro, setFiltro] = useState<Acao | "todas">("todas");
   const [classe, setClasse] = useState<ClasseUc | "">("");
   const [q, setQ] = useState("");
-  const [ord, setOrd] = useState<{ col: Col; desc: boolean }>({ col: "pctProposto", desc: true });
+  const [ord, setOrd] = useState<{ col: Col; desc: boolean }>({ col: "compensavelKwh", desc: true });
   const classes = useMemo(() => {
     const m = new Map<ClasseUc, { rotulo: string; n: number }>();
     for (const l of linhas) m.set(l.diagnostico.classe, { rotulo: l.diagnostico.rotulo, n: (m.get(l.diagnostico.classe)?.n ?? 0) + 1 });

@@ -65,7 +65,8 @@ export async function preencherModelo(u: Usina, r: ResultadoUsina, candidatas: C
   // --- UCs atuais (A..J) e fórmulas do modelo (L..Q); estende além da linha 174 se precisar
   const atuais = r.linhas.filter((l) => l.origem === "atual");
   const novas = r.linhas.filter((l) => l.origem === "nova");
-  const todas = [...atuais, ...novas];
+  // como na planilha do dia a dia: maior consumo compensável primeiro
+  const todas = [...atuais, ...novas].sort((a, b) => b.compensavelKwh - a.compensavelKwh);
   const ultima = Math.max(ULTIMA_MODELO, PRIMEIRA + todas.length - 1);
   const formulas = (n: number): [number, string][] => [
     [12, `IF(G${n}>0,IF($D$10+$D$13>$D$8,G${n}*30%,0),0)`],

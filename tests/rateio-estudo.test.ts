@@ -22,6 +22,9 @@ describe("estudo em Excel", () => {
     expect(tot.getCell(2).value).toBe("TOTAL");
     expect(tot.getCell(5).value).toBeCloseTo(100, 6);
     expect(tot.getCell(6).value).toBeCloseTo(100, 6);
+    // ordenado do maior para o menor consumo compensável
+    const consumos = Array.from({ length: ru.linhas.length }, (_, k) => anexo.getRow(7 + k).getCell(9).value as number);
+    expect(consumos).toEqual([...consumos].sort((a, b) => b - a));
     const estudo = wb.getWorksheet("Estudo UFV EXEMPLO NORTE")!;
     expect(estudo.getCell("A1").value).toBe("REPLACE");
     expect(estudo.getCell("A2").value).toBe("Estudo de rateio de créditos");
@@ -63,7 +66,9 @@ describe("planilha modelo", () => {
     expect(ws.getCell("C5").value).toBe(u.meses);
     expect(ws.getCell("R16").value).toBe("Rateio proposto (sistema) %");
     const ultima = 16 + ru.linhas.length;
-    expect(ws.getCell(`C${ultima}`).value).toBe(ru.linhas.at(-1)!.instalacao);
+    // linhas do maior para o menor consumo compensável
+    const menor = [...ru.linhas].sort((a, b) => b.compensavelKwh - a.compensavelKwh).at(-1)!;
+    expect(ws.getCell(`C${ultima}`).value).toBe(menor.instalacao);
     expect((ws.getCell("H15").value as { formula: string }).formula).toBe(`SUM(H17:H${Math.max(174, ultima)})`);
     // modelo em branco importado não vira usina
     const imp = importarSheets(await lerXlsx(await (await modeloEmBranco()).arrayBuffer()));

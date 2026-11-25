@@ -382,8 +382,9 @@ function folhaAnexo(wb: ExcelJS.Workbook, u: Usina, r: ResultadoUsina, p: Parame
   const f = 10 ** p.casasDecimais;
   const soma = (k: "pctAtual" | "pctProposto") => Math.round(r.linhas.reduce((a, l) => a + l[k], 0) * f) / f;
   ws.mergeCells(3, 1, 3, n);
-  ws.getCell(3, 1).value = `${u.distribuidora ? `${u.distribuidora} · ` : ""}emitido em ${emissao} · hoje ${atuais.length} UCs (${fmt(soma("pctAtual"), p.casasDecimais)}%) → proposto ${r.indicadores.ucsPropostas} UCs (${fmt(soma("pctProposto"), p.casasDecimais)}%)`;
+  ws.getCell(3, 1).value = `${u.distribuidora ? `${u.distribuidora} · ` : ""}emitido em ${emissao} · hoje ${atuais.length} UCs (${fmt(soma("pctAtual"), p.casasDecimais)}%) → proposto ${r.indicadores.ucsPropostas} UCs (${fmt(soma("pctProposto"), p.casasDecimais)}%)${novas.length ? ` · ${novas.length} novas` : ""} · ordem: maior consumo compensável primeiro`;
   ws.getCell(3, 1).font = { name: "Calibri", size: 9.5, color: { argb: MUDO } };
+  ws.getCell(3, 1).alignment = { wrapText: false, shrinkToFit: true };
   for (let c = 1; c <= n; c++) ws.getCell(4, c).border = { bottom: { style: "medium", color: { argb: C.marca } } };
   ws.getRow(4).height = 6;
 
@@ -398,8 +399,8 @@ function folhaAnexo(wb: ExcelJS.Workbook, u: Usina, r: ResultadoUsina, p: Parame
     c.alignment = { vertical: "middle", wrapText: true, horizontal: cols[k - 1].dir ? "right" : cols[k - 1].centro ? "center" : "left", indent: k === 8 ? 1 : 0 };
   });
 
-  // como estão hoje: maior participação primeiro; novas UCs no fim
-  const ordenadas = [...atuais.sort((a, b) => b.pctAtual - a.pctAtual || b.pctProposto - a.pctProposto), ...novas.sort((a, b) => b.pctProposto - a.pctProposto)];
+  // do maior para o menor consumo compensável (quem mais pesa no rateio primeiro)
+  const ordenadas = [...r.linhas].sort((a, b) => b.compensavelKwh - a.compensavelKwh || b.pctProposto - a.pctProposto);
   ordenadas.forEach((l, k) => {
     const row = ws.addRow([k + 1, l.instalacao, l.apelido || "—", l.diagnostico.rotulo, l.pctAtual, l.pctProposto, l.pctProposto - l.pctAtual, ACAO_LABEL[l.acao], l.compensavelKwh, l.origem === "nova" ? null : l.mesesSaldoHoje]);
     row.height = 15;
@@ -419,6 +420,12 @@ function folhaAnexo(wb: ExcelJS.Workbook, u: Usina, r: ResultadoUsina, p: Parame
     row.getCell(8).alignment = { vertical: "middle", horizontal: "left", indent: 1 };
   });
 
+  // barra no consumo: o tamanho de cada UC de relance
+  if (ordenadas.length)
+    ws.addConditionalFormatting({
+      ref: `I${H + 1}:I${H + ordenadas.length}`,
+      rules: [{ type: "dataBar", priority: 1, gradient: false, minLength: 0, maxLength: 100, cfvo: [{ type: "num", value: 0 }, { type: "max" }], color: { argb: C.medio } } as unknown as ExcelJS.ConditionalFormattingRule],
+    });
   const tot = ws.addRow(["", "TOTAL", "", "", soma("pctAtual"), soma("pctProposto"), null, "", r.linhas.reduce((a, l) => a + Math.max(0, l.compensavelKwh), 0), null]);
   tot.eachCell({ includeEmpty: true }, (c, i) => {
     const col = cols[i - 1];
@@ -537,8 +544,7 @@ function folhaDetalhe(wb: ExcelJS.Workbook, alvo: ResultadoUsina[], p: Parametro
   ]);
   let k = 0;
   for (const r of alvo) {
-    const ordem: Record<Acao, number> = { incluir: 0, retirar: 1, aumentar: 2, reduzir: 3, manter: 4 };
-    for (const l of [...r.linhas].sort((a, b) => ordem[a.acao] - ordem[b.acao] || b.pctProposto - a.pctProposto)) {
+    for (const l of [...r.linhas].sort((a, b) => b.compensavelKwh - a.compensavelKwh || b.pctProposto - a.pctProposto)) {
       const row = ws.addRow([r.usinaNome, l.instalacao, l.apelido, l.diagnostico.rotulo, ACAO_LABEL[l.acao], l.pctAtual, l.pctProposto, l.compensavelKwh, l.mesesSaldoHoje, l.mesesSaldoFimProposto, l.motivo]);
       zebra(row, k++);
       row.getCell(5).font = { name: "Calibri", size: 9, bold: true, color: { argb: ACAO_COR[l.acao] } };
