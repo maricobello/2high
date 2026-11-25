@@ -60,6 +60,9 @@ test.describe("admin: rateio GD", () => {
     await page.getByRole("button", { name: /Planilha modelo/ }).click();
     expect((await modelo).suggestedFilename()).toMatch(/^Modelo_Rateio_.*\.xlsx$/);
 
+    await page.getByRole("button", { name: "Como fazer" }).click();
+    await expect(page.getByRole("heading", { name: "Rateio passo a passo" })).toBeVisible();
+
     const [scroll, largura] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
     expect(scroll).toBeLessThanOrEqual(largura);
   });

@@ -12,6 +12,7 @@ import {
   CircleCheck,
   CircleX,
   Info,
+  ListOrdered,
   Loader2,
   Plus,
   RefreshCw,
@@ -514,6 +515,7 @@ export function RateioWorkspace() {
     { id: "candidatas", label: `Novas UCs${estado.candidatas.length ? ` (${estado.candidatas.length})` : ""}`, icon: null },
     { id: "parametros", label: "Parâmetros", icon: Settings2 },
     { id: "metodologia", label: "Metodologia", icon: BookOpen },
+    { id: "como", label: "Como fazer", icon: ListOrdered },
   ];
 
   function confirmarImportacao(dest: Destinos) {
@@ -647,6 +649,7 @@ export function RateioWorkspace() {
             </div>
           )}
           {abaAtual === "metodologia" && <Metodologia />}
+          {abaAtual === "como" && <ComoFazer />}
           {usinaAtiva && resAtivo && (
             <UsinaPainel
               usina={usinaAtiva}
@@ -1485,6 +1488,65 @@ function ParametrosPainel({ params: p, sugestao, subgrupos, onChange }: { params
           ))}
         </div>
       </div>
+    </Card>
+  );
+}
+
+const PASSOS: { titulo: string; texto: string }[] = [
+  {
+    titulo: "Separe os arquivos no Orange",
+    texto: "Export da Unidade Rateio GD (UCs da usina), fatura da usina em PDF e o recorte da tela Gestão de usinas (bloco Energia). Opcional: calendário de rateio e lista de novas UCs.",
+  },
+  {
+    titulo: "Importe as UCs",
+    texto: "Importar planilhas (ou arraste os arquivos para a página) e confirme para qual usina vão as UCs. Planilha modelo também serve.",
+  },
+  {
+    titulo: "Envie a fatura e o recorte do Orange",
+    texto: "Com a aba da usina aberta, envie o PDF e a imagem (dá para colar com Ctrl+V). Injeção, período, sazonalidade e demanda entram sozinhos quando a leitura tem nota 70 ou mais.",
+  },
+  {
+    titulo: "Preencha a energia consumida",
+    texto: "Em Dados da usina: Relatório Gerencial GD → competência → última aba → total, mês a mês. Formato brasileiro: 619.886,12.",
+  },
+  {
+    titulo: "Confira o status",
+    texto: "O botão no topo fica verde em \u201cTudo ok\u201d. Amarelo ou vermelho: abra e veja o que falta. Recalcular refaz otimização e validação.",
+  },
+  {
+    titulo: "Revise o resultado",
+    texto: "Ganho estimado, comparação de métodos, pontos de atenção e a tabela por UC (toque numa linha para ver o motivo). O máximo compensável é calculado sozinho.",
+  },
+  {
+    titulo: "Gere o parecer e exporte",
+    texto: "Gerar parecer e depois Exportar: PDF executivo para o cliente, Excel completo para trabalhar, planilha modelo para o dia a dia.",
+  },
+  {
+    titulo: "Envie à distribuidora",
+    texto: "Use a aba Envio do Excel (ou a coluna R da planilha modelo): instalação e percentual, soma 100%. A mudança vale no ciclo seguinte ao pedido.",
+  },
+];
+
+/** Passo a passo do rateio, para quem está começando. */
+function ComoFazer() {
+  return (
+    <Card className="p-5 sm:p-7">
+      <Eyebrow>Como fazer</Eyebrow>
+      <h2 className="mt-3 text-xl font-semibold">Rateio passo a passo</h2>
+      <ol className="mt-5 max-w-3xl space-y-4">
+        {PASSOS.map((p, i) => (
+          <li key={p.titulo} className="flex gap-3">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-soft font-mono text-xs font-semibold text-primary-text">{i + 1}</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{p.titulo}</p>
+              <p className="mt-0.5 text-sm leading-relaxed text-muted">{p.texto}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-6 max-w-3xl border-t border-border pt-4 text-xs leading-relaxed text-muted">
+        Revise a cada ciclo do calendário: o consumo das UCs muda e o percentual antigo passa a acumular saldo em umas e faltar crédito em outras. Os arquivos ficam só neste navegador.
+      </p>
     </Card>
   );
 }
