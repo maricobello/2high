@@ -76,3 +76,31 @@ describe("otimizador (HiGHS)", () => {
     expect(analisarProjeto([mudou], [], P, o).metodo).toBe("proporcional");
   });
 });
+
+describe("usina grande e trava contra solução ruim", () => {
+  // 435 UCs, poucas com saldo, injeção menor que o consumo (como uma usina real grande)
+  const ucsGrandes = Array.from({ length: 435 }, (_, i) => uc(i, 100 / 435, 100 + ((i * 37) % 9000), i % 15 === 0 ? 20000 : i % 7 === 0 ? 2000 : 0));
+  const grande = usina("G", ucsGrandes, 439000);
+
+  it("resolve no ótimo em poucos segundos, sem retirar UCs à toa", () => {
+    const t0 = performance.now();
+    const o = otimizar([grande], [], P);
+    const ms = performance.now() - t0;
+    expect(o.otimo).toBe(true);
+    expect(ms).toBeLessThan(20000);
+    const r = analisarProjeto([grande], [], P, o).usinas[0];
+    expect(r.metodo).toBe("otimizado");
+    const prop = analisarProjeto([grande], [], { ...P, metodo: "proporcional" }).usinas[0];
+    expect(r.proposto.compensadoTotal).toBeGreaterThanOrEqual(prop.proposto.compensadoTotal - 1);
+    expect(r.linhas.filter((l) => l.pctProposto > 0).length).toBeGreaterThan(300);
+  }, 60000);
+
+  it("solução ruim (ex.: parou no tempo limite) é trocada pela regra proporcional", () => {
+    const base = analisarProjeto([grande], [], P);
+    const ruim = { chave: base.chave, status: "Time limit reached", otimo: false, objetivo: 0, tempoMs: 25000, variaveis: 0, restricoes: 0, porUsina: { G: { pctAtuais: ucsGrandes.map((_, i) => (i === 0 ? 100 : 0)), novas: [] } } };
+    const r = analisarProjeto([grande], [], P, ruim).usinas[0];
+    expect(r.metodo).toBe("proporcional");
+    expect(r.alertas.some((a) => a.codigo === "otimizacao_descartada")).toBe(true);
+    expect(r.linhas.filter((l) => l.pctProposto > 0).length).toBeGreaterThan(300);
+  });
+});

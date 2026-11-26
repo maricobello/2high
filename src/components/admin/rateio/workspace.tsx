@@ -1718,7 +1718,7 @@ function MetodoInfo({ otimizacao: o, refino }: { otimizacao: OtimizacaoUi; refin
     texto = `Rateio otimizado (programação linear) · ${o.info.otimo ? "solução ótima comprovada" : "melhor solução no tempo limite"} em ${(o.info.tempoMs / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s · ${o.info.variaveis.toLocaleString("pt-BR")} variáveis · refino exato na grade de percentuais${refino && refino.ganhoKwh > 0.5 ? ` (+${kwh(refino.ganhoKwh)} kWh sobre o arredondamento)` : ""}`;
     cls = "text-opportunity";
   } else {
-    texto = `Otimização indisponível${o.info?.erro ? ` (${o.info.erro})` : ""}: usando a regra proporcional`;
+    texto = o.info?.erro ? `Otimização indisponível (${o.info.erro}): usando a regra proporcional` : o.info ? "Regra proporcional: rendeu mais que a solução do otimizador nesta usina" : "Otimização indisponível (sem resultado do otimizador): usando a regra proporcional. Clique em Recalcular";
     cls = "text-analysis";
   }
   return (
@@ -1759,7 +1759,7 @@ function avaliarStatus(resultado: ResultadoProjeto, usinas: Usina[], calculando:
       if (calculando) itens.push({ ok: null, texto: "Otimização em andamento…" });
       else if (r.metodo === "otimizado") itens.push({ ok: true, texto: `Rateio otimizado${otim?.otimo ? " (ótimo comprovado)" : ""}${r.refino && r.refino.ganhoKwh > 0.5 ? ` · refino exato +${kwh(r.refino.ganhoKwh)} kWh` : ""}` });
       else if (E > 0) {
-        itens.push({ ok: false, texto: `Otimização indisponível${otim?.erro ? ` (${otim.erro})` : ""}: usando a regra proporcional` });
+        itens.push({ ok: false, texto: otim?.erro ? `Otimização indisponível (${otim.erro}): usando a regra proporcional` : r.alertas.some((a) => a.codigo === "otimizacao_descartada") ? "Ficou a regra proporcional: rendeu mais que a solução do otimizador" : "Otimização indisponível (sem resultado do otimizador): usando a regra proporcional. Clique em Recalcular" });
         avisos++;
       }
     }
