@@ -39,7 +39,7 @@ export function lerDemanda(linhas: string[]): Demanda | null {
     const n = norm(l);
     // itens da conta em kW: "(65) Ultrapassagem de Demanda Injetada KW 2.219,840 9,053580 20.097,51 ..."
     // ou "Demanda [kW] - TUSD JUL/26 kW 24,9600 28,55 29,955 747,68 ..." (o valor é o que bate com qtd × tarifa)
-    const it = /^(?:\((\w{2,3})\)\s+)?(.*?(?:demanda|ultrapassagem).*?)\s+kw\s+([\d.,]+)\s+(.*)$/i.exec(l);
+    const it = /^(?:\((\w{2,3})\)\s+)?(.*?(?:demanda|ultrapassagem).*?)\s+\(?kw\)?\s+([\d.,]+)\s+(.*)$/i.exec(l);
     if (it && !/^demanda\s+[\d.,]+\s*kw/i.test(l)) {
       const qtd = toNumber(it[3]);
       const resto = (it[4].match(/-?[\d.]+,\d+|-?\d+/g) ?? []).map(toNumber);
@@ -50,6 +50,25 @@ export function lerDemanda(linhas: string[]): Demanda | null {
         achou = true;
       }
     }
+    // Equatorial: "Dem. de Geração (kW): 2.500,00", "Demanda Contratada Única (kW): 30,00"
+    let q = /dem(?:anda)?\.? de gera[cç][aã]o \(kw\):\s*([\d.,]+)/i.exec(l);
+    if (q) {
+      d.contratadaKw = kw(q[1]);
+      achou = true;
+    }
+    q = /demanda contratada (?:[uú]nica|fora ponta)? ?\(kw\):\s*([\d.,]+)/i.exec(l);
+    if (q && d.contratadaConsumoKw == null) {
+      d.contratadaConsumoKw = kw(q[1]);
+      achou = true;
+    }
+    // medição "Demanda Geração FP Reg 0 1.476 1,6800 2.479,68 kW" / "Demanda Ativa NP Reg 0 4 1,6800 6,72 kW"
+    q = /demanda gera[cç][aã]o (?:fp|np|ponta|fora ponta) reg\s+[\d.]+\s+[\d.]+\s+[\d.,]+\s+([\d.,]+)\s*kw/i.exec(l);
+    if (q) {
+      d.registradaKw = Math.max(d.registradaKw ?? 0, kw(q[1]));
+      achou = true;
+    }
+    q = /demanda ativa (?:fp|np|ponta|fora ponta) reg\s+[\d.]+\s+[\d.]+\s+[\d.,]+\s+([\d.,]+)\s*kw/i.exec(l);
+    if (q) d.registradaConsumoKw = Math.max(d.registradaConsumoKw ?? 0, kw(q[1]));
     // contratadas no formato RGE/CPFL: "... Demanda kW 30" e "... Geração kW 1.000"
     let m = /gera[cç][aã]o\s+kw\s+([\d.,]+)\s*$/i.exec(l);
     if (m) {

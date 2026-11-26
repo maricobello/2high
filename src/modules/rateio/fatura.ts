@@ -46,6 +46,8 @@ export interface FaturaUsina {
   demanda?: Demanda | null;
   /** Injetada no mês de referência pela leitura do medidor (conferência). */
   injetadaMedidor?: number | null;
+  /** A injetada do mês veio só do medidor (não há outra fonte para conferir). */
+  injetadaSoMedidor?: boolean;
   /** Campos completados pelo layout aprendido da distribuidora (sem IA). */
   camposAprendidos?: string[];
   /** Quantas leituras o layout aprendido já tem (confiança). */
@@ -172,25 +174,75 @@ function somaPostos(linhas: string[], rotulo: RegExp): number | null {
  * "kWh Injetado FPonta 124.580" + "Ponta 7", e a leitura do medidor de energia injetada
  * (leitura atual − anterior × constante = registrado), para conferência.
  */
-export function lerMesSolto(linhas: string[]): { injetada: number | null; medidor: number | null } {
+export function lerMesSolto(linhas: string[]): { injetada: number | null; medidor: number | null; consumoMedidor: number | null } {
   let resumo = 0;
   let achouResumo = false;
   let medidor = 0;
   let achouMedidor = false;
+  let consumo = 0;
+  let achouConsumo = false;
+  // leitura do medidor no fim da linha: "anterior atual constante registrado [kWh]"
+  // (ex.: "Energia Injetada - kW Fora Ponta 347032 367795 6,00000 124.578",
+  //       "Ener. Inje. F. Ponta Consumo Ativo Gerado FP 74.645.183 76.023.831 0,4200 579.032,16 kWh")
+  const MEDIDOR = /(?:^|\s)([\d.]+)\s+([\d.]+)\s+(\d+,\d+|\d+)\s+([\d.]+(?:,\d+)?)\s*(?:kwh)?\s*$/;
   for (const l of linhas) {
     const n = norm(l);
     for (const m of n.matchAll(/kwh injetad[oa]\s*(?:f\.? ?ponta|fora (?:de )?ponta|ponta|total)?\s*:?\s*([\d.]+(?:,\d+)?)/g)) {
       resumo += toNumber(m[1]);
       achouResumo = true;
     }
-    // medidor: "Energia Injetada - kW(h) Fora Ponta 347032 367795 6,00000 124.578"
-    const md = /energia injetada.*?(?:fora (?:de )?ponta|ponta)\s+(\d+)\s+(\d+)\s+([\d.]+,\d+|\d+)\s+([\d.]+(?:,\d+)?)\s*$/.exec(n);
-    if (md) {
+    // linha de medidor é curta (id do medidor, leituras, constante, registrado); tabelas longas não
+    if (/demanda|reativ|kvar/.test(n) || (n.match(/\d[\d.,]*/g) ?? []).length > 6) continue;
+    const md = MEDIDOR.exec(n);
+    if (!md) continue;
+    if (/inje|gerad/.test(n)) {
       medidor += toNumber(md[4]);
       achouMedidor = true;
+    } else if (/consumo (?:fora )?ponta|consumo ativo/.test(n)) {
+      consumo += toNumber(md[4]);
+      achouConsumo = true;
     }
   }
-  return { injetada: achouResumo ? resumo : null, medidor: achouMedidor ? medidor : null };
+  return { injetada: achouResumo ? resumo : null, medidor: achouMedidor ? medidor : null, consumoMedidor: achouConsumo ? consumo : null };
+}
+
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/**
+ * Histórico com o mês sem ano ("SET 6,72 8,40 … 584,64 579.032,16", Equatorial e afins).
+ * As colunas não têm nome confiável: a injetada e o consumo são achados comparando a linha
+ * do mês de referência com o que o medidor registrou (par de colunas vizinhas que soma igual).
+ */
+export function lerHistoricoSemAno(linhas: string[], ref: string, injetadaRef: number | null, consumoRef: number | null): { injetada: SerieMensal; consumo: SerieMensal } {
+  const out = { injetada: {} as SerieMensal, consumo: {} as SerieMensal };
+  if (!/^\d{4}-\d{2}$/.test(ref)) return out;
+  const [ra, rm] = [Number(ref.slice(0, 4)), Number(ref.slice(5, 7))];
+  const rows: { mes: string; v: number[] }[] = [];
+  for (const l of linhas) {
+    const m = /^([a-z]{3})\s+(-?[\d.,]+(?:\s+-?[\d.,]+){3,})\s*$/.exec(norm(l));
+    if (!m) continue;
+    const mi = MESES_ABREV.indexOf(m[1]) + 1;
+    if (!mi) continue;
+    const ano = mi <= rm ? ra : ra - 1;
+    rows.push({ mes: `${ano}-${String(mi).padStart(2, "0")}`, v: m[2].split(/\s+/).map(toNumber) });
+  }
+  const linhaRef = rows.find((r) => r.mes === ref);
+  if (!linhaRef || rows.length < 2) return out;
+  const acharColunas = (alvo: number | null): number[] | null => {
+    if (!alvo || alvo <= 0) return null;
+    const v = linhaRef.v;
+    const perto = (x: number) => Math.abs(x - alvo) <= Math.max(1, alvo * 0.002);
+    for (let i = 0; i + 1 < v.length; i++) if (perto(v[i] + v[i + 1])) return [i, i + 1];
+    const um = v.findIndex(perto);
+    return um >= 0 ? [um] : null;
+  };
+  const ci = acharColunas(injetadaRef);
+  const cc = acharColunas(consumoRef);
+  for (const r of rows) {
+    if (ci && ci.every((i) => i < r.v.length)) out.injetada[r.mes] = ci.reduce((a, i) => a + r.v[i], 0);
+    if (cc && cc.every((i) => i < r.v.length)) out.consumo[r.mes] = cc.reduce((a, i) => a + r.v[i], 0);
+  }
+  return out;
 }
 
 /** Soma, por mês, as linhas cujo rótulo casa com `incluir` (e não com `excluir`), na tabela com mais meses. */
@@ -250,16 +302,34 @@ export function lerFaturaTexto(linhasBrutas: string[], arquivo = "fatura.pdf", l
   // saldo de créditos da geradora (demonstrativo) no mês de referência
   const saldo = serie(tabelas, /saldo de creditos (atualizado|final|acumulado)/);
   if (Object.keys(saldo).length) f.saldoKwh = saldo[f.mesReferencia] ?? saldo[Object.keys(saldo).sort().at(-1)!];
+  // "Saldo Acumulado Geral Ponta: 1.741,57 … Saldo Acumulado Geral Fora Ponta: 642209,97" (Equatorial)
+  if (f.saldoKwh == null) {
+    const txt = norm(linhas.join(" "));
+    const acc = [...txt.matchAll(/saldo acumulado[^:]{0,40}:\s*(-?[\d.,]+)/g)].map((m) => toNumber(m[1].replace(/[.,]$/, "")));
+    if (acc.length) f.saldoKwh = acc.reduce((a, b) => a + b, 0);
+  }
   // sem tabela: "Saldo em Energia da Instalação: Ponta X kWh / Fora Ponta Y kWh" e afins
   if (f.saldoKwh == null) f.saldoKwh = somaPostos(linhas, /saldo (?:em energia|de energia|de creditos|acumulado)/);
 
   // mês solto (sem tabela de injeção): resumo "kWh Injetado" e leitura do medidor
   const solto = lerMesSolto(linhas);
   f.injetadaMedidor = solto.medidor;
+  // histórico sem ano (colunas achadas pelo medidor do mês)
+  if (!Object.keys(f.injetada).length && f.mesReferencia) {
+    const h = lerHistoricoSemAno(linhas, f.mesReferencia, solto.injetada ?? solto.medidor, solto.consumoMedidor);
+    if (Object.keys(h.injetada).length >= 2) {
+      f.injetada = h.injetada;
+      for (const [m, v] of Object.entries(h.consumo)) if (f.consumo[m] == null) f.consumo[m] = v;
+    }
+  }
   if (!Object.keys(f.injetada).length && f.mesReferencia) {
     const v = solto.injetada ?? solto.medidor;
-    if (v != null && v > 0) f.injetada[f.mesReferencia] = v;
+    if (v != null && v > 0) {
+      f.injetada[f.mesReferencia] = v;
+      if (solto.injetada == null) f.injetadaSoMedidor = true;
+    }
   }
+  if (f.mesReferencia && f.consumo[f.mesReferencia] == null && solto.consumoMedidor != null) f.consumo[f.mesReferencia] = solto.consumoMedidor;
 
   // leitura genérica por rótulo quando não há tabela (outros layouts)
   if (!Object.keys(f.injetada).length && f.mesReferencia) {
@@ -472,7 +542,7 @@ export function scoreFatura(f: FaturaUsina, injetadaPainel?: { kwh: number; mese
     const erros = pares.map((m) => Math.abs(f.injetada[m] - (f.consumo[m] ?? 0) - f.excedente[m]) / f.injetada[m]);
     const pior = Math.max(...erros);
     add(pior <= 0.03, `Injetada − consumo da usina = excedente (maior diferença ${(pior * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%)`, 20, pior <= 0.03 ? 20 : pior <= 0.1 ? 10 : 0);
-  } else if (f.injetadaMedidor && f.mesReferencia && f.injetada[f.mesReferencia] > 0 && f.injetada[f.mesReferencia] !== f.injetadaMedidor) {
+  } else if (f.injetadaMedidor && f.mesReferencia && f.injetada[f.mesReferencia] > 0 && !f.injetadaSoMedidor) {
     // conferência independente: resumo da fatura × leitura do medidor
     const dif = Math.abs(f.injetada[f.mesReferencia] - f.injetadaMedidor) / f.injetada[f.mesReferencia];
     add(dif <= 0.01, `Injetada confere com a leitura do medidor (${(dif * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% de diferença)`, 20, dif <= 0.01 ? 20 : dif <= 0.05 ? 10 : 0);

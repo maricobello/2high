@@ -342,3 +342,40 @@ describe("origem da injeção do estudo", () => {
     expect(origemInjecao(base)).toMatch(/Falta a injeção/);
   });
 });
+
+describe("fatura no formato Equatorial", () => {
+  const linhas = [
+    "GRUPO DE TENSÃO: A SUBGRUPO: A4  TIPO DE FORNECIMENTO: TRIFÁSICO",
+    "09/2026  08/10/2026  R$ 42.286,09",
+    "1.000.000.008-41: Saldo do Mês Geral Ponta: 17.98 , Saldo Acumulado Geral Ponta: 1.741,57, Saldo atualizado a expirar de 1.630,02 na ref 03/31  Unidade Consumidora geradora",
+    "40072.23 , Saldo Acumulado Geral Fora Ponta: 642209,97, Saldo atualizado a expirar de 445967,34 na ref 03/31",
+    "Demanda Contratada Única (kW): 30,00",
+    "Demanda de Geração (kW)  2.470  16,627478  12,670000  944,95  8.830,02  41.069,87",
+    "Dem. de Geração (kW): 2.500,00",
+    "11111111  Ener. Inje. F. Ponta  Consumo Ativo Gerado FP 74.645.183 76.023.831 0,4200 579.032,16 kWh",
+    "11111111  Ener. Inje. Ponta  Consumo Ativo Gerado NP  87.397  88.789  0,4200  584,64 kWh",
+    "11111111  Consumo Fora Ponta  Consumo Ativo FP Reg  384.710  388.573  0,4200 1.622,46 kWh",
+    "11111111  Consumo Ponta  Consumo Ativo NP Reg  74.693  75.468  0,4200  325,50 kWh",
+    "11111111  Dem. Geração Fora Pta  Demanda Geração FP Reg  0  1.476  1,6800  2.479,68 kW  Média dos 12 meses (kWh): 1.918,98",
+    "EQUATORIAL ALAGOAS DISTRIB. DE ENERGIA S.A.",
+    "MÊS  PONTA  FORA PONTA  REATIVO EXCEDENTE  PONTA/TOT FORA PONTA  REATIVO EXCEDENTE CONSUMO  REATIVO EXCEDENTE  PONTA  FORA PONTA",
+    "SET  6,72  8,40  0,00  325,50  1.622,46  692,16  0,00  0,00  584,64  579.032,16",
+    "AGO  8,40  6,72  0,00  296,94  1.755,60  742,98  0,00  0,00  1.032,78  527.514,12",
+    "JUL  6,72  6,72  0,00  315,42  1.700,16  788,76  0,00  0,00  578,76  504.324,24",
+  ];
+
+  it("acha as colunas do histórico pelo medidor, o saldo acumulado e a demanda de geração", async () => {
+    const { lerFaturaTexto, scoreFatura } = await import("@/modules/rateio/fatura");
+    const f = lerFaturaTexto(linhas, "eq.pdf");
+    expect(f.distribuidora).toBe("EQUATORIAL");
+    expect(f.mesReferencia).toBe("2026-09");
+    expect(f.injetada["2026-09"]).toBeCloseTo(579616.8, 2);
+    expect(f.injetada["2026-08"]).toBeCloseTo(528546.9, 2);
+    expect(f.injetada["2026-07"]).toBeCloseTo(504903, 2);
+    expect(f.consumo["2026-09"]).toBeCloseTo(1947.96, 2);
+    expect(f.saldoKwh).toBeCloseTo(643951.54, 2);
+    expect(f.demanda).toMatchObject({ contratadaKw: 2500, contratadaConsumoKw: 30, registradaKw: 2479.68, despesaUltrapassagem: 0 });
+    const s = scoreFatura(f);
+    expect(s.itens.some((i) => /medidor/.test(i.texto) && i.ok)).toBe(true);
+  });
+});
