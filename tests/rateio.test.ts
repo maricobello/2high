@@ -255,3 +255,29 @@ describe("consumo mínimo das UCs atuais", () => {
     expect(orange[0].consumoMinimoKwh).toBeNull();
   });
 });
+
+describe("Relatório Gerencial GD (Orange)", () => {
+  const grid = [
+    ["Relatório Gerencial GD - Orange System", "Competência: 09/2026", "Usina: TIM EXEMPLO EQUATORIAL AL UFV TESTE (X_UFV - Teste)", "Data do relatório: 26/11/2026"],
+    ["ID", "Instalação Nova", "Instalação Antiga", "Empresa", "Rateio (%)", "Percentual  Energia Compensada (%)", "Consumo da UC(kWh)", "Energia compensada (kWh)", "Tarifa cativo (R$/kWh)", "Custo Cativo (R$)", "Fatura  recebida (R$)", "Consumo  mínimo(R$)"],
+    [1, "613.826.008-30", "7138261", "LOJA_1", 0.52, 0.42, 2031, 1931, 0.87712, 2005.04, 400.97, 87.71],
+    [2, "1.444.862.008-72", "16999924", "LOJA_2", 0.14, 0.15, 754, 685.3, 0.87712, 871.89, 332.37, 26.31],
+    ["", "-", "-", "TOTAL", 0.66, 100, 2785, 2616.3, 0.87712, 0, 0, 0],
+  ];
+
+  it("vira usina com o nome do relatório, UCs, mínimo em kWh e o consumo da competência", async () => {
+    const { parseRelatorioGerencial, importarSheets } = await import("@/modules/rateio/grid");
+    const rel = parseRelatorioGerencial(grid)!;
+    expect(rel.competencia).toBe("2026-09");
+    expect(rel.consumoTotal).toBe(2785);
+    expect(rel.ucs.map((u) => u.consumoMinimoKwh)).toEqual([100, 30]);
+    expect(rel.ucs[0].compensavelKwh).toBe(1931);
+    expect(rel.ucs[0].keyAlt).toBe("7138261");
+    const imp = importarSheets([{ name: "Sheet1", grid }]);
+    expect(imp.usinas).toHaveLength(1);
+    expect(imp.usinas[0].nome).toBe("UFV TESTE");
+    expect(imp.usinas[0].distribuidora).toBe("EQUATORIAL");
+    expect(imp.usinas[0].fonteUcs).toBe("relatorio");
+    expect(imp.usinas[0].consumoMensal).toEqual([{ mes: "2026-09", kwh: 2785 }]);
+  });
+});

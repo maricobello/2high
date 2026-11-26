@@ -133,6 +133,25 @@ export interface Destinos {
   usarDados: Record<string, boolean>;
 }
 
+/** Completa o consumo mínimo de cada UC com o que outra lista traz (cruzando instalação nova e antiga). */
+function enriquecerMinimo(ucs: Usina["ucs"], fontes: Usina["ucs"]): Usina["ucs"] {
+  const mapa = new Map<string, number>();
+  for (const f of fontes) {
+    if (f.consumoMinimoKwh == null) continue;
+    mapa.set(f.key, f.consumoMinimoKwh);
+    if (f.keyAlt) mapa.set(f.keyAlt, f.consumoMinimoKwh);
+  }
+  if (!mapa.size) return ucs;
+  return ucs.map((c) => (c.consumoMinimoKwh != null ? c : { ...c, consumoMinimoKwh: mapa.get(c.key) ?? (c.keyAlt ? mapa.get(c.keyAlt) : undefined) ?? null }));
+}
+
+/** Junta meses de energia consumida (o mais novo vale para o mesmo mês). */
+function juntarConsumo(a: Usina["consumoMensal"], b: Usina["consumoMensal"]): Usina["consumoMensal"] {
+  const m = new Map(a.map((c) => [c.mes, c.kwh]));
+  for (const c of b) m.set(c.mes, c.kwh);
+  return [...m.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([mes, kwh]) => ({ mes, kwh }));
+}
+
 function avisoMaximo(v: number): string {
   return `A planilha usa Máximo Compensável de ${Math.round(v * 100)}%. O sistema calcula o valor ótimo (veja "Máximo compensável" na usina).`;
 }
@@ -153,9 +172,15 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
     const usarDados = dest ? dest.usarDados[nova.id] !== false : true;
     if (idx >= 0) {
       const u = usinas[idx];
+      // Relatório Gerencial (sem saldo) não substitui a lista do rateio (com saldo): só completa
+      const manterUcs = nova.fonteUcs === "relatorio" && u.ucs.length > 0 && u.fonteUcs !== "relatorio";
+      const ucsFinais = enriquecerMinimo(nova.ucs.length && !manterUcs ? nova.ucs : u.ucs, [...u.ucs, ...nova.ucs]);
       usinas[idx] = {
         ...u,
-        ucs: nova.ucs.length ? nova.ucs : u.ucs,
+        ucs: ucsFinais,
+        fonteUcs: manterUcs ? u.fonteUcs : (nova.fonteUcs ?? u.fonteUcs),
+        // consumo da competência do relatório entra em Energia consumida (mês a mês)
+        ...(nova.fonteUcs === "relatorio" && nova.consumoMensal.length ? { consumoMensal: juntarConsumo(u.consumoMensal, nova.consumoMensal) } : {}),
         distribuidora: u.distribuidora || nova.distribuidora,
         ...(nova.meses > 0 && usarDados
           ? { periodoInicio: nova.periodoInicio, periodoFim: nova.periodoFim, meses: nova.meses, energiaContratadaPeriodo: nova.energiaContratadaPeriodo, energiaGeradaPeriodo: nova.energiaGeradaPeriodo, energiaInjetadaPeriodo: nova.energiaInjetadaPeriodo, consumoMensal: nova.consumoMensal }
@@ -168,7 +193,7 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
       };
       abrir = u.id;
     } else {
-      usinas.push(usarDados ? nova : { ...nova, meses: 0, periodoInicio: "", periodoFim: "", energiaContratadaPeriodo: 0, energiaGeradaPeriodo: 0, energiaInjetadaPeriodo: 0, consumoMensal: [] });
+      usinas.push(usarDados ? nova : { ...nova, meses: 0, periodoInicio: "", periodoFim: "", energiaContratadaPeriodo: 0, energiaGeradaPeriodo: 0, energiaInjetadaPeriodo: 0, consumoMensal: nova.fonteUcs === "relatorio" ? nova.consumoMensal : [] });
       abrir = nova.id;
     }
   }
@@ -2101,6 +2126,12 @@ function DestinoDialog({
   const sugestao = (nova: Usina): string => {
     const mesmoNome = usinas.find((u) => norm(u.nome) === norm(nova.nome));
     if (mesmoNome) return mesmoNome.id;
+    // mesmas UCs (metade ou mais, pela instalação nova ou antiga)
+    const chaves = new Set(nova.ucs.flatMap((c) => [c.key, c.keyAlt].filter(Boolean) as string[]));
+    const mesmasUcs = usinas.find((u) => u.ucs.length && u.ucs.filter((c) => chaves.has(c.key) || (c.keyAlt && chaves.has(c.keyAlt))).length >= Math.min(u.ucs.length, nova.ucs.length) * 0.5);
+    if (mesmasUcs) return mesmasUcs.id;
+    // o arquivo diz o nome de uma usina (UFV, CGH…) que não existe ainda: nova
+    if (/\b(ufv|cgh|pch|eol|ute)\b/i.test(nova.nome)) return "nova";
     // nome de uma usina aberta aparece no nome do arquivo (ex.: "... UFV SAFIRA ....xlsx")
     const peloArquivo = usinas.find((u) => {
       const chave = norm(u.nome).replace(/^(ufv|cgh|pch|eol|ute)\s+/, "");

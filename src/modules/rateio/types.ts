@@ -29,6 +29,8 @@ export interface UcAtual {
    * ou a ligação. O compensável do Orange já vem descontado dele. null = não informado.
    */
   consumoMinimoKwh?: number | null;
+  /** Chave da instalação antiga (o Relatório Gerencial traz a nova e a antiga), para cruzar listas. */
+  keyAlt?: string;
 }
 
 /** UC candidata a entrar no rateio (aba "Novas UCs"). */
@@ -93,6 +95,8 @@ export interface Usina {
    * conclusão (para exportar de novo sem recalcular) e as novas UCs que entraram nela.
    */
   concluido?: { em: string; resultado: ResultadoUsina; candidatas: CandidataAvaliada[]; parecer: string | null } | null;
+  /** De onde vieram as UCs: lista do rateio (com saldo) ou Relatório Gerencial GD (sem saldo). */
+  fonteUcs?: "rateio" | "relatorio";
   /** Ultrapassagem de demanda da usina (fatura, planilha ou digitada). */
   demanda?: DemandaUsina | null;
   /** "Máximo Compensável" (M8) da planilha modelo importada, como referência (0 a 1). */

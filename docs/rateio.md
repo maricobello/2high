@@ -15,6 +15,10 @@ geração distribuída e entregar o estudo em Excel.
      A planilha modelo também traz período, energia contratada, gerada, injetada, consumo
      mensal e o "Máximo Compensável" (fica só como referência: o sistema calcula o ótimo).
    - **Novas UCs**: UC, Endereço ID, Tipo Tensão, Média kWh (Cons. Min opcional).
+   - **Relatório Gerencial GD** (Orange, uma competência): cria a usina com o nome do relatório
+     (ou completa a existente com as mesmas UCs), lê o consumo mínimo de cada UC (R$ ÷ tarifa) e
+     leva o total da competência para "Energia consumida". Não traz saldo: a lista Unidade
+     Rateio GD continua sendo a base das UCs quando existe.
 2. **Colar tabela**: copie do Orange ou do Excel, com o cabeçalho.
 3. **Fatura e tela do Orange** (na aba da usina, ou arrastando o arquivo com a usina aberta):
    - **Fatura da usina (PDF)**: lida no navegador. Traz, mês a mês, energia injetada,

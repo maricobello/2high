@@ -116,6 +116,74 @@ function consumoMinimoUc(informado: number, ligacao: string, subgrupo: string): 
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Relatório Gerencial GD (Orange): uma competência, UC a UC, com o total do consumo
+
+const REL_FIELDS: FieldMap<"id" | "nova" | "antiga" | "empresa" | "pct" | "consumo" | "compensada" | "tarifa" | "minimoRs"> = {
+  id: ["id"],
+  nova: ["instalacao nova"],
+  antiga: ["instalacao antiga"],
+  empresa: ["empresa", "apelido"],
+  pct: ["rateio (%)", "rateio"],
+  consumo: ["consumo da uc(kwh)", "consumo da uc (kwh)", "consumo da uc"],
+  compensada: ["energia compensada (kwh)", "energia compensada"],
+  tarifa: ["tarifa cativo (r$/kwh)", "tarifa cativo", "tarifa"],
+  minimoRs: ["consumo minimo(r$)", "consumo minimo (r$)", "consumo minimo"],
+};
+
+export interface RelatorioGerencial {
+  usina: string;
+  competencia: string;
+  /** Consumo total das UCs na competência (linha TOTAL). */
+  consumoTotal: number;
+  ucs: UcAtual[];
+}
+
+/** Lê o Relatório Gerencial GD. null se a aba não for desse formato. */
+export function parseRelatorioGerencial(grid: Grid): RelatorioGerencial | null {
+  const topo = norm((grid[0] ?? []).map(text).join(" "));
+  const h = findHeader(grid, REL_FIELDS, ["nova", "pct", "consumo", "compensada"], 10);
+  if (!h || (!/relatorio gerencial/.test(topo) && h.map.antiga == null)) return null;
+  const cab = (grid[0] ?? []).map(text).join(" ");
+  const usina = /Usina:\s*([^|]+?)(?:\s*\(|\s+Data do|$)/i.exec(cab)?.[1]?.trim() ?? "";
+  const comp = /Compet[eê]ncia:\s*(\d{1,2})\/(\d{4})/i.exec(cab);
+  const competencia = comp ? `${comp[2]}-${comp[1].padStart(2, "0")}` : "";
+  const ucs: UcAtual[] = [];
+  let consumoTotal = 0;
+  for (let r = h.row + 1; r < grid.length; r++) {
+    const row = grid[r] ?? [];
+    const nova = text(get(row, h.map.nova));
+    const consumo = toNumber(get(row, h.map.consumo));
+    if (/total/i.test(text(get(row, h.map.empresa))) || (!/\d/.test(nova) && consumo > 0)) {
+      consumoTotal = consumo;
+      continue;
+    }
+    if (!/\d/.test(nova)) continue;
+    const tarifa = toNumber(get(row, h.map.tarifa));
+    const minRs = toNumber(get(row, h.map.minimoRs));
+    // mínimo em kWh = R$ ÷ tarifa; arredonda para 30/50/100 quando bate
+    let minimo: number | null = tarifa > 0 && minRs > 0 ? minRs / tarifa : null;
+    if (minimo != null) minimo = [30, 50, 100].find((m) => Math.abs(m - minimo!) <= 1.5) ?? Math.round(minimo);
+    const antiga = text(get(row, h.map.antiga));
+    ucs.push({
+      key: ucKey(nova),
+      keyAlt: antiga && /\d/.test(antiga) ? ucKey(antiga) : undefined,
+      usina,
+      idUnidade: text(get(row, h.map.id)),
+      instalacao: nova,
+      apelido: text(get(row, h.map.empresa)),
+      subgrupo: "",
+      pctAtual: toPct(get(row, h.map.pct)),
+      saldoKwh: 0,
+      compensavelKwh: Math.max(0, consumo - (minimo ?? 0)),
+      compensadoKwh: toNumber(get(row, h.map.compensada)),
+      consumoMinimoKwh: minimo,
+    });
+  }
+  if (!consumoTotal) consumoTotal = ucs.reduce((a, u) => a + u.compensavelKwh + (u.consumoMinimoKwh ?? 0), 0);
+  return ucs.length ? { usina, competencia, consumoTotal, ucs } : null;
+}
+
 export function parseUcs(grid: Grid): UcAtual[] | null {
   const h = findHeader(grid, UC_FIELDS, ["instalacao", "pct", "compensavel"]);
   if (!h) return null;
@@ -386,6 +454,21 @@ export function importarSheets(sheets: Sheet[]): Importacao {
     if (cal && cal.length) {
       imp.calendario.push(...cal);
       imp.avisos.push(`"${name}": calendário com ${cal.length} usinas`);
+      continue;
+    }
+    // Relatório Gerencial GD: cria/completa a usina com as UCs da competência e o consumo total
+    const rel = parseRelatorioGerencial(grid);
+    if (rel) {
+      const u = usinaVazia(nomeCurtoUsina(rel.usina || name));
+      u.ucs = rel.ucs;
+      u.fonteUcs = "relatorio";
+      if (rel.competencia) u.consumoMensal = [{ mes: rel.competencia, kwh: rel.consumoTotal }];
+      const dist = /\b(CELESC|CEMIG|COPEL|CPFL[\w ]*|ENEL[\w ]*|EDP[\w ]*|LIGHT|EQUATORIAL[\w ]*?|ENERGISA[\w ]*|NEOENERGIA[\w ]*|RGE)\b/i.exec(rel.usina);
+      if (dist) u.distribuidora = dist[1].toUpperCase().replace(/\s+(AL|UFV.*)$/, "").trim();
+      imp.usinas.push(u);
+      imp.avisos.push(
+        `"${name}": Relatório Gerencial GD ${rel.competencia ? `${rel.competencia.slice(5)}/${rel.competencia.slice(0, 4)} ` : ""}da ${u.nome}: ${rel.ucs.length} UCs, consumo da competência ${Math.round(rel.consumoTotal).toLocaleString("pt-BR")} kWh (vai para Energia consumida). O relatório não traz saldo: importe também a lista Unidade Rateio GD para os saldos.`,
+      );
       continue;
     }
     const ucs = parseUcs(grid);
