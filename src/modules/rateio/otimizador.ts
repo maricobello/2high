@@ -116,9 +116,7 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
         obj.push(`+ ${num(gamma)} ${l.bin}`);
         rows.push(` cz${ui}_${i}: ${l.col} - 100 ${l.bin} <= 0`);
         rows.push(` cm${ui}_${i}: ${l.col} - ${num(pmin)} ${l.bin} >= 0`);
-      } else if (p.permitirRetirar && (l.comp <= 0 || l.saldo >= l.comp * 3)) {
-        // retirar só pode render para UC sem consumo ou com saldo grande; nas demais, sem binária
-        // (o modelo fica muito menor e resolve rápido em usinas com centenas de UCs)
+      } else if (p.permitirRetirar) {
         const k = `k${ui}_${i}`;
         nVars++;
         bins.push(` ${k}`);

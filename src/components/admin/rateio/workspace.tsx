@@ -1162,7 +1162,7 @@ function UltrapassagemDemanda({ usina, onChange }: { usina: Usina; onChange: (p:
     if (k !== "ultrapassagemKw" && novo.registradaKw != null && novo.contratadaKw != null) novo.ultrapassagemKw = Math.max(0, novo.registradaKw - novo.contratadaKw);
     onChange({ demanda: novo });
   };
-  const ultra = !!d && ((d.registradaKw != null && d.contratadaKw != null ? d.registradaKw > d.contratadaKw : (d.ultrapassagemKw ?? 0) > 0) || (d.despesaUltrapassagem ?? 0) > 0);
+  const ultra = (d?.ultrapassagemKw ?? 0) > 0 || (d?.despesaUltrapassagem ?? 0) > 0;
   const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fonte = d?.fonte === "fatura" ? "lida da fatura" : d?.fonte === "planilha" ? "da planilha" : d?.fonte === "manual" ? "digitada" : null;
   return (
@@ -1776,7 +1776,7 @@ function avaliarStatus(resultado: ResultadoProjeto, usinas: Usina[], calculando:
         itens.push({ ok: false, texto: "Envie a fatura da usina de novo para ler a demanda (lida por uma versão antiga)" });
         avisos++;
       }
-      if (u.demanda && ((u.demanda.registradaKw != null && u.demanda.contratadaKw != null ? u.demanda.registradaKw > u.demanda.contratadaKw : (u.demanda.ultrapassagemKw ?? 0) > 0) || (u.demanda.despesaUltrapassagem ?? 0) > 0))
+      if (u.demanda && ((u.demanda.ultrapassagemKw ?? 0) > 0 || (u.demanda.despesaUltrapassagem ?? 0) > 0))
         itens.push({ ok: false, texto: `Fora do rateio: ultrapassagem de demanda na usina${u.demanda.despesaUltrapassagem ? ` (R$ ${u.demanda.despesaUltrapassagem.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} no mês)` : ""}` });
       const okVal = r.validacoes.filter((v) => v.ok).length;
       itens.push({ ok: okVal === r.validacoes.length, texto: `Validação: ${okVal} de ${r.validacoes.length} checagens ok` });

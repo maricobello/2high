@@ -61,9 +61,7 @@ export function autoAplicar(u: Usina): Usina {
   // faturas salvas antes da leitura de demanda: relê do texto guardado
   const d = f?.demanda ?? (f?.linhas ? lerDemanda(f.linhas) : null);
   if (d && out.demanda?.fonte !== "manual" && (d.contratadaKw != null || d.registradaKw != null)) {
-    // ultrapassagem só existe com a medida acima da contratada (ou cobrança na conta)
-    const ultra = d.registradaKw != null && d.contratadaKw != null ? Math.max(0, d.registradaKw - d.contratadaKw) : (d.despesaUltrapassagem ?? 0) > 0 ? d.ultrapassagemKw : 0;
-    out = { ...out, demanda: { contratadaKw: d.contratadaKw, registradaKw: d.registradaKw, ultrapassagemKw: (d.despesaUltrapassagem ?? 0) > 0 && d.ultrapassagemKw ? d.ultrapassagemKw : ultra, despesaUltrapassagem: d.despesaUltrapassagem, fonte: "fatura" } };
+    out = { ...out, demanda: { contratadaKw: d.contratadaKw, registradaKw: d.registradaKw, ultrapassagemKw: d.ultrapassagemKw, despesaUltrapassagem: d.despesaUltrapassagem, fonte: "fatura" } };
   }
   return out;
 }

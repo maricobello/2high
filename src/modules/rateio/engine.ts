@@ -335,30 +335,11 @@ export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Par
   }
   for (const c of avaliadas) if (c.elegivel && !c.selecionada && p.incluirNovasUcs) c.motivo = `${c.motivo}. Não foi necessária neste ciclo`;
 
-  // trava: o otimizado nunca pode sair pior que a regra proporcional (ex.: solver parou no tempo
-  // limite com uma solução ruim). Por usina, fica o melhor pelo mesmo critério do otimizador.
-  const valor = (r: ResultadoUsina) => 0.6 * r.proposto.compensadoTotal + 0.4 * r.propostoEstresse.compensadoTotal - p.custoNovaUcKwh * r.indicadores.incluidas;
-  const resultados = usinas.map((u) => {
-    const pesos = pesosPorUsina.get(u.id);
-    const r = analisarUsina(u, novasPorUsina.get(u.id) ?? [], p, pesos);
-    if (!pesos) return r;
-    const prop = analisarUsina(u, [], { ...p, metodo: "proporcional" });
-    if (valor(prop) > valor(r) + 1) {
-      prop.alertas.unshift({
-        severidade: "media",
-        codigo: "otimizacao_descartada",
-        titulo: "Otimização descartada nesta usina: a regra proporcional rendeu mais",
-        detalhe: `${otim?.otimo ? "A solução do otimizador" : "O otimizador parou no tempo limite e a solução que tinha"} compensava ${fmt(r.proposto.compensadoTotal)} kWh em ${p.mesesSimulacao} meses; a regra proporcional compensa ${fmt(prop.proposto.compensadoTotal)} kWh. Ficou a regra proporcional.`,
-      });
-      return prop;
-    }
-    return r;
-  });
   return {
-    usinas: resultados,
+    usinas: usinas.map((u) => analisarUsina(u, novasPorUsina.get(u.id) ?? [], p, pesosPorUsina.get(u.id))),
     candidatas: avaliadas,
     chave,
-    metodo: usarOtim && resultados.some((r) => r.metodo === "otimizado") ? "otimizado" : "proporcional",
+    metodo: usarOtim ? "otimizado" : "proporcional",
   };
 }
 
@@ -636,8 +617,7 @@ function gerarAlertas(
 
   // ultrapassagem de demanda da usina (fatura)
   const dm = u.demanda;
-  const acima = dm && dm.registradaKw != null && dm.contratadaKw != null ? dm.registradaKw > dm.contratadaKw : (dm?.ultrapassagemKw ?? 0) > 0;
-  if (dm && (acima || (dm.despesaUltrapassagem ?? 0) > 0)) {
+  if (dm && ((dm.ultrapassagemKw ?? 0) > 0 || (dm.despesaUltrapassagem ?? 0) > 0)) {
     const sug = dm.registradaKw != null ? Math.ceil(dm.registradaKw / 10) * 10 : null;
     a.push({
       severidade: "alta",
