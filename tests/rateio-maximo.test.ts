@@ -211,3 +211,19 @@ describe("máximo compensável sem extremos arbitrários", () => {
     expect(Math.abs(s.cobertura - (s.melhor.efetiva ?? 0))).toBeLessThan(0.1);
   }, 60_000);
 });
+
+describe("espaço para novas UCs", () => {
+  it("sobra energia → dá para agregar; falta → sem espaço", async () => {
+    const { espacoNovasUcs } = await import("@/modules/rateio/agregar");
+    const sobra = espacoNovasUcs(usina([uc(1, 50, 300), uc(2, 50, 300)], 1000), P);
+    expect(sobra.nivel).toBe("sim");
+    expect(sobra.folgaKwh).toBe(400);
+    expect(sobra.ucsQueCabem).toBe(1);
+    const falta = espacoNovasUcs(usina([uc(1, 50, 700), uc(2, 50, 700)], 1000), P);
+    expect(falta.nivel).toBe("nao");
+    expect(falta.folgaKwh).toBe(-400);
+    // saldo acima da reserva libera injeção: 2 UCs de 600 com saldo grande
+    const comSaldo = espacoNovasUcs(usina([uc(1, 50, 600, 600 * 1 + 2400), uc(2, 50, 600)], 1000), P);
+    expect(comSaldo.folgaKwh).toBe(1000 - (1200 - 200));
+  });
+});

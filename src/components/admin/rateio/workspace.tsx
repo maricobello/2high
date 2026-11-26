@@ -49,6 +49,7 @@ import { MARCA_PADRAO, MARCA_REPLACE, type MarcaEstudo } from "@/modules/rateio/
 import { kwh, MESES_CURTOS, pct1, ratio } from "./format";
 import { EntradaNumero } from "./numero";
 import { origemInjecao } from "@/modules/rateio/origem";
+import { espacoNovasUcs } from "@/modules/rateio/agregar";
 import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
 interface Parecer {
@@ -727,6 +728,7 @@ export function RateioWorkspace() {
               otimizacao={{ rodando: otimRodando || precisaOtimizar, info: otim, metodoPedido: paramsD.metodo, metodoUsado: resultado.metodo }}
               params={estado.params}
               sugestaoCobertura={sugestaoCobertura}
+              candidatas={candD}
               parecer={estado.pareceres[usinaAtiva.id]}
               calendario={itemDoCalendario(estado.calendario, usinaAtiva.nome)}
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
@@ -922,6 +924,7 @@ function UsinaPainel({
   otimizacao,
   params,
   sugestaoCobertura,
+  candidatas,
   parecer,
   calendario,
   onChange,
@@ -939,6 +942,7 @@ function UsinaPainel({
   otimizacao: OtimizacaoUi;
   params: Parametros;
   sugestaoCobertura?: SugestaoCobertura | null;
+  candidatas: Candidata[];
   parecer?: Parecer;
   calendario?: ItemCalendario;
   onChange: (p: Partial<Usina>) => void;
@@ -1026,6 +1030,7 @@ function UsinaPainel({
       ) : (
         <>
           <Ganho r={r} params={params} onTarifa={onTarifa} />
+          <EspacoNovasUcsCard usina={usina} params={params} candidatas={candidatas} />
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi label={`Saldo em ${params.mesesSimulacao} meses (kWh)`} valor={kwh(r.proposto.saldoFinal)} antes={kwh(r.atual.saldoFinal)} bom={delta(r.proposto.saldoFinal, r.atual.saldoFinal)} nota={`Hoje: ${kwh(r.atual.saldoInicial)}`} />
@@ -2218,6 +2223,26 @@ function DestinoDialog({
 // ---------------------------------------------------------------------------
 
 /** Quanto o rateio proposto compensa a mais que o atual, em kWh e em reais (estimativa). */
+/** Indicador simples: dá para agregar novas UCs nesta usina? */
+function EspacoNovasUcsCard({ usina, params, candidatas }: { usina: Usina; params: Parametros; candidatas: Candidata[] }) {
+  const e = espacoNovasUcs(usina, params, candidatas);
+  if (e.nivel === "sem-dados") return null;
+  const tom = e.nivel === "sim" ? ("opportunity" as const) : e.nivel === "pouco" ? ("analysis" as const) : ("attention" as const);
+  const rotulo = e.nivel === "sim" ? "Dá para agregar" : e.nivel === "pouco" ? "Pouco espaço" : "Sem espaço";
+  return (
+    <Card className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="text-sm font-semibold">Novas UCs</span>
+        <Badge tone={tom}>{rotulo}</Badge>
+      </div>
+      <p className="min-w-0 flex-1 text-sm text-muted">{e.texto}</p>
+      <p className="shrink-0 font-mono text-xs text-muted" title="Injeção + saldo acima da reserva (gasto no período) − consumo compensável das UCs atuais">
+        {kwh(e.injecaoKwh)} + {kwh(e.saldoUsavelKwh)} − {kwh(e.consumoAtualKwh)} = <span className={cn("font-semibold", e.folgaKwh > 0 ? "text-opportunity" : "text-attention")}>{e.folgaKwh > 0 ? "+" : ""}{kwh(e.folgaKwh)}</span> kWh/mês
+      </p>
+    </Card>
+  );
+}
+
 function Ganho({ r, params, onTarifa }: { r: ResultadoUsina; params: Parametros; onTarifa: (t: number) => void }) {
   const ganhoKwh = r.proposto.compensadoTotal - r.atual.compensadoTotal;
   const paradoAtual = r.atual.saldoFinal;
