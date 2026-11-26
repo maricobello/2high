@@ -8,26 +8,87 @@ import type { FaturaUsina } from "./fatura";
 import { apareceNoTexto, numerosDoTexto, type CampoLayout } from "./layout";
 import { toNumber } from "./normalize";
 
-const num = z.union([z.number(), z.string()]).transform((v) => (typeof v === "number" ? v : toNumber(v)));
-const comps = z.array(num).nullish();
+/** Valor da IA em qualquer forma comum → lista de números (partes como aparecem na fatura). */
+function partes(v: unknown): number[] | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? [v] : null;
+  if (typeof v === "string") {
+    const n = toNumber(v);
+    return /\d/.test(v) && Number.isFinite(n) ? [n] : null;
+  }
+  if (Array.isArray(v)) {
+    const out = v.flatMap((x) => partes(x) ?? []);
+    return out.length ? out : null;
+  }
+  if (typeof v === "object") {
+    // {ponta: x, foraPonta: y}, {valor: x}, {total: x}…
+    const o = v as Record<string, unknown>;
+    const vals = Object.entries(o)
+      .filter(([k]) => !/total/i.test(k) || Object.keys(o).length === 1)
+      .flatMap(([, x]) => partes(x) ?? []);
+    return vals.length ? vals : null;
+  }
+  return null;
+}
 
-/** Resposta da IA: cada valor em componentes, exatamente como aparecem na fatura (ex.: ponta e fora ponta). */
-export const faturaIaSchema = z.object({
-  distribuidora: z.string().nullish(),
-  mesReferencia: z.string().nullish(),
-  injetada: comps,
-  consumoUsina: comps,
-  excedente: comps,
-  saldo: comps,
-  demandaContratada: comps,
-  demandaRegistrada: comps,
-  ultrapassagemKw: comps,
-  despesaUltrapassagem: comps,
-  historico: z
-    .array(z.object({ mes: z.string(), injetada: comps, consumo: comps, excedente: comps }))
-    .nullish(),
-});
-export type FaturaIa = z.infer<typeof faturaIaSchema>;
+/** "2026-09", "09/2026", "SET/26", "set/2026" → "2026-09". */
+function mesIa(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  if (/^\d{4}-\d{2}$/.test(t)) return t;
+  const m = /^(\d{1,2})[/.-](\d{4})$/.exec(t);
+  if (m) return `${m[2]}-${m[1].padStart(2, "0")}`;
+  const n = /^([a-zç]{3})[a-zç]*[/.\-\s]?(\d{2}|\d{4})$/i.exec(t);
+  const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  if (n) {
+    const i = meses.indexOf(n[1].toLowerCase().slice(0, 3));
+    if (i >= 0) return `${n[2].length === 2 ? 2000 + Number(n[2]) : n[2]}-${String(i + 1).padStart(2, "0")}`;
+  }
+  return null;
+}
+
+const comps = z.unknown().optional().transform((v) => partes(v));
+const mesCampo = z.unknown().optional().transform((v) => mesIa(v));
+
+/**
+ * Resposta da IA, tolerante à forma: número, texto "124.580", lista de partes, objeto por
+ * posto ({ponta, foraPonta}), resposta embrulhada ({"fatura": {...}}), mês em vários formatos.
+ * A trava de verdade vem depois: só vale número que aparece na fatura.
+ */
+export const faturaIaSchema = z.preprocess(
+  (raw) => {
+    let o = raw;
+    // {"fatura": {...}} / {"dados": {...}}
+    if (o && typeof o === "object" && !Array.isArray(o)) {
+      const vals = Object.values(o as Record<string, unknown>);
+      const temCampo = Object.keys(o as Record<string, unknown>).some((k) => /injet|mes|distrib|saldo|demanda|hist/i.test(k));
+      if (!temCampo && vals.length === 1 && vals[0] && typeof vals[0] === "object") o = vals[0];
+    }
+    return o && typeof o === "object" ? o : {};
+  },
+  z.object({
+    distribuidora: z.unknown().optional().transform((v) => (typeof v === "string" ? v : null)),
+    mesReferencia: mesCampo,
+    injetada: comps,
+    consumoUsina: comps,
+    excedente: comps,
+    saldo: comps,
+    demandaContratada: comps,
+    demandaRegistrada: comps,
+    ultrapassagemKw: comps,
+    despesaUltrapassagem: comps,
+    historico: z
+      .unknown()
+      .optional()
+      .transform((v) =>
+        (Array.isArray(v) ? v : [])
+          .map((h) => (h && typeof h === "object" ? (h as Record<string, unknown>) : null))
+          .filter((h): h is Record<string, unknown> => !!h)
+          .map((h) => ({ mes: mesIa(h.mes ?? h.mesReferencia ?? h.referencia) ?? "", injetada: partes(h.injetada), consumo: partes(h.consumo ?? h.consumoUsina), excedente: partes(h.excedente) })),
+      ),
+  }),
+);
+export type FaturaIa = Partial<z.infer<typeof faturaIaSchema>>;
 
 const CAMPOS: CampoLayout[] = ["injetada", "consumoUsina", "excedente", "saldo", "demandaContratada", "demandaRegistrada", "ultrapassagemKw", "despesaUltrapassagem"];
 

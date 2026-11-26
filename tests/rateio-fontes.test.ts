@@ -379,3 +379,29 @@ describe("fatura no formato Equatorial", () => {
     expect(s.itens.some((i) => /medidor/.test(i.texto) && i.ok)).toBe(true);
   });
 });
+
+describe("resposta da IA em formatos variados", () => {
+  it("aceita número solto, texto BR, objeto por posto, resposta embrulhada e mês em outros formatos", async () => {
+    const { faturaIaSchema } = await import("@/modules/rateio/fatura-ia");
+    const r = faturaIaSchema.parse({
+      fatura: {
+        distribuidora: "EQUATORIAL",
+        mesReferencia: "09/2026",
+        injetada: { ponta: 584.64, foraPonta: "579.032,16" },
+        saldo: "642209,97",
+        demandaContratada: 2500,
+        consumoUsina: null,
+        historico: [{ mes: "SET/26", injetada: [584.64, 579032.16] }, { mes: "AGO/2026", injetada: 528546.9 }],
+        extra: "ignorado",
+      },
+    });
+    expect(r.mesReferencia).toBe("2026-09");
+    expect(r.injetada).toEqual([584.64, 579032.16]);
+    expect(r.saldo).toEqual([642209.97]);
+    expect(r.demandaContratada).toEqual([2500]);
+    expect(r.consumoUsina).toBeNull();
+    expect(r.historico.map((h) => h.mes)).toEqual(["2026-09", "2026-08"]);
+    // resposta vazia ou estranha não quebra
+    expect(faturaIaSchema.parse("texto").injetada).toBeNull();
+  });
+});
