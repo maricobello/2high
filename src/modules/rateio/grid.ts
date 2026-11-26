@@ -16,7 +16,7 @@ export interface Sheet {
 
 type FieldMap<K extends string> = Record<K, string[]>;
 
-const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "subgrupo" | "pct" | "saldo" | "compensavel" | "compensado"> = {
+const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "subgrupo" | "pct" | "saldo" | "compensavel" | "compensado" | "consMin" | "ligacao"> = {
   usina: ["nome da usina", "usina", "usina gd", "unidade geradora"],
   idUnidade: ["id da unidade", "id unidade", "id"],
   instalacao: ["no de instalacao", "n de instalacao", "no da instalacao", "no instalacao", "n instalacao", "numero de instalacao", "numero da instalacao", "instalacao", "uc", "numero da uc", "unidade consumidora", "codigo da uc"],
@@ -26,6 +26,9 @@ const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "su
   saldo: ["saldo kwh", "saldo", "saldo de creditos", "saldo (kwh)"],
   compensavel: ["consumo compensavel kwh", "consumo compensavel", "consumo compensavel (kwh)", "compensavel kwh"],
   compensado: ["consumo compensado kwh", "consumo compensado", "compensado", "consumo compensado (kwh)"],
+  // opcionais: o export padrão do Orange não traz; outras planilhas podem trazer
+  consMin: ["consumo minimo", "consumo minimo kwh", "cons. min", "cons min", "custo de disponibilidade", "disponibilidade"],
+  ligacao: ["tipo de ligacao", "ligacao", "fases", "tipo tensao", "tipo de tensao"],
 };
 
 const CAND_FIELDS: FieldMap<"instalacao" | "apelido" | "concessionaria" | "mes" | "status" | "ligacao" | "mercado" | "naUsinaGd" | "media" | "consMin" | "compensavel"> = {
@@ -104,6 +107,15 @@ const get = (row: Cell[], idx: number | undefined) => (idx == null ? undefined :
 // ---------------------------------------------------------------------------
 // UCs do rateio atual
 
+/** Mínimo da UC: coluna informada; senão pela ligação (30/50/100); grupo A não tem custo de disponibilidade. */
+function consumoMinimoUc(informado: number, ligacao: string, subgrupo: string): number | null {
+  if (informado > 0) return informado;
+  const lig = parseLigacao(ligacao);
+  if (lig) return CONSUMO_MINIMO[lig];
+  if (/^\s*a/i.test(subgrupo)) return 0;
+  return null;
+}
+
 export function parseUcs(grid: Grid): UcAtual[] | null {
   const h = findHeader(grid, UC_FIELDS, ["instalacao", "pct", "compensavel"]);
   if (!h) return null;
@@ -123,6 +135,7 @@ export function parseUcs(grid: Grid): UcAtual[] | null {
       saldoKwh: toNumber(get(row, h.map.saldo)),
       compensavelKwh: toNumber(get(row, h.map.compensavel)),
       compensadoKwh: toNumber(get(row, h.map.compensado)),
+      consumoMinimoKwh: consumoMinimoUc(toNumber(get(row, h.map.consMin)), text(get(row, h.map.ligacao)), text(get(row, h.map.subgrupo))),
     });
   }
   // percentual em fração (0,0245) em vez de 2,45

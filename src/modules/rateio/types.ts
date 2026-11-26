@@ -24,6 +24,11 @@ export interface UcAtual {
   compensavelKwh: number;
   /** Consumo compensado médio mensal. */
   compensadoKwh: number;
+  /**
+   * Consumo mínimo (custo de disponibilidade) da UC, kWh/mês, quando a planilha traz a coluna
+   * ou a ligação. O compensável do Orange já vem descontado dele. null = não informado.
+   */
+  consumoMinimoKwh?: number | null;
 }
 
 /** UC candidata a entrar no rateio (aba "Novas UCs"). */
@@ -177,6 +182,8 @@ export interface LinhaRateio {
   saldoKwh: number;
   compensavelKwh: number;
   compensadoKwh: number;
+  /** Consumo mínimo (custo de disponibilidade), quando conhecido. */
+  consumoMinimoKwh?: number | null;
   /** Saldo que a UC deve consumir por mês (acima da reserva, no horizonte). */
   queimaSaldoMensal: number;
   /** Créditos novos de que a UC precisa por mês. */

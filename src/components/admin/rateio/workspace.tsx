@@ -1217,7 +1217,7 @@ function EnergiaConsumida({ usina, onChange }: { usina: Usina; onChange: (p: Par
       {res.informados === 0 && estimativa > 0 && (
         <p className="mt-2 rounded-lg border border-primary/30 bg-primary-soft/40 px-3 py-2 text-xs">
           Sem valores digitados, o sistema usa uma estimativa automática: soma do consumo compensável das {usina.ucs.length} UCs ≈ <strong className="font-mono">{kwh(estimativa)} kWh/mês</strong>
-          {contratadaMes > 0 ? ` (${ratio(estimativa / contratadaMes)} da contratada)` : ""}. Fica um pouco abaixo do real (não inclui o consumo mínimo de cada UC). Para o número exato, digite o total do relatório.
+          {contratadaMes > 0 ? ` (${ratio(estimativa / contratadaMes)} da contratada)` : ""}. {usina.ucs.some((c) => c.consumoMinimoKwh != null) ? "Inclui o consumo mínimo das UCs que têm esse dado." : "Fica um pouco abaixo do real (o export do Orange não traz o consumo mínimo de cada UC)."} Para o número exato, digite o total do relatório.
         </p>
       )}
       {res.linhas.length === 0 ? (
@@ -2022,6 +2022,7 @@ function FichaUc({ resultado: r, indice, params, onClose, onNavegar }: { resulta
   }, [onClose, onNavegar]);
   const dados: [string, string][] = [
     ["Consumo compensável", `${kwh(comp)} kWh/mês`],
+    ["Consumo mínimo", l.consumoMinimoKwh != null ? `${kwh(l.consumoMinimoKwh)} kWh/mês (consumo total ≈ ${kwh(comp + l.consumoMinimoKwh)})` : "não informado (o compensável já vem descontado dele)"],
     ["Compensado (histórico)", l.origem === "atual" ? `${kwh(l.compensadoKwh)} kWh/mês` : "—"],
     ["Aproveitamento histórico", l.aproveitamentoHistorico != null ? ratio(l.aproveitamentoHistorico) : "—"],
     ["Saldo hoje", `${kwh(l.saldoKwh)} kWh · ${meses(l.saldoKwh)}`],

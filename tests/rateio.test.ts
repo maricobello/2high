@@ -235,3 +235,23 @@ describe("mesma usina em mais de uma aba", () => {
     expect(imp.avisos.some((a) => a.includes("lista de novas UCs vazia"))).toBe(true);
   });
 });
+
+describe("consumo mínimo das UCs atuais", () => {
+  it("lê a coluna quando existe, ou deduz pela ligação; grupo A não tem; ausente fica null", async () => {
+    const { parseUcs } = await import("@/modules/rateio/grid");
+    const ucs = parseUcs([
+      ["N° de Instalação", "Subgrupo", "% do Rateio", "Saldo kWh", "Consumo Compensável kWh", "Consumo Mínimo", "Tipo de Ligação"],
+      ["1001", "B3", 50, 0, 900, 100, ""],
+      ["1002", "B3", 30, 0, 500, "", "Bifásico"],
+      ["1003", "A4", 10, 0, 5000, "", ""],
+      ["1004", "B3", 10, 0, 300, "", ""],
+    ])!;
+    expect(ucs.map((u) => u.consumoMinimoKwh)).toEqual([100, 50, 0, null]);
+    // export padrão do Orange (sem as colunas): continua lendo, mínimo não informado
+    const orange = parseUcs([
+      ["N° de Instalação", "Subgrupo", "% do Rateio", "Saldo kWh", "Consumo Compensável kWh"],
+      ["2001", "B3", 100, 0, 900],
+    ])!;
+    expect(orange[0].consumoMinimoKwh).toBeNull();
+  });
+});

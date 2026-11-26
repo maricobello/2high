@@ -106,6 +106,7 @@ export function numerosColados(texto: string): number[] {
  * soma do consumo compensável médio das UCs. Fica um pouco abaixo do real (não inclui o
  * custo de disponibilidade de cada UC).
  */
-export function estimativaConsumo(u: { ucs: Pick<UcAtual, "compensavelKwh">[] }): number {
-  return u.ucs.reduce((a, c) => a + Math.max(0, c.compensavelKwh), 0);
+export function estimativaConsumo(u: { ucs: Pick<UcAtual, "compensavelKwh" | "consumoMinimoKwh">[] }): number {
+  // compensável + consumo mínimo quando a planilha informa (senão, só o compensável)
+  return u.ucs.reduce((a, c) => a + Math.max(0, c.compensavelKwh) + Math.max(0, c.consumoMinimoKwh ?? 0), 0);
 }
