@@ -280,6 +280,15 @@ export function parseDadosUsina(grid: Grid): DadosUsinaPlanilha | null {
   const d: DadosUsinaPlanilha = { nome: "", periodoInicio: "", periodoFim: "", meses: 0, energiaContratadaPeriodo: 0, energiaGeradaPeriodo: 0, energiaInjetadaPeriodo: 0, consumoMensal: [], maximoCompensavel: null, demanda: null };
   const limit = Math.min(grid.length, 30);
   const vistos = new Set<string>();
+  // planilhas com "Meses c/ Dados" por linha: cada energia tem o seu número de meses
+  let colMesesDados = -1;
+  const mesesItem: { contratada?: number; gerada?: number; injetada?: number; consumida?: number } = {};
+  const mesesDados = (row: Cell[]) => {
+    if (colMesesDados < 0) return undefined;
+    const v = row[colMesesDados];
+    const n = typeof v === "number" ? v : toNumber(v);
+    return n > 0 && n <= 60 ? Math.round(n) : undefined;
+  };
   for (let r = 0; r < limit; r++) {
     const row = grid[r] ?? [];
     for (let c = 0; c < row.length; c++) {
@@ -303,17 +312,35 @@ export function parseDadosUsina(grid: Grid): DadosUsinaPlanilha | null {
       };
       if (label.startsWith("periodo da analise")) {
         once("periodo", () => {
-          d.periodoInicio = dateText(row[c + 2]);
-          d.periodoFim = dateText(row[c + 3]);
+          // colunas pelo cabeçalho da linha de cima ("Inicio", "Fim", "Meses c/ Dados", "Média Mês")
+          const cab = (grid[r - 1] ?? []).map((x) => norm(text(x)));
+          const ci = cab.findIndex((h, k) => k > c && h === "inicio");
+          const cf = cab.findIndex((h, k) => k > c && h === "fim");
+          const cm = cab.findIndex((h, k) => k > c && /^meses c\/? ?dados/.test(h));
+          if (cm >= 0) colMesesDados = cm;
+          d.periodoInicio = dateText(row[ci >= 0 ? ci : c + 2]);
+          const fim = dateText(row[cf >= 0 ? cf : c + 3]);
+          d.periodoFim = /^\d{4}-\d{2}-\d{2}$/.test(fim) ? fim : "";
         });
       } else if (label.startsWith("numero de meses")) {
         once("meses", () => (d.meses = num()));
       } else if (label.startsWith("energia contratada no")) {
-        once("contratada", () => (d.energiaContratadaPeriodo = num()));
+        once("contratada", () => {
+          d.energiaContratadaPeriodo = num();
+          mesesItem.contratada = mesesDados(row);
+        });
       } else if (label.startsWith("energia gerada no")) {
-        once("gerada", () => (d.energiaGeradaPeriodo = num()));
+        once("gerada", () => {
+          d.energiaGeradaPeriodo = num();
+          mesesItem.gerada = mesesDados(row);
+        });
       } else if (label.startsWith("energia injetada no")) {
-        once("injetada", () => (d.energiaInjetadaPeriodo = num()));
+        once("injetada", () => {
+          d.energiaInjetadaPeriodo = num();
+          mesesItem.injetada = mesesDados(row);
+        });
+      } else if (label.startsWith("energia consumida no")) {
+        once("consumida", () => (mesesItem.consumida = mesesDados(row)));
       } else if (/^(demanda contratada|demanda registrada|despesa com ultrapassagem)/.test(label) && !vistos.has(label)) {
         vistos.add(label);
         const v = num();
@@ -327,9 +354,20 @@ export function parseDadosUsina(grid: Grid): DadosUsinaPlanilha | null {
         vistos.add("maximo");
         const v = num();
         if (v > 0) d.maximoCompensavel = v > 1 ? v / 100 : v;
-      } else if (MESES.includes(label) && typeof row[c + 1] === "number" && !vistos.has(`mes${r}`)) {
-        vistos.add(`mes${r}`);
-        d.consumoMensal.push({ mes: label.toUpperCase(), kwh: row[c + 1] as number });
+      } else if (typeof row[c + 1] === "number" && !vistos.has(`mes${r}`) && c >= 10) {
+        // consumo mês a mês (S4:T12): "SET", "SET/26", "set/2026" ou data
+        const cel = row[c];
+        let mes: string | null = null;
+        if (cel instanceof Date && !Number.isNaN(cel.getTime())) mes = cel.toISOString().slice(0, 7);
+        else {
+          const m = /^([a-z]{3})(?:\/(\d{2}|\d{4}))?$/.exec(label);
+          if (m && MESES.includes(m[1])) mes = m[2] ? `${m[2].length === 2 ? 2000 + Number(m[2]) : m[2]}-${String(MESES.indexOf(m[1]) + 1).padStart(2, "0")}` : m[1].toUpperCase();
+          else if (/^\d{4}-\d{2}-\d{2}/.test(label)) mes = label.slice(0, 7);
+        }
+        if (mes) {
+          vistos.add(`mes${r}`);
+          d.consumoMensal.push({ mes, kwh: row[c + 1] as number });
+        }
       }
     }
     // título: primeira célula de texto longo das linhas 2-4 que não é rótulo
@@ -340,7 +378,20 @@ export function parseDadosUsina(grid: Grid): DadosUsinaPlanilha | null {
   }
   // modelo em branco: rótulos sem valores não viram usina
   if (found < 3 || !(d.meses > 0 || d.energiaInjetadaPeriodo > 0 || d.energiaGeradaPeriodo > 0 || d.energiaContratadaPeriodo > 0)) return null;
-  d.consumoMensal.reverse(); // a planilha lista do mês mais recente para o mais antigo
+  // "Meses c/ Dados": normaliza tudo para os meses da injetada (cada energia vira média × meses)
+  if (mesesItem.injetada || mesesItem.contratada || mesesItem.gerada) {
+    const base = mesesItem.injetada ?? d.meses ?? mesesItem.contratada ?? mesesItem.gerada ?? 0;
+    if (base > 0) {
+      const escala = (v: number, m?: number) => (m && m > 0 ? (v / m) * base : v);
+      d.energiaContratadaPeriodo = escala(d.energiaContratadaPeriodo, mesesItem.contratada);
+      d.energiaGeradaPeriodo = escala(d.energiaGeradaPeriodo, mesesItem.gerada);
+      d.energiaInjetadaPeriodo = escala(d.energiaInjetadaPeriodo, mesesItem.injetada);
+      d.meses = base;
+    }
+  }
+  // a planilha lista do mês mais recente para o mais antigo; com "Meses c/ Dados", só os mais recentes contam
+  if (mesesItem.consumida && mesesItem.consumida < d.consumoMensal.length) d.consumoMensal = d.consumoMensal.slice(0, mesesItem.consumida);
+  d.consumoMensal.reverse();
   return d;
 }
 
@@ -463,7 +514,7 @@ export function importarSheets(sheets: Sheet[]): Importacao {
       u.ucs = rel.ucs;
       u.fonteUcs = "relatorio";
       if (rel.competencia) u.consumoMensal = [{ mes: rel.competencia, kwh: rel.consumoTotal }];
-      const dist = /\b(CELESC|CEMIG|COPEL|CPFL[\w ]*|ENEL[\w ]*|EDP[\w ]*|LIGHT|EQUATORIAL[\w ]*?|ENERGISA[\w ]*|NEOENERGIA[\w ]*|RGE)\b/i.exec(rel.usina);
+      const dist = /\b(CELESC|CEMIG|COPEL|CPFL(?: PAULISTA| PIRATININGA| SANTA CRUZ)?|ENEL(?: [A-Z]{2})?|EDP(?: [A-Z]{2})?|LIGHT|EQUATORIAL(?: [A-Z]{2})?|ENERGISA(?: [A-Z]{2})?|NEOENERGIA|RGE)\b/i.exec(rel.usina);
       if (dist) u.distribuidora = dist[1].toUpperCase().replace(/\s+(AL|UFV.*)$/, "").trim();
       imp.usinas.push(u);
       imp.avisos.push(
@@ -504,7 +555,7 @@ export function importarSheets(sheets: Sheet[]): Importacao {
           });
           if (/celesc/i.test(nomeUsina + dados.nome)) u.distribuidora = "CELESC";
         }
-        const dist = /\b(CELESC|CEMIG|COPEL|CPFL[\w ]*|ENEL[\w ]*|EDP[\w ]*|LIGHT|EQUATORIAL[\w ]*|ENERGISA[\w ]*|NEOENERGIA[\w ]*)\b/i.exec(nomeUsina);
+        const dist = /\b(CELESC|CEMIG|COPEL|CPFL(?: PAULISTA| PIRATININGA| SANTA CRUZ)?|ENEL(?: [A-Z]{2})?|EDP(?: [A-Z]{2})?|LIGHT|EQUATORIAL(?: [A-Z]{2})?|ENERGISA(?: [A-Z]{2})?|NEOENERGIA|RGE)\b/i.exec(nomeUsina);
         if (!u.distribuidora && dist) u.distribuidora = dist[1].toUpperCase().trim();
         imp.usinas.push(u);
         imp.avisos.push(`"${name}": ${lista.length} UCs da ${u.nome}${dados && grupos.size === 1 ? " com dados da usina" : ""}`);

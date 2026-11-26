@@ -281,3 +281,26 @@ describe("Relatório Gerencial GD (Orange)", () => {
     expect(imp.usinas[0].consumoMensal).toEqual([{ mes: "2026-09", kwh: 2785 }]);
   });
 });
+
+describe("cabeçalho com 'Meses c/ Dados' (média por linha)", () => {
+  it("usa os meses de cada energia, o fim pela coluna Fim e só os meses de consumo com dado", async () => {
+    const { parseDadosUsina } = await import("@/modules/rateio/grid");
+    const g: unknown[][] = [];
+    const set = (r: number, c: number, v: unknown) => ((g[r] ??= [])[c] = v);
+    set(2, 0, "TIM EXEMPLO CPFL PAULISTA UFV TESTE"); set(2, 2, "Inicio"); set(2, 3, "Meses c/ Dados"); set(2, 4, "Fim"); set(2, 18, "Consumo");
+    set(3, 0, "Período da Análise"); set(3, 2, new Date("2026-01-01T12:00:00Z")); set(3, 3, "Meses c/ Dados"); set(3, 4, new Date("2026-09-01T12:00:00Z"));
+    set(4, 0, "Número de Meses da Anállise"); set(4, 4, "Média Mês");
+    set(5, 0, "Energia Contratada no período "); set(5, 1, "kWh"); set(5, 2, 1965600); set(5, 3, 9); set(5, 4, 218400);
+    set(6, 0, "Energia Gerada no período"); set(6, 1, "kWh"); set(6, 2, 2415212); set(6, 3, 7);
+    set(7, 0, "Energia Injetada no período"); set(7, 1, "kWh"); set(7, 2, 1010688); set(7, 3, 5);
+    set(8, 0, "Energia Consumida no período"); set(8, 1, "kWh"); set(8, 2, 818207.68); set(8, 3, 3);
+    ["SET", "AGO", "JUL", "JUN"].forEach((m, i) => { set(3 + i, 18, m); set(3 + i, 19, [269058.68, 273042.39, 276106.61, 476931.76][i]); });
+    const d = parseDadosUsina(g as never)!;
+    expect(d.periodoFim).toBe("2026-09-01");
+    expect(d.meses).toBe(5);
+    expect(d.energiaInjetadaPeriodo / d.meses).toBeCloseTo(202137.6, 1);
+    expect(d.energiaContratadaPeriodo / d.meses).toBeCloseTo(218400, 1);
+    expect(d.energiaGeradaPeriodo / d.meses).toBeCloseTo(345030.29, 1);
+    expect(d.consumoMensal.map((c) => c.mes)).toEqual(["JUL", "AGO", "SET"]);
+  });
+});
