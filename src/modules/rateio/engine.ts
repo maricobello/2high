@@ -353,7 +353,8 @@ export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Par
     const pesos = pesosPorUsina.get(u.id);
     const r = analisarUsina(u, novasPorUsina.get(u.id) ?? [], p, pesos);
     if (!pesos) return r;
-    const prop = analisarUsina(u, [], { ...p, metodo: "proporcional" });
+    // compara com a regra proporcional nas mesmas condições (com as mesmas UCs novas)
+    const prop = analisarUsina(u, novasPorUsina.get(u.id) ?? [], { ...p, metodo: "proporcional" });
     // só troca quando a regra proporcional é melhor de verdade (empate no teto fica o otimizado)
     const vr = valor(r);
     if (valor(prop) > vr + Math.max(1, Math.abs(vr) * 1e-4)) {

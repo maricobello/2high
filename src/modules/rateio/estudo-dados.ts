@@ -70,7 +70,7 @@ export function kpisEstudo(r: ResultadoUsina, p: Parametros): Kpi[] {
   const vA = valorCompensado(r, "atual", p);
   const vP = valorCompensado(r, "proposto", p);
   const reais = vA != null && vP != null ? vP - vA : null;
-  const notaReais = r.linhas.some((l) => l.tarifaKwh && l.tarifaKwh > 0) ? "tarifa de cada UC" : usaValorPorSubgrupo(p) ? "valor do kWh por subgrupo" : `tarifa ${fmt(p.tarifaKwh, 2)} R$/kWh`;
+  const notaReais = r.linhas.some((l) => l.tarifaKwh && l.tarifaKwh > 0) ? "tarifa típica das UCs" : usaValorPorSubgrupo(p) ? "valor do kWh por subgrupo" : `tarifa ${fmt(p.tarifaKwh, 2)} R$/kWh`;
   return [
     { titulo: "Energia compensada a mais", valor: `${ganho >= 0 ? "+" : ""}${fmt(ganho)} kWh`, nota: "vs. rateio atual", destaque: true },
     { titulo: "Ganho estimado", valor: reais != null ? brl(reais) : "—", nota: reais != null ? notaReais : "informe a tarifa no estudo", destaque: true },
