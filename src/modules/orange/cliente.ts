@@ -66,6 +66,20 @@ export class ClienteOrange {
     return { tipo: res.headers.get("content-type") ?? "", nome: nome ? decodeURIComponent(nome) : null, dados: await res.arrayBuffer() };
   }
 
+  /**
+   * Usa uma sessão já aberta no navegador (quem entra pela conta Microsoft): o texto do
+   * cabeçalho Cookie copiado do navegador. Confere que a sessão abre o sistema.
+   */
+  async usarSessao(cookie: string): Promise<void> {
+    for (const par of cookie.split(";")) {
+      const i = par.indexOf("=");
+      if (i > 0) this.cookies.set(par.slice(0, i).trim(), par.slice(i + 1).trim());
+    }
+    const res = await this.pedir("/");
+    const html = await res.text();
+    if (/id="loginform"/.test(html) || /\/Login\//i.test(res.url)) throw new ErroOrange("A sessão do Orange expirou: entre de novo no navegador e atualize ORANGE_COOKIE.");
+  }
+
   /** Login pelo formulário (/Login/Login). Confere que a tela de login não voltou. */
   async entrar(usuario: string, senha: string): Promise<void> {
     await this.pedir("/Login/Index");
@@ -76,16 +90,26 @@ export class ClienteOrange {
   }
 }
 
-/** Cliente já logado com as credenciais guardadas. */
+/**
+ * Cliente já logado. Duas formas:
+ *  - usuário e senha do Orange (ORANGE_USUARIO / ORANGE_SENHA), para conta com senha própria;
+ *  - sessão do navegador (ORANGE_COOKIE), para quem entra com a conta Microsoft.
+ */
 export async function clienteLogado(): Promise<ClienteOrange> {
-  const [usuario, senha] = await Promise.all([getSecret("ORANGE_USUARIO"), getSecret("ORANGE_SENHA")]);
-  if (!usuario || !senha) throw new ErroOrange("Faltam as credenciais do Orange: configure ORANGE_USUARIO e ORANGE_SENHA na Vercel.");
+  const [usuario, senha, cookie] = await Promise.all([getSecret("ORANGE_USUARIO"), getSecret("ORANGE_SENHA"), getSecret("ORANGE_COOKIE")]);
   const c = new ClienteOrange();
-  await c.entrar(usuario, senha);
-  return c;
+  if (usuario && senha) {
+    await c.entrar(usuario, senha);
+    return c;
+  }
+  if (cookie) {
+    await c.usarSessao(cookie);
+    return c;
+  }
+  throw new ErroOrange("Faltam as credenciais do Orange: configure ORANGE_USUARIO e ORANGE_SENHA (ou ORANGE_COOKIE, para conta Microsoft) na Vercel.");
 }
 
 export async function credenciaisConfiguradas(): Promise<boolean> {
-  const [u, s] = await Promise.all([getSecret("ORANGE_USUARIO"), getSecret("ORANGE_SENHA")]);
-  return Boolean(u && s);
+  const [u, s, c] = await Promise.all([getSecret("ORANGE_USUARIO"), getSecret("ORANGE_SENHA"), getSecret("ORANGE_COOKIE")]);
+  return Boolean((u && s) || c);
 }

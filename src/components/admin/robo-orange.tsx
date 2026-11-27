@@ -97,7 +97,7 @@ export function RoboOrange() {
           <p className="font-medium">{configurado == null ? "Verificando credenciais…" : configurado ? "Credenciais do Orange configuradas" : "Credenciais do Orange não configuradas"}</p>
           {!configurado && configurado != null && (
             <p className="mt-1 text-xs text-muted">
-              Na Vercel: projeto → Settings → Environment Variables → adicione <code>ORANGE_USUARIO</code> e <code>ORANGE_SENHA</code> (marque “Sensitive”) e faça um novo deploy. A senha fica só lá, criptografada; não vai para o código nem para o chat.
+              Na Vercel: projeto → Settings → Environment Variables (marque “Sensitive”) e faça um novo deploy. Conta com senha própria do Orange: <code>ORANGE_USUARIO</code> e <code>ORANGE_SENHA</code>. Quem entra com a conta Microsoft: <code>ORANGE_COOKIE</code> (a sessão copiada do navegador; vale até expirar). Fica só lá, criptografado; não vai para o código nem para o chat.
             </p>
           )}
         </div>
