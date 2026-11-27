@@ -134,6 +134,7 @@ test.describe("admin: rateio GD", () => {
     await expect(page.getByText("Contrato, geração e carga")).toBeVisible();
     await expect(page.getByText("Rateio pronto · soma 100%")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText("Novas UCs", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Proposto com consumo \d+% menor/)).toBeVisible();
     // poucos botões: sem colar tabela, recalcular ou exportar estudo no topo
     await expect(page.getByRole("button", { name: "Colar tabela" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Exportar estudo" })).toHaveCount(0);

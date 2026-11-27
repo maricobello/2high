@@ -15,6 +15,7 @@ import { useState } from "react";
 import { EntradaNumero } from "./numero";
 import { limiteFisico } from "@/modules/rateio/otimo-cobertura";
 import type { Candidata, Parametros, ResultadoUsina, Usina } from "@/modules/rateio/types";
+import { SaldoChart } from "./chart";
 import { kwh } from "./format";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -163,6 +164,18 @@ export function VisaoSimples({
             <p className="text-sm font-semibold">Contrato, geração e carga</p>
             <p className="mt-0.5 text-xs text-muted">kWh por mês</p>
             <GraficoContrato contratada={contrato?.temContrato ? contrato.contratadaMes : null} meta={contrato?.meta ?? 0.9} geracao={E} carga={contrato?.consumidaKwh ?? 0} cargaEstimada={!!contrato?.consumoEstimado} agregar={vaga?.kwh ?? 0} />
+          </Card>
+
+          <Card className="p-5 sm:p-7">
+            <p className="text-sm font-semibold">Saldo de créditos nos próximos {params.mesesSimulacao} meses</p>
+            <p className="mt-0.5 mb-3 text-xs text-muted">Quanto menos saldo parado, mais energia virou desconto</p>
+            <SaldoChart
+              atual={[r.atual.saldoInicial, ...r.atual.meses.map((m) => m.saldoTotal)]}
+              proposto={[r.proposto.saldoInicial, ...r.proposto.meses.map((m) => m.saldoTotal)]}
+              estresse={[r.propostoEstresse.saldoInicial, ...r.propostoEstresse.meses.map((m) => m.saldoTotal)]}
+              mesesDoAno={r.proposto.meses.map((m) => m.mes)}
+              fatorEstresse={params.fatorConsumoEstresse}
+            />
           </Card>
 
           <div className="grid gap-3 sm:grid-cols-3">
