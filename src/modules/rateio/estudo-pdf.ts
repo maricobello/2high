@@ -33,8 +33,6 @@ const misturar = (c: RGB, alvo: number, f: number): RGB => c.map((v) => Math.rou
 const TXT: RGB = [31, 41, 55];
 const MUDO: RGB = [107, 114, 128];
 const LINHA: RGB = [229, 231, 235];
-const FUNDO: RGB = [249, 250, 251];
-const GRAFITE: RGB = [63, 63, 70];
 const OK: RGB = [21, 128, 61];
 const ERRO: RGB = [185, 28, 28];
 const ATENCAO: RGB = [180, 83, 9];
@@ -78,10 +76,12 @@ export async function exportarPdf(usinas: Usina[], resultado: ResultadoProjeto, 
 
   const marca: MarcaEstudo = { ...MARCA_PADRAO, ...opcoes.marca };
   const corHex = /^#?[0-9a-f]{6}$/i.test(marca.cor) ? marca.cor : MARCA_PADRAO.cor;
-  const C = { marca: hex(corHex), texto: misturar(hex(corHex), 0, 0.22), claro: misturar(hex(corHex), 255, 0.92), medio: misturar(hex(corHex), 255, 0.7), barra: misturar(hex(corHex), 255, 0.45) };
+  const C = { marca: hex(corHex), texto: misturar(hex(corHex), 0, 0.22), claro: misturar(hex(corHex), 255, 0.92), medio: misturar(hex(corHex), 255, 0.7), barra: misturar(hex(corHex), 255, 0.45), sobre: misturar(hex(corHex), 255, 0.78) };
   const emissao = new Date().toLocaleDateString("pt-BR");
   const alvo = resultado.usinas.filter((r) => !opcoes.usinas?.length || opcoes.usinas.includes(r.usinaId));
   const rodapes: Record<number, string> = {};
+  // páginas que já abrem com a faixa grande da marca (as outras ganham uma faixa fina)
+  const comFaixa = new Set<number>();
   let logo: { data: string; w: number; h: number } | null = null;
   if (marca.logo && /^data:image\/(png|jpe?g);base64,/.test(marca.logo)) {
     const props = doc.getImageProperties(marca.logo);
@@ -93,8 +93,9 @@ export async function exportarPdf(usinas: Usina[], resultado: ResultadoProjeto, 
   alvo.forEach((r, idx) => {
     const u = usinas.find((x) => x.id === r.usinaId)!;
     if (idx > 0) doc.addPage();
+    comFaixa.add(doc.getNumberOfPages());
     paginasEstudo(doc, autoTable, u, r, p, marca, C, logo, emissao, opcoes.pareceres?.[r.usinaId], opcoes.ciclo?.[r.usinaId], resultado.metodo, rodapes);
-    paginasAnexo(doc, autoTable, u, r, p, marca, C, emissao, rodapes);
+    paginasAnexo(doc, autoTable, u, r, p, marca, C, emissao, rodapes, logo, comFaixa);
   });
 
   // rodapé em todas as páginas
@@ -103,17 +104,45 @@ export async function exportarPdf(usinas: Usina[], resultado: ResultadoProjeto, 
   for (let pg = 1; pg <= total; pg++) {
     doc.setPage(pg);
     ultimo = rodapes[pg] ?? ultimo;
+    if (!comFaixa.has(pg)) {
+      doc.setFillColor(...C.marca);
+      doc.rect(0, 0, W, 3, "F");
+    }
+    doc.setDrawColor(...C.marca);
+    doc.setLineWidth(0.5);
+    doc.line(M, H - 11.5, W - M, H - 11.5);
+    let x = M;
+    if (marca.empresa) {
+      doc.setFont("Geist", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(...C.texto);
+      doc.text(marca.empresa.toUpperCase(), x, H - 8);
+      x += doc.getTextWidth(marca.empresa.toUpperCase()) + 2.5;
+    }
     doc.setFont("Geist", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...MUDO);
-    doc.text(`${marca.empresa ? `${marca.empresa} · ` : ""}${ultimo}`, M, H - 8);
+    doc.text(ultimo, x, H - 8);
     doc.text(`Página ${pg} de ${total}`, W - M, H - 8, { align: "right" });
   }
   return doc.output("blob");
 }
 
 type AutoTable = (d: JsPDF, o: Record<string, unknown>) => void;
-type Cores = { marca: RGB; texto: RGB; claro: RGB; medio: RGB; barra: RGB };
+type Cores = { marca: RGB; texto: RGB; claro: RGB; medio: RGB; barra: RGB; sobre: RGB };
+
+/** Faixa da marca no topo da página: fundo na cor da marca, logo num quadro branco. Devolve o x do texto. */
+function faixaMarca(doc: JsPDF, C: Cores, altura: number, logo: { data: string; w: number; h: number } | null): number {
+  doc.setFillColor(...C.marca);
+  doc.rect(0, 0, W, altura, "F");
+  if (!logo) return M;
+  const pad = 2.2;
+  const y = (altura - logo.h) / 2;
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(M - pad, y - pad, logo.w + 2 * pad, logo.h + 2 * pad, 1.6, 1.6, "F");
+  doc.addImage(logo.data, logo.data.startsWith("data:image/png") ? "PNG" : "JPEG", M, y, logo.w, logo.h);
+  return M + logo.w + pad + 6;
+}
 
 function texto(doc: JsPDF, t: string, x: number, y: number, o: { size?: number; bold?: boolean; cor?: RGB; align?: "left" | "right" | "center"; maxW?: number } = {}): number {
   doc.setFont("Geist", o.bold ? "bold" : "normal");
@@ -159,17 +188,12 @@ function paginasEstudo(
   rodapes: Record<number, string>,
 ) {
   rodapes[doc.getNumberOfPages()] = `Estudo de rateio · ${r.usinaNome}`;
-  let y = 12;
-  // --- cabeçalho
-  let xt = M;
-  if (logo) {
-    const fmtImg = logo.data.startsWith("data:image/png") ? "PNG" : "JPEG";
-    doc.addImage(logo.data, fmtImg, M, y, logo.w, logo.h);
-    xt = M + logo.w + 6;
-  }
-  texto(doc, marca.empresa ? marca.empresa.toUpperCase() : "ESTUDO TÉCNICO", xt, y, { size: 7.5, bold: true, cor: C.texto });
-  texto(doc, "Estudo de rateio de créditos", xt, y + 3.6, { size: 16, bold: true });
-  texto(doc, subtituloUsina(u, r), xt, y + 10.6, { size: 9.5, cor: MUDO, maxW: W - M - 52 - xt });
+  // --- cabeçalho: faixa da marca
+  const xt = faixaMarca(doc, C, 34, logo);
+  let y = 7;
+  texto(doc, marca.empresa ? marca.empresa.toUpperCase() : "ESTUDO TÉCNICO", xt, y, { size: 7.5, bold: true, cor: C.sobre });
+  texto(doc, "Estudo de rateio de créditos", xt, y + 3.8, { size: 16, bold: true, cor: [255, 255, 255] });
+  texto(doc, subtituloUsina(u, r), xt, y + 11, { size: 9, cor: [255, 255, 255], maxW: W - M - 56 - xt });
   [
     ["Protocolo", protocoloEstudo(r.usinaNome, emissao)],
     ["Emissão", emissao],
@@ -178,17 +202,16 @@ function paginasEstudo(
     doc.setFont("Geist", "bold");
     doc.setFontSize(8);
     const wv = doc.getTextWidth(v);
-    texto(doc, v, W - M, y + i * 4.6, { size: 8, bold: true, align: "right" });
-    texto(doc, k, W - M - wv - 2.5, y + i * 4.6 + 0.3, { size: 7, cor: MUDO, align: "right" });
+    texto(doc, v, W - M, y + 1 + i * 5, { size: 8, bold: true, align: "right", cor: [255, 255, 255] });
+    texto(doc, k, W - M - wv - 2.5, y + 1.3 + i * 5, { size: 7, cor: C.sobre, align: "right" });
   });
-  y = 30;
-  doc.setDrawColor(...C.marca);
-  doc.setLineWidth(0.7);
-  doc.line(M, y, W - M, y);
-  y += 6;
+  y = 42;
 
   const secao = (n: number, titulo: string) => {
-    texto(doc, `${n}. ${titulo.toUpperCase()}`, M, y, { size: 8.5, bold: true, cor: C.texto });
+    doc.setFillColor(...C.marca);
+    doc.roundedRect(M, y - 0.2, 5.4, 4.2, 0.8, 0.8, "F");
+    texto(doc, String(n), M + 2.7, y + 0.2, { size: 7.5, bold: true, cor: [255, 255, 255], align: "center" });
+    texto(doc, titulo.toUpperCase(), M + 7.4, y, { size: 8.5, bold: true, cor: C.texto });
     y += 4.6;
     doc.setDrawColor(...C.medio);
     doc.setLineWidth(0.25);
@@ -219,6 +242,8 @@ function paginasEstudo(
     const x0 = M + j * (bw + gap);
     doc.setFillColor(...C.claro);
     doc.roundedRect(x0, y, bw, 19, 1.6, 1.6, "F");
+    doc.setFillColor(...C.marca);
+    doc.rect(x0, y, bw, 1.1, "F");
     texto(doc, k.titulo, x0 + bw / 2, y + 2.4, { size: 6.8, bold: true, cor: MUDO, align: "center" });
     texto(doc, k.valor, x0 + bw / 2, y + 6.6, { size: 12, bold: true, cor: k.destaque ? C.texto : TXT, align: "center" });
     texto(doc, k.nota, x0 + bw / 2, y + 13.4, { size: 6.4, cor: MUDO, align: "center", maxW: bw - 3 });
@@ -235,7 +260,7 @@ function paginasEstudo(
     body: cond.map((c) => [ACAO_LABEL[c.acao], String(c.n), c.efeito]),
     theme: "plain",
     styles: { font: "Geist", fontSize: 8.3, textColor: MUDO, cellPadding: { top: 1.6, bottom: 1.6, left: 2, right: 2 }, lineColor: LINHA, lineWidth: 0.2 },
-    headStyles: { fontStyle: "bold", fontSize: 7, textColor: MUDO, fillColor: FUNDO },
+    headStyles: { fontStyle: "bold", fontSize: 7, textColor: [255, 255, 255], fillColor: C.marca },
     columnStyles: { 0: { cellWidth: 30, fontStyle: "bold" }, 1: { cellWidth: 16, halign: "center", textColor: TXT, fontStyle: "bold" } },
     didParseCell: (d: { section: string; column: { index: number }; row: { index: number }; cell: { styles: { textColor: RGB } } }) => {
       if (d.section === "body" && d.column.index === 0) d.cell.styles.textColor = ACAO_COR[cond[d.row.index].acao];
@@ -306,19 +331,29 @@ function paginasEstudo(
 
 // ---------------------------------------------------------------------------
 
-function paginasAnexo(doc: JsPDF, autoTable: AutoTable, u: Usina, r: ResultadoUsina, p: Parametros, marca: MarcaEstudo, C: Cores, emissao: string, rodapes: Record<number, string>) {
+function paginasAnexo(
+  doc: JsPDF,
+  autoTable: AutoTable,
+  u: Usina,
+  r: ResultadoUsina,
+  p: Parametros,
+  marca: MarcaEstudo,
+  C: Cores,
+  emissao: string,
+  rodapes: Record<number, string>,
+  logo: { data: string; w: number; h: number } | null,
+  comFaixa: Set<number>,
+) {
   doc.addPage();
   const inicio = doc.getNumberOfPages();
+  comFaixa.add(inicio);
   rodapes[inicio] = `Anexo I · UCs no rateio · ${r.usinaNome}`;
-  let y = 14;
-  texto(doc, `${marca.empresa ? `${marca.empresa.toUpperCase()} · ` : ""}ANEXO I`, M, y, { size: 7.5, bold: true, cor: C.texto });
-  texto(doc, `UCs no rateio · ${r.usinaNome}`, M, y + 3.6, { size: 14, bold: true });
-  const hRes = texto(doc, resumoAnexo(u, r, p, emissao), M, y + 10, { size: 8, cor: MUDO, maxW: CW });
-  y += 10 + hRes + 2.2;
-  doc.setDrawColor(...C.marca);
-  doc.setLineWidth(0.6);
-  doc.line(M, y, W - M, y);
-  y += 3;
+  const xt = faixaMarca(doc, C, 26, logo);
+  texto(doc, `${marca.empresa ? `${marca.empresa.toUpperCase()} · ` : ""}ANEXO I`, xt, 7, { size: 7.5, bold: true, cor: C.sobre });
+  texto(doc, `UCs no rateio · ${r.usinaNome}`, xt, 10.8, { size: 14, bold: true, cor: [255, 255, 255], maxW: W - M - xt });
+  let y = 30;
+  const hRes = texto(doc, resumoAnexo(u, r, p, emissao), M, y, { size: 8, cor: MUDO, maxW: CW });
+  y += hRes + 3;
 
   const casas = p.casasDecimais;
   const pct = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
@@ -353,9 +388,9 @@ function paginasAnexo(doc: JsPDF, autoTable: AutoTable, u: Usina, r: ResultadoUs
     showFoot: "lastPage",
     theme: "plain",
     styles: { font: "Geist", fontSize: 7, textColor: TXT, cellPadding: { top: 1.05, bottom: 1.05, left: 1.4, right: 1.4 }, valign: "middle", overflow: "ellipsize" },
-    headStyles: { fillColor: GRAFITE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 6.6, valign: "middle", overflow: "linebreak" },
+    headStyles: { fillColor: C.marca, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 6.6, valign: "middle", overflow: "linebreak" },
     footStyles: { fontStyle: "bold", fontSize: 7.4, textColor: TXT },
-    alternateRowStyles: { fillColor: FUNDO },
+    alternateRowStyles: { fillColor: C.claro },
     columnStyles: {
       0: { cellWidth: 7, halign: "center", textColor: MUDO },
       1: { cellWidth: 25 },
@@ -390,15 +425,10 @@ function paginasAnexo(doc: JsPDF, autoTable: AutoTable, u: Usina, r: ResultadoUs
         const w = Math.max(0.6, (Math.max(0, l.compensavelKwh) / maxComp) * max);
         const h = Math.min(2.2, d.cell.height * 0.42);
         const by = d.cell.y + (d.cell.height - h) / 2;
-        doc.setFillColor(...C.claro);
+        doc.setFillColor(...(d.row.index % 2 ? [255, 255, 255] as RGB : C.claro));
         doc.roundedRect(d.cell.x + 1.4, by, max, h, h / 2, h / 2, "F");
         doc.setFillColor(...C.barra);
         doc.roundedRect(d.cell.x + 1.4, by, w, h, h / 2, h / 2, "F");
-      }
-      if (d.section === "head") {
-        doc.setDrawColor(...C.marca);
-        doc.setLineWidth(0.5);
-        doc.line(d.cell.x, d.cell.y + d.cell.height, d.cell.x + d.cell.width, d.cell.y + d.cell.height);
       }
       if (d.section === "foot") {
         doc.setDrawColor(...C.marca);
