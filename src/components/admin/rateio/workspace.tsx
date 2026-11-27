@@ -44,6 +44,7 @@ import { chaveSubgrupo, valorCompensado } from "@/modules/rateio/valor";
 import { competencias, definirConsumo, estimativaConsumo, numerosColados, resumoConsumo, rotuloCompetencia } from "@/modules/rateio/consumo";
 import { SaldoChart } from "./chart";
 import { VisaoSimples } from "./simples";
+import { anotarCiclo, registroDoCiclo } from "@/modules/rateio/acompanhamento";
 import { planoCarteira } from "@/modules/rateio/carteira";
 import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
 import { autoAplicar } from "@/modules/rateio/automacao";
@@ -243,8 +244,11 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
       // Relatório Gerencial (sem saldo) não substitui a lista do rateio (com saldo): só completa
       const manterUcs = nova.fonteUcs === "relatorio" && u.ucs.length > 0 && u.fonteUcs !== "relatorio";
       const ucsFinais = enriquecerMinimo(nova.ucs.length && !manterUcs ? nova.ucs : u.ucs, [...u.ucs, ...nova.ucs]);
+      // acompanhamento: cada lista nova do Orange registra o que de fato compensou no ciclo
+      const historico = nova.ucs.length && !manterUcs && nova.ucs.some((c) => c.compensadoKwh > 0) ? anotarCiclo(u.historico, registroDoCiclo(nova.ucs, u)) : u.historico;
       usinas[idx] = {
         ...u,
+        historico,
         ucs: ucsFinais,
         fonteUcs: manterUcs ? u.fonteUcs : (nova.fonteUcs ?? u.fonteUcs),
         // consumo da competência do relatório entra em Energia consumida (mês a mês)
@@ -261,6 +265,7 @@ function mesclar(atual: Estado, imp: Importacao, alvo: string | null, dest?: Des
       };
       abrir = u.id;
     } else {
+      if (nova.ucs.some((c) => c.compensadoKwh > 0)) nova.historico = anotarCiclo(undefined, registroDoCiclo(nova.ucs, nova));
       usinas.push(usarDados ? nova : { ...nova, meses: 0, periodoInicio: "", periodoFim: "", energiaContratadaPeriodo: 0, energiaGeradaPeriodo: 0, energiaInjetadaPeriodo: 0, consumoMensal: nova.fonteUcs === "relatorio" ? nova.consumoMensal : [] });
       abrir = nova.id;
     }

@@ -97,6 +97,8 @@ export interface Usina {
    * conclusão (para exportar de novo sem recalcular) e as novas UCs que entraram nela.
    */
   concluido?: { em: string; resultado: ResultadoUsina; candidatas: CandidataAvaliada[]; parecer: string | null } | null;
+  /** Ciclos acompanhados: um registro a cada lista de UCs importada (o que de fato compensou). */
+  historico?: RegistroCiclo[];
   /** De onde vieram as UCs: lista do rateio (com saldo) ou Relatório Gerencial GD (sem saldo). */
   fonteUcs?: "rateio" | "relatorio";
   /** Ultrapassagem de demanda da usina (fatura, planilha ou digitada). */
@@ -343,4 +345,19 @@ export interface ResultadoProjeto {
   chave: string;
   /** Método efetivamente usado (o otimizado só vale com solução para a chave atual). */
   metodo: "otimizado" | "proporcional";
+}
+
+/** Um ciclo acompanhado: a lista de UCs do Orange traz o que foi compensado de verdade. */
+export interface RegistroCiclo {
+  /** Quando a lista foi importada (ISO). */
+  em: string;
+  /** Σ "Consumo Compensado" das UCs no ciclo (kWh). */
+  compensadoKwh: number;
+  /** Σ saldo das UCs (kWh). */
+  saldoKwh: number;
+  /** Σ consumo compensável das UCs (kWh/mês). */
+  compensavelKwh: number;
+  ucs: number;
+  /** Compensação mensal que o rateio concluído previa (kWh), quando havia rateio concluído. */
+  previstoKwh: number | null;
 }

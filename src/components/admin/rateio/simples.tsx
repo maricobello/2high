@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { vagaNovasUcs } from "@/modules/rateio/agregar";
+import { acompanhamento } from "@/modules/rateio/acompanhamento";
 import { injecaoMensal } from "@/modules/rateio/engine";
 import { aplicacaoDaFatura } from "@/modules/rateio/fatura";
 import { useState } from "react";
@@ -203,6 +204,8 @@ export function VisaoSimples({
           </div>
           {vaga && <p className="text-sm text-muted">{vaga.texto}</p>}
 
+          <Acompanhamento usina={usina} tarifa={params.tarifaKwh} />
+
           {(excesso || entram.length > 0) && (
             <Card className="p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -315,5 +318,61 @@ function GraficoContrato({ contratada, meta, geracao, carga, cargaEstimada, agre
         )}
       </div>
     </div>
+  );
+}
+
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const dataCurta = (iso: string) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "lista atual");
+
+/** O que o rateio de fato compensou (lista do Orange) contra o previsto, ciclo a ciclo. */
+function Acompanhamento({ usina, tarifa }: { usina: Usina; tarifa: number }) {
+  const a = acompanhamento(usina, tarifa);
+  if (!a.ultimo) return null;
+  const u = a.ultimo;
+  const max = Math.max(...a.ciclos.map((c) => Math.max(c.compensadoKwh, c.previstoKwh ?? 0)), 1);
+  const bateu = a.aderencia;
+  return (
+    <Card className="p-5 sm:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Acompanhamento: quanto compensou de verdade</p>
+          <p className="mt-0.5 text-xs text-muted">Pela coluna “Consumo Compensado” da lista de UCs do Orange, a cada lista importada.</p>
+        </div>
+        {bateu != null && (
+          <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", bateu >= 0.95 ? "bg-opportunity-soft text-opportunity" : bateu >= 0.8 ? "bg-analysis-soft text-analysis" : "bg-attention-soft text-attention")}>
+            Bateu {pct(bateu)} do previsto
+          </span>
+        )}
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div>
+          <p className="text-xs text-muted">Compensado no último ciclo ({dataCurta(u.em)})</p>
+          <p className="mt-1 font-mono text-2xl font-semibold">{kwh(u.compensadoKwh)} kWh</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted">Economia estimada no ciclo</p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-opportunity">{u.reais != null ? brl(u.reais) : "—"}</p>
+          {a.tarifa != null && <p className="text-xs text-muted">tarifa típica {a.tarifa.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} R$/kWh</p>}
+        </div>
+        <div>
+          <p className="text-xs text-muted">Previsto pelo rateio concluído</p>
+          <p className="mt-1 font-mono text-2xl font-semibold">{u.previstoKwh ? `${kwh(u.previstoKwh)} kWh` : "—"}</p>
+          {!u.previstoKwh && <p className="text-xs text-muted">conclua o rateio para comparar no próximo ciclo</p>}
+        </div>
+      </div>
+      {a.ciclos.length > 1 && (
+        <div className="mt-5 flex h-28 items-end gap-2" aria-label="Compensado por ciclo">
+          {a.ciclos.slice(-12).map((c) => (
+            <div key={c.em} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+              <div className="relative flex h-24 w-full items-end justify-center">
+                {c.previstoKwh ? <div className="absolute w-full border-t-2 border-dashed border-volt" style={{ bottom: `${(c.previstoKwh / max) * 100}%` }} title={`Previsto ${kwh(c.previstoKwh)} kWh`} /> : null}
+                <div className="w-full max-w-10 rounded-t-md bg-primary" style={{ height: `${(c.compensadoKwh / max) * 100}%` }} title={`${kwh(c.compensadoKwh)} kWh`} />
+              </div>
+              <span className="text-[10px] text-muted">{dataCurta(c.em).slice(0, 5)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
