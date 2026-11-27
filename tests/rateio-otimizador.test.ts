@@ -140,16 +140,23 @@ describe("contrato: carga até 90% da contratada", () => {
 });
 
 describe("lucro: tarifa de cada UC", () => {
-  it("com pouca energia, o crédito vai primeiro para a UC de kWh mais caro", () => {
-    const a = { ...uc(1, 50, 1000), tarifaKwh: 0.6 };
-    const b = { ...uc(2, 50, 1000), tarifaKwh: 1.2 };
-    const u = usina("T", [a, b], 1000); // injeção cobre só metade do consumo
+  it("preço médio inflado de UC pequena não puxa o crédito (vale a tarifa típica do subgrupo)", () => {
+    // 6 UCs B3 iguais em consumo; uma tem "R$/kWh" de 8 (conta pequena, custo fixo) — não é tarifa
+    const ucs = [1, 2, 3, 4, 5, 6].map((n) => ({ ...uc(n, 100 / 6, 1000), tarifaKwh: n === 1 ? 8 : 0.9 }));
+    const u = usina("S", ucs, 3000);
     const o = otimizar([u], [], P);
     const r = analisarProjeto([u], [], P, o).usinas[0];
-    const [la, lb] = r.linhas;
-    expect(lb.pctProposto).toBeGreaterThan(90);
-    expect(la.pctProposto).toBeLessThan(10);
-    expect(r.proposto.compensadoTotal).toBeGreaterThan(r.atual.compensadoTotal - 1);
+    expect(r.linhas[0].pctProposto).toBeLessThan(40);
+  });
+
+  it("valor por subgrupo informado: com pouca energia, o crédito vai ao subgrupo de kWh mais caro", () => {
+    const a = { ...uc(1, 50, 1000), subgrupo: "B1" };
+    const b = { ...uc(2, 50, 1000), subgrupo: "B3" };
+    const u = usina("T", [a, b], 1000);
+    const Pv = { ...P, valorKwhSubgrupo: { B1: 0.6, B3: 1.2 } };
+    const o = otimizar([u], [], Pv);
+    const r = analisarProjeto([u], [], Pv, o).usinas[0];
+    expect(r.linhas[1].pctProposto).toBeGreaterThan(90);
   });
 
   it("lê o R$/kWh da lista do Orange", () => {

@@ -39,16 +39,48 @@ export function usaValor(p: Pick<Parametros, "valorKwhSubgrupo">, itens: ItemVal
 }
 
 /**
+ * R$/kWh por subgrupo a partir da coluna "R$/kWh" das UCs: a MEDIANA do subgrupo. A coluna do
+ * Orange é o preço médio da conta (fatura ÷ kWh): em UC pequena os custos fixos inflam o valor
+ * (R$ 3 a 8/kWh), mas o crédito só abate a energia, cuja tarifa é a mesma no subgrupo. A mediana
+ * do subgrupo dá a tarifa típica sem essa distorção.
+ */
+export function tarifaPorSubgrupo(itens: ItemValor[]): { porSub: Map<string, number>; geral: number | null } {
+  const grupos = new Map<string, number[]>();
+  const todas: number[] = [];
+  for (const x of itens) {
+    const t = tarOf(x);
+    if (t == null) continue;
+    const k = chaveSubgrupo(subOf(x)) || "?";
+    grupos.set(k, [...(grupos.get(k) ?? []), t]);
+    todas.push(t);
+  }
+  const mediana = (v: number[]) => {
+    const o = [...v].sort((a, b) => a - b);
+    const m = Math.floor(o.length / 2);
+    return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
+  };
+  const porSub = new Map<string, number>();
+  // subgrupo com poucas UCs (< 5) usa a mediana geral: amostra pequena demais
+  for (const [k, v] of grupos) if (v.length >= 5) porSub.set(k, mediana(v));
+  return { porSub, geral: todas.length ? mediana(todas) : null };
+}
+
+/**
  * Pesos relativos (média 1) do valor do kWh de cada UC para o objetivo do otimizador.
- * Prioridade: R$/kWh da própria UC; depois o valor do subgrupo; depois a média das tarifas
- * conhecidas (UCs novas, sem tarifa). Sem nenhum valor, todos 1 (objetivo em kWh).
+ * Prioridade: valor informado por subgrupo; senão a tarifa típica do subgrupo pela coluna
+ * R$/kWh das UCs (mediana); senão todos 1 (objetivo em kWh).
  */
 export function pesosValor(itens: ItemValor[], p: Pick<Parametros, "valorKwhSubgrupo" | "tarifaKwh">): number[] {
   if (!itens.length || !usaValor(p, itens)) return itens.map(() => 1);
-  const conhecidas = itens.map(tarOf).filter((t): t is number => t != null);
-  const informados = Object.values(p.valorKwhSubgrupo ?? {}).filter((v) => v > 0);
-  const padrao = p.tarifaKwh > 0 ? p.tarifaKwh : conhecidas.length ? conhecidas.reduce((a, b) => a + b, 0) / conhecidas.length : informados.reduce((a, b) => a + b, 0) / informados.length;
-  const v = itens.map((x) => tarOf(x) ?? (usaValorPorSubgrupo(p) ? valorKwh(subOf(x), { ...p, tarifaKwh: padrao }) : null) ?? padrao);
+  let v: number[];
+  if (usaValorPorSubgrupo(p)) {
+    const informados = Object.values(p.valorKwhSubgrupo ?? {}).filter((x) => x > 0);
+    const padrao = p.tarifaKwh > 0 ? p.tarifaKwh : informados.reduce((a, b) => a + b, 0) / informados.length;
+    v = itens.map((x) => valorKwh(subOf(x), { ...p, tarifaKwh: padrao }) ?? padrao);
+  } else {
+    const { porSub, geral } = tarifaPorSubgrupo(itens);
+    v = itens.map((x) => porSub.get(chaveSubgrupo(subOf(x)) || "?") ?? geral ?? 1);
+  }
   const media = v.reduce((a, b) => a + b, 0) / v.length;
   return v.map((x) => (media > 0 ? x / media : 1));
 }
@@ -63,15 +95,15 @@ export function itensValor(r: Pick<ResultadoUsina, "linhas">): ItemValor[] {
  * do subgrupo, senão a tarifa média. null quando não há nenhum valor.
  */
 export function valorCompensado(r: ResultadoUsina, qual: "atual" | "proposto", p: Pick<Parametros, "valorKwhSubgrupo" | "tarifaKwh">): number | null {
-  const temUc = r.linhas.some((l) => l.tarifaKwh && l.tarifaKwh > 0);
-  if (!(p.tarifaKwh > 0) && !usaValorPorSubgrupo(p) && !temUc) return null;
-  const tarifas = r.linhas.map((l) => l.tarifaKwh).filter((t): t is number => !!t && t > 0);
-  const media = p.tarifaKwh > 0 ? p.tarifaKwh : tarifas.length ? tarifas.reduce((a, b) => a + b, 0) / tarifas.length : 0;
+  const itens = itensValor(r);
+  const { porSub, geral } = tarifaPorSubgrupo(itens);
+  if (!(p.tarifaKwh > 0) && !usaValorPorSubgrupo(p) && geral == null) return null;
   const cen = qual === "atual" ? r.atual : r.proposto;
   let total = 0;
   cen.compensadoPorUc.forEach((kwh, i) => {
     const l = r.linhas[i];
-    const t = l?.tarifaKwh && l.tarifaKwh > 0 ? l.tarifaKwh : (valorKwh(l ? (l.origem === "nova" ? SUBGRUPO_CANDIDATA : l.subgrupo) : "", { ...p, tarifaKwh: media }) ?? 0);
+    const sub = l ? (l.origem === "nova" ? SUBGRUPO_CANDIDATA : l.subgrupo) : "";
+    const t = usaValorPorSubgrupo(p) || p.tarifaKwh > 0 ? (valorKwh(sub, p) ?? 0) : (porSub.get(chaveSubgrupo(sub) || "?") ?? geral ?? 0);
     total += kwh * t;
   });
   return total;

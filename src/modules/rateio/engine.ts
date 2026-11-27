@@ -354,7 +354,9 @@ export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Par
     const r = analisarUsina(u, novasPorUsina.get(u.id) ?? [], p, pesos);
     if (!pesos) return r;
     const prop = analisarUsina(u, [], { ...p, metodo: "proporcional" });
-    if (valor(prop) > valor(r) + 1) {
+    // só troca quando a regra proporcional é melhor de verdade (empate no teto fica o otimizado)
+    const vr = valor(r);
+    if (valor(prop) > vr + Math.max(1, Math.abs(vr) * 1e-4)) {
       prop.alertas.unshift({
         severidade: "media",
         codigo: "otimizacao_descartada",
