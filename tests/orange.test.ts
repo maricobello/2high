@@ -23,3 +23,15 @@ describe("mapa do Orange", () => {
     expect(endpointsDe(html)).toEqual(expect.arrayContaining(["/GestaoUsinaGD/ListarUnidades", "/Usina/Buscar"]));
   });
 });
+
+import { competenciaAnterior, preencher } from "@/modules/orange/coleta";
+describe("coleta do Orange", () => {
+  it("preenche os campos da receita com usina e competência", () => {
+    expect(preencher("/GD/Exportar?usina={usina}&ref={mesAno}", { id: "323", nome: "UFV X" }, "2026-09")).toBe("/GD/Exportar?usina=323&ref=09/2026");
+    expect(preencher("{ano}-{mes}|{competencia}", { id: "1", nome: "" }, "2026-01")).toBe("2026-01|2026-01");
+  });
+  it("competência padrão = mês fechado anterior", () => {
+    expect(competenciaAnterior(new Date("2026-12-06T12:00:00Z"))).toBe("2026-11");
+    expect(competenciaAnterior(new Date("2027-01-06T12:00:00Z"))).toBe("2026-12");
+  });
+});

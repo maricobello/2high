@@ -13,13 +13,35 @@ export function RoboOrange() {
   const [mapa, setMapa] = useState<Mapa | null>(null);
   const [ocupado, setOcupado] = useState<"teste" | "mapa" | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [coleta, setColeta] = useState<{ receitas: number; usinas: number; ultima: string | null } | null>(null);
+  const [coletando, setColetando] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/orange/status")
       .then((r) => r.json())
       .then((j: { configurado?: boolean }) => setConfigurado(Boolean(j.configurado)))
       .catch(() => setConfigurado(false));
+    fetch("/api/admin/orange/coleta")
+      .then((r) => r.json())
+      .then((j: { config?: { receitas: unknown[]; usinas: unknown[] } | null; ultima?: { competencia: string; em: string; arquivos: unknown[]; erros: unknown[] } | null }) =>
+        setColeta({
+          receitas: j.config?.receitas.length ?? 0,
+          usinas: j.config?.usinas.length ?? 0,
+          ultima: j.ultima ? `${j.ultima.competencia}: ${j.ultima.arquivos.length} arquivo(s), ${j.ultima.erros.length} falha(s), em ${new Date(j.ultima.em).toLocaleString("pt-BR")}` : null,
+        }),
+      )
+      .catch(() => setColeta(null));
   }, []);
+
+  async function coletarAgora() {
+    setColetando("Coletando no Orange…");
+    try {
+      const j = (await (await fetch("/api/admin/orange/coleta", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).json()) as { ok?: boolean; erro?: string; indice?: { competencia: string; arquivos: unknown[]; erros: string[] } };
+      setColetando(j.ok && j.indice ? `Coleta ${j.indice.competencia}: ${j.indice.arquivos.length} arquivo(s), ${j.indice.erros.length} falha(s). Abra o Rateio GD › Buscar no Orange.` : `Não coletou: ${j.erro ?? "erro"}`);
+    } catch {
+      setColetando("Não foi possível falar com o servidor.");
+    }
+  }
 
   async function testar() {
     setOcupado("teste");
@@ -90,6 +112,21 @@ export function RoboOrange() {
         </Button>
       </div>
       {teste && <p className="text-sm">{teste}</p>}
+
+      <div className="rounded-xl border border-border p-4 text-sm">
+        <p className="font-medium">Coleta automática (todo dia 6, 06:37 de Brasília)</p>
+        <p className="mt-1 text-xs text-muted">
+          {coleta == null
+            ? "Verificando…"
+            : coleta.receitas && coleta.usinas
+              ? `${coleta.receitas} tipo(s) de arquivo para ${coleta.usinas} usina(s). Última coleta: ${coleta.ultima ?? "ainda não rodou"}.`
+              : "Ainda sem receita de coleta: depois do mapa das telas, o Claude configura o que baixar de cada usina."}
+        </p>
+        <Button size="sm" variant="secondary" className="mt-3" onClick={coletarAgora} disabled={!configurado || !coleta?.receitas || coletando === "Coletando no Orange…"}>
+          Coletar agora
+        </Button>
+        {coletando && <p className="mt-2 text-xs">{coletando}</p>}
+      </div>
 
       {mapa && (
         <div className="rounded-xl border border-border p-4 text-sm">

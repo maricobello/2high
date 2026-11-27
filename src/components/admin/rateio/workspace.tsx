@@ -597,6 +597,33 @@ export function RateioWorkspace() {
     }
   }
 
+  /** Importa os arquivos que o robô do Orange coletou (listas de UCs, relatórios). */
+  async function buscarNoOrange() {
+    setOcupado(true);
+    try {
+      const j = (await (await fetch("/api/admin/orange/coleta")).json()) as { ultima?: { competencia: string; em: string; arquivos: { nome: string; chave: string; tipo: string }[]; erros: string[] } | null };
+      const u = j.ultima;
+      if (!u || !u.arquivos.length) {
+        setAvisos(["O robô do Orange ainda não coletou nada. Configure em Admin › Integrações › Robô do Orange."]);
+        return;
+      }
+      const planilhas = u.arquivos.filter((a) => !/\.pdf$/i.test(a.nome));
+      const files: File[] = [];
+      for (const a of planilhas) {
+        const res = await fetch(`/api/admin/orange/arquivo?chave=${encodeURIComponent(a.chave)}`);
+        if (res.ok) files.push(new File([await res.blob()], a.nome));
+      }
+      registrar(`Robô do Orange: ${files.length} arquivo(s) da competência ${u.competencia} (coleta de ${new Date(u.em).toLocaleDateString("pt-BR")}).`);
+      if (u.erros.length) setAvisos([`Coleta com ${u.erros.length} falha(s): ${u.erros.slice(0, 3).join(" · ")}`]);
+      setOcupado(false);
+      if (files.length) await importar(files);
+    } catch {
+      setAvisos(["Não foi possível buscar os arquivos do robô do Orange."]);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
   function abrirImport(alvo: string | null = null) {
     alvoImport.current = alvo;
     inputRef.current?.click();
@@ -773,6 +800,9 @@ export function RateioWorkspace() {
             {ativas.some((u) => u.ucs.length) && <StatusBotao status={statusGeral.nivel} texto={statusGeral.texto} aberto={painelStatus} onClick={() => setPainelStatus((v) => !v)} />}
             <Button size="sm" variant="secondary" onClick={() => abrirImport(usinaAtiva?.id ?? null)} disabled={ocupado}>
               {ocupado ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Enviar arquivos
+            </Button>
+            <Button size="sm" variant="secondary" onClick={buscarNoOrange} disabled={ocupado}>
+              <RefreshCw className="size-4" /> Buscar no Orange
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setSimples(false)}>
               Modo completo

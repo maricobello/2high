@@ -3,5 +3,14 @@
   "framework": "nextjs",
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
-  "crons": [{ "path": "/api/cron/follow-ups", "schedule": "0 12 * * *" }]
+  "crons": [
+    {
+      "path": "/api/cron/follow-ups",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/orange",
+      "schedule": "37 9 6 * *"
+    }
+  ]
 }
