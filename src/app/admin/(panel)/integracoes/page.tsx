@@ -1,4 +1,5 @@
 import { CheckCircle2, CircleDashed } from "lucide-react";
+import { RoboOrange } from "@/components/admin/robo-orange";
 import { RunFollowUps } from "@/components/admin/run-followups";
 import { env } from "@/lib/env";
 import { getLLM } from "@/modules/llm/provider";
@@ -39,6 +40,9 @@ export default function IntegrationsPage() {
             </li>
           ))}
         </ul>
+      </section>
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <RoboOrange />
       </section>
       <section className="rounded-2xl border border-border bg-card p-5">
         <RunFollowUps />
