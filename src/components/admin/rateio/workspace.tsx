@@ -44,6 +44,7 @@ import { chaveSubgrupo, valorCompensado } from "@/modules/rateio/valor";
 import { competencias, definirConsumo, estimativaConsumo, numerosColados, resumoConsumo, rotuloCompetencia } from "@/modules/rateio/consumo";
 import { SaldoChart } from "./chart";
 import { VisaoSimples } from "./simples";
+import { planoCarteira } from "@/modules/rateio/carteira";
 import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
 import { autoAplicar } from "@/modules/rateio/automacao";
 import { MARCA_PADRAO, MARCA_REPLACE, type MarcaEstudo } from "@/modules/rateio/estudo-xlsx";
@@ -734,6 +735,14 @@ export function RateioWorkspace() {
     setPendente(null);
   }
 
+  // carteira: carga acima do contrato vai para outra usina da mesma distribuidora com espaço
+  const plano = useMemo(() => planoCarteira(usinasD, paramsD), [usinasD, paramsD]);
+  function baixarTransferencias() {
+    const lin = [["UC (instalação)", "Apelido", "kWh/mês", "Sai de", "Vai para"].join(";")];
+    for (const t of plano.transferencias) lin.push([t.instalacao, t.apelido, Math.round(t.kwh).toLocaleString("pt-BR"), t.de, t.para ?? "sem usina com espaço"].join(";"));
+    baixar(new Blob(["\ufeff" + lin.join("\n")], { type: "text/csv;charset=utf-8" }), `Transferencias_de_carga_${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
   const statusGeral = avaliarStatus(resultado, usinasD, calculando, paramsD, otim);
   const usinaAtiva = ativas.find((u) => u.id === abaAtual);
   const resAtivo = resultado.usinas.find((r) => r.usinaId === abaAtual);
@@ -885,6 +894,8 @@ export function RateioWorkspace() {
               onBaixar={() => exportarDocs("modelo", [usinaAtiva.id])}
               onDetalhes={() => setSimples(false)}
               onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
+              plano={plano}
+              onBaixarTransferencias={baixarTransferencias}
             />
           )}
           {usinaAtiva && resAtivo && !simples && (

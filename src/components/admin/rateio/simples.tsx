@@ -17,6 +17,7 @@ import { limiteFisico } from "@/modules/rateio/otimo-cobertura";
 import type { Candidata, Parametros, ResultadoUsina, Usina } from "@/modules/rateio/types";
 import { SaldoChart } from "./chart";
 import { kwh } from "./format";
+import type { PlanoCarteira } from "@/modules/rateio/carteira";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const pctFino = (v: number) => `${(Math.floor(v * 1000) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
@@ -32,6 +33,8 @@ export function VisaoSimples({
   onBaixar,
   onDetalhes,
   onChange,
+  plano,
+  onBaixarTransferencias,
 }: {
   usina: Usina;
   r?: ResultadoUsina;
@@ -43,7 +46,12 @@ export function VisaoSimples({
   onBaixar: () => void;
   onDetalhes: () => void;
   onChange: (p: Partial<Usina>) => void;
+  plano?: PlanoCarteira;
+  onBaixarTransferencias?: () => void;
 }) {
+  const saem = plano?.transferencias.filter((t) => t.deId === usina.id) ?? [];
+  const entram = plano?.transferencias.filter((t) => t.paraId === usina.id) ?? [];
+  const excesso = plano?.excessos.find((e) => e.usinaId === usina.id);
   const [meses, setMeses] = useState<number | null>(null);
   const E = injecaoMensal(usina);
   const vaga = vagaNovasUcs(usina, params, candidatas);
@@ -194,6 +202,53 @@ export function VisaoSimples({
             />
           </div>
           {vaga && <p className="text-sm text-muted">{vaga.texto}</p>}
+
+          {(excesso || entram.length > 0) && (
+            <Card className="p-5 sm:p-7">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Mover carga entre usinas</p>
+                  <p className="mt-1 text-sm text-muted">
+                    {excesso
+                      ? `Esta usina tem ${kwh(excesso.excessoKwh)} kWh/mês de carga acima da meta do contrato (e acima do que gera). ${
+                          excesso.movido > 0 ? `${kwh(excesso.movido)} kWh/mês podem ir para outra usina da mesma distribuidora.` : ""
+                        }${excesso.semDestino > 0 ? ` ${kwh(excesso.semDestino)} kWh/mês sem destino: carregue as outras usinas da distribuidora para achar espaço.` : ""}`
+                      : `Pode receber ${entram.length} UC${entram.length > 1 ? "s" : ""} (${kwh(entram.reduce((a, t) => a + t.kwh, 0))} kWh/mês) de usinas acima do contrato.`}
+                  </p>
+                </div>
+                {onBaixarTransferencias && (saem.length > 0 || entram.length > 0) && (
+                  <Button size="sm" variant="secondary" onClick={onBaixarTransferencias}>
+                    <Download className="size-4" /> Baixar lista
+                  </Button>
+                )}
+              </div>
+              {(saem.length > 0 || entram.length > 0) && (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-sm">
+                    <thead className="text-left text-xs text-muted">
+                      <tr>
+                        <th className="py-1.5 pr-3 font-medium">UC</th>
+                        <th className="py-1.5 pr-3 font-medium">{excesso ? "Vai para" : "Vem de"}</th>
+                        <th className="py-1.5 text-right font-medium">kWh/mês</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(excesso ? saem : entram).slice(0, 10).map((t) => (
+                        <tr key={`${t.deId}-${t.instalacao}`} className="border-t border-border/60">
+                          <td className="py-1.5 pr-3">
+                            <span className="font-medium">{t.apelido || "—"}</span> <span className="font-mono text-xs text-muted">{t.instalacao}</span>
+                          </td>
+                          <td className={cn("py-1.5 pr-3", excesso && !t.para && "text-analysis")}>{excesso ? (t.para ?? "sem usina com espaço") : t.de}</td>
+                          <td className="py-1.5 text-right font-mono">{kwh(t.kwh)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {(excesso ? saem : entram).length > 10 && <p className="mt-2 text-xs text-muted">+ {(excesso ? saem : entram).length - 10} UCs na lista completa.</p>}
+                </div>
+              )}
+            </Card>
+          )}
         </>
       )}
 
