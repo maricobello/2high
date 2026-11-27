@@ -4,7 +4,8 @@
  * duas colunas com o rateio proposto pelo sistema e a ação de cada UC.
  */
 import type ExcelJS from "exceljs";
-import { resumoConsumo, rotuloCompetencia } from "./consumo";
+import { competencias, estimativaConsumo, resumoConsumo, rotuloCompetencia } from "./consumo";
+import { aplicacaoDaFatura } from "./fatura";
 import { injecaoMensal } from "./engine";
 import { sugerirMaximoPlanilha } from "./otimo-cobertura";
 import type { CandidataAvaliada, Parametros, ResultadoUsina, Usina } from "./types";
@@ -38,23 +39,65 @@ function data(iso: string): Date | null {
   return new Date(`${iso}T12:00:00Z`);
 }
 
+export interface CabecalhoModelo {
+  inicio: string | null;
+  fim: string | null;
+  meses: number;
+  contratada: number | null;
+  gerada: number | null;
+  injetada: number | null;
+  /** Consumo das UCs por competência (mais antiga → mais recente); estimado = pela planilha de UCs. */
+  consumo: { competencia: string; kwh: number; estimado: boolean }[];
+}
+
+const fimDoMes = (c: string) => {
+  const [a, m] = c.split("-").map(Number);
+  return `${c}-${String(new Date(Date.UTC(a, m, 0)).getUTCDate()).padStart(2, "0")}`;
+};
+
+/**
+ * Cabeçalho do modelo sempre preenchido: o que veio da tela do Orange/planilha manda; o que
+ * faltar sai da fatura (período, injetada, gerada = injetada + consumo da usina) e o consumo
+ * das UCs sem valor digitado é estimado pela planilha de UCs (compensável + mínimo).
+ */
+export function cabecalhoModelo(u: Usina): CabecalhoModelo {
+  const f = u.fatura ?? null;
+  const usados = f ? aplicacaoDaFatura(f).mesesUsados : [];
+  const ref = f?.mesReferencia || usados.at(-1) || "";
+  const meses = u.meses || usados.length || 0;
+  const fimC = /^\d{4}-\d{2}/.test(u.periodoFim ?? "") ? u.periodoFim.slice(0, 7) : /^\d{4}-\d{2}$/.test(ref) ? ref : "";
+  const periodo = fimC && meses ? competencias({ periodoInicio: u.periodoInicio, periodoFim: `${fimC}-01`, meses }) : [];
+  const inicio = /^\d{4}-\d{2}-\d{2}$/.test(u.periodoInicio ?? "") ? u.periodoInicio : periodo.length ? `${periodo[0]}-01` : null;
+  const fim = /^\d{4}-\d{2}-\d{2}$/.test(u.periodoFim ?? "") ? u.periodoFim : fimC ? fimDoMes(fimC) : null;
+  // da fatura, só quando ela cobre o período inteiro
+  const cobre = f && periodo.length > 0 && periodo.every((c) => (f.injetada[c] ?? 0) > 0);
+  const injFatura = cobre ? periodo.reduce((a, c) => a + f.injetada[c], 0) : null;
+  const injetada = u.energiaInjetadaPeriodo || injFatura || (meses && injecaoMensal(u) > 0 ? Math.round(injecaoMensal(u) * meses) : null);
+  const gerada = u.energiaGeradaPeriodo || (cobre && injFatura ? Math.round(injFatura + periodo.reduce((a, c) => a + Math.max(0, f.consumo[c] ?? 0), 0)) : null);
+  const informado = new Map(resumoConsumo({ ...u, periodoInicio: inicio ?? "", periodoFim: fim ?? "", meses }).linhas.filter((l) => l.kwh != null).map((l) => [l.competencia, l.kwh!]));
+  const est = Math.round(estimativaConsumo(u));
+  const consumo = periodo.length
+    ? periodo.map((c) => (informado.has(c) ? { competencia: c, kwh: informado.get(c)!, estimado: false } : { competencia: c, kwh: est, estimado: true })).filter((c) => c.kwh > 0)
+    : [...informado.entries()].map(([competencia, kwh]) => ({ competencia, kwh, estimado: false }));
+  return { inicio, fim, meses, contratada: u.energiaContratadaPeriodo || null, gerada, injetada, consumo };
+}
+
 export async function preencherModelo(u: Usina, r: ResultadoUsina, candidatas: CandidataAvaliada[], p: Parametros): Promise<Blob> {
   const wb = await carregarModelo();
   const ws = wb.getWorksheet("Análise do Rateio") ?? wb.worksheets[0];
 
   // --- cabeçalho da usina
   ws.getCell("A3").value = `${r.usinaNome}${u.distribuidora ? ` · ${u.distribuidora}` : ""}${u.fornecedor ? ` · ${u.fornecedor}` : ""}`;
-  const ini = data(u.periodoInicio);
-  const fim = data(u.periodoFim);
+  const cabec = cabecalhoModelo(u);
+  const ini = cabec.inicio ? data(cabec.inicio) : null;
+  const fim = cabec.fim ? data(cabec.fim) : null;
   if (ini) ws.getCell("C4").value = ini;
   if (fim) ws.getCell("D4").value = fim;
-  const meses = u.meses || 0;
-  if (meses) ws.getCell("C5").value = meses;
-  if (u.energiaContratadaPeriodo) ws.getCell("C6").value = u.energiaContratadaPeriodo;
-  if (u.energiaGeradaPeriodo) ws.getCell("C7").value = u.energiaGeradaPeriodo;
-  // injetada do período; sem ela, usa a injeção do estudo × meses
-  const injetada = u.energiaInjetadaPeriodo || (meses ? Math.round(injecaoMensal(u) * meses) : 0);
-  if (injetada) ws.getCell("C8").value = injetada;
+  if (cabec.meses) ws.getCell("C5").value = cabec.meses;
+  if (cabec.contratada) ws.getCell("C6").value = cabec.contratada;
+  else ws.getCell("C6").note = "Falta a energia contratada: envie o recorte do Orange (Estimada) no sistema.";
+  if (cabec.gerada) ws.getCell("C7").value = cabec.gerada;
+  if (cabec.injetada) ws.getCell("C8").value = cabec.injetada;
   // Máximo Compensável: sempre calculado (sem valor padrão) pelo critério do otimizador
   const sug = sugerirMaximoPlanilha(u, r, p, u.maximoCompensavelPlanilha);
   ws.getCell("M8").value = sug ? sug.cobertura : null;
@@ -70,15 +113,20 @@ export async function preencherModelo(u: Usina, r: ResultadoUsina, candidatas: C
     if (u.demanda.registradaKw != null) ws.getCell("N5").value = u.demanda.registradaKw;
     if (u.demanda.despesaUltrapassagem != null) ws.getCell("N6").value = u.demanda.despesaUltrapassagem;
   }
-  // energia consumida no período (S4:T12, da competência mais recente para a mais antiga)
-  const consumo = resumoConsumo(u);
-  const informados = consumo.linhas.filter((l) => l.kwh != null).reverse();
-  informados.slice(0, 9).forEach((c, i) => {
+  // energia consumida no período (S4:T12, da competência mais recente para a mais antiga);
+  // mês sem valor digitado vai estimado pela planilha de UCs, marcado ao lado
+  const consumo = [...cabec.consumo].reverse();
+  consumo.slice(0, 9).forEach((c, i) => {
     ws.getCell(4 + i, 19).value = rotuloCompetencia(c.competencia).toUpperCase();
     ws.getCell(4 + i, 20).value = c.kwh;
+    if (c.estimado) {
+      const nota = ws.getCell(4 + i, 21);
+      nota.value = "estimado (UCs)";
+      nota.font = { name: "Calibri", size: 8, italic: true, color: { argb: "FF6B7280" } };
+    }
   });
   // o modelo só tem 9 linhas de consumo: com mais competências, o total vai direto em C9
-  if (informados.length > 9) ws.getCell("C9").value = Math.round(consumo.total);
+  if (consumo.length > 9) ws.getCell("C9").value = Math.round(consumo.reduce((a, c) => a + c.kwh, 0));
 
   // --- UCs atuais (A..J) e fórmulas do modelo (L..Q); estende além da linha 174 se precisar
   const atuais = r.linhas.filter((l) => l.origem === "atual");

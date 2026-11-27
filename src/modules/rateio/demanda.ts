@@ -104,6 +104,18 @@ export function lerDemanda(linhas: string[]): Demanda | null {
     if (m) d.registradaConsumoKw = Math.max(d.registradaConsumoKw ?? 0, kw(m[1]));
     m = /demanda (?:injetada|gera[cç][aã]o).*?(?:fora (?:de )?ponta|ponta)\s+\d+\s+\d+\s+[\d.,]+\s+([\d.,]+)\s*$/i.exec(l);
     if (m) d.registradaKw = Math.max(d.registradaKw ?? 0, kw(m[1]));
+    // Neoenergia (Coelba, Celpe): "... GRANDEZAS CONTRATADAS Demanda Contratada 30" e
+    // "Demanda Máxima Fora de Ponta 0,00 1,00 8,40000 0,00 8,40" (último número = registrada)
+    m = /demanda contratada\s+([\d.,]+)\s*$/i.exec(l);
+    if (m) {
+      d.contratadaConsumoKw = kw(m[1]);
+      achou = true;
+    }
+    m = /^demanda m[aá]xima (?:na ponta|fora de ponta|ponta|fora ponta)\s+(?:[\d.,]+\s+){4}([\d.,]+)\s*$/i.exec(l);
+    if (m) {
+      d.registradaConsumoKw = Math.max(d.registradaConsumoKw ?? 0, kw(m[1]));
+      achou = true;
+    }
     // "Ultrapassagem" com o valor na mesma linha ou na seguinte
     if (/^ultrapassagem\b/.test(n) && !/demanda/.test(n)) {
       const aqui = /([\d.,]+)\s*kw/i.exec(l);
@@ -114,7 +126,9 @@ export function lerDemanda(linhas: string[]): Demanda | null {
   });
   if (!achou) return null;
   if (d.contratadaKw == null) d.contratadaKw = d.contratadaConsumoKw;
-  const ultra = d.itens.filter((x) => /ultrapassagem/i.test(x.descricao));
+  // sem demanda de injeção na conta, a registrada é a de consumo (par da contratada acima)
+  if (d.registradaKw == null && d.contratadaKw === d.contratadaConsumoKw) d.registradaKw = d.registradaConsumoKw;
+  const ultra = d.itens.filter((x) => /ultrap/i.test(x.descricao));
   if (ultra.length) {
     d.despesaUltrapassagem = Math.round(ultra.reduce((a, x) => a + x.valor, 0) * 100) / 100;
     if (d.ultrapassagemKw == null) d.ultrapassagemKw = Math.max(...ultra.map((x) => x.kw));

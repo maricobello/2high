@@ -115,3 +115,22 @@ describe("PDF executivo", () => {
     expect(texto).toMatch(/Página 1 de \d+/);
   });
 });
+
+import { cabecalhoModelo } from "@/modules/rateio/planilha-modelo";
+import { lerFaturaTexto } from "@/modules/rateio/fatura";
+import { usinaVazia } from "@/modules/rateio/grid";
+
+describe("cabeçalho do modelo sem a tela do Orange", () => {
+  it("preenche período, injetada, gerada e consumo pela fatura e pelas UCs", () => {
+    const fatura = lerFaturaTexto(["REF:MÊS/ANO TOTAL A PAGAR R$ VENCIMENTO", "09/2026 23.666,60 23/11/2026", "Energia injetada no mes FP 537 .434,10 NP 0,00 kWh."]);
+    const u = { ...usinaVazia("UFV X"), fatura, ucs: [{ key: "1", compensavelKwh: 1000, consumoMinimoKwh: 100 }, { key: "2", compensavelKwh: 500 }] } as never;
+    const c = cabecalhoModelo(u);
+    expect(c.meses).toBe(1);
+    expect(c.inicio).toBe("2026-09-01");
+    expect(c.fim).toBe("2026-09-30");
+    expect(c.injetada).toBeCloseTo(537434.1, 0);
+    expect(c.gerada).toBeGreaterThanOrEqual(537434);
+    expect(c.contratada).toBeNull();
+    expect(c.consumo).toEqual([{ competencia: "2026-09", kwh: 1600, estimado: true }]);
+  });
+});
