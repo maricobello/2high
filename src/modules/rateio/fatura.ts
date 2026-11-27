@@ -185,6 +185,18 @@ export function lerMesSolto(linhas: string[]): { injetada: number | null; medido
   // (ex.: "Energia Injetada - kW Fora Ponta 347032 367795 6,00000 124.578",
   //       "Ener. Inje. F. Ponta Consumo Ativo Gerado FP 74.645.183 76.023.831 0,4200 579.032,16 kWh")
   const MEDIDOR = /(?:^|\s)([\d.]+)\s+([\d.]+)\s+(\d+,\d+|\d+)\s+([\d.]+(?:,\d+)?)\s*(?:kwh)?\s*$/;
+  // Neoenergia (Coelba, Celpe, Cosern, Elektro): "Energia injetada no mes FP 537 .434,10 NP 0,00 kWh."
+  // ou "Energia injetada no mes 757514,8kWh." — a mesma frase se repete nas vias: conta uma vez
+  const neo = new Set<string>();
+  for (const l of linhas) {
+    const n = norm(l);
+    const m = /energia injetada no mes\s*(?:fp\s*)?(\d[\d .]*(?:,\d+)?)\s*(?:kwh)?(?:\s*np\s*(\d[\d .]*(?:,\d+)?))?/.exec(n);
+    if (!m || neo.has(m[0])) continue;
+    neo.add(m[0]);
+    if (neo.size > 1) continue;
+    resumo += toNumber(m[1].replace(/\s+/g, "")) + (m[2] ? toNumber(m[2].replace(/\s+/g, "")) : 0);
+    achouResumo = true;
+  }
   for (const l of linhas) {
     const n = norm(l);
     for (const m of n.matchAll(/kwh injetad[oa]\s*(?:f\.? ?ponta|fora (?:de )?ponta|ponta|total)?\s*:?\s*([\d.]+(?:,\d+)?)/g)) {
@@ -286,7 +298,7 @@ export function lerFaturaTexto(linhasBrutas: string[], arquivo = "fatura.pdf", l
   for (const l of linhas) {
     const n = norm(l);
     let m = /referencia[:\s]*(\d{1,2}\/\d{4}|[a-z]{3}\/\d{2,4})/.exec(n);
-    if (!m) m = /^(\d{1,2}\/\d{4}|[a-z]{3}\/\d{4})\s+\d{2}\/\d{2}\/\d{4}/.exec(n);
+    if (!m) m = /^(\d{1,2}\/\d{4}|[a-z]{3}\/\d{4})\s+(?:[\d.]+,\d{2}\s+)?\d{2}\/\d{2}\/\d{4}/.exec(n);
     if (!m) m = /(?:mes|mês)\s*(?:\/\s*ano|de referencia)?[:\s]+(\d{1,2}\/\d{4}|[a-z]{3}\/\d{2,4})/.exec(n);
     const iso = m ? mesIso(m[1]) : null;
     if (iso) {

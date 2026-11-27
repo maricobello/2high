@@ -405,3 +405,22 @@ describe("resposta da IA em formatos variados", () => {
     expect(faturaIaSchema.parse("texto").injetada).toBeNull();
   });
 });
+
+describe("fatura Neoenergia (Coelba/Celpe)", () => {
+  it("lê o mês de referência e a injetada da frase da unidade geradora", () => {
+    const celpe = lerFaturaTexto([
+      "REF:MÊS/ANO TOTAL A PAGAR R$ VENCIMENTO",
+      "09/2026 23.666,60 23/11/2026",
+      "Unidade Microgeração. Energia injetada no mes FP 537 .434,10 NP 0,00 kWh.",
+      "Unidade Microgeração. Energia injetada no mes FP 537 .434,10 NP 0,00 kWh.",
+    ]);
+    expect(celpe.mesReferencia).toBe("2026-09");
+    expect(celpe.injetada["2026-09"]).toBeCloseTo(537434.1, 1);
+    const coelba = lerFaturaTexto([
+      "REF:MÊS/ANO TOTAL A PAGAR R$ VENCIMENTO",
+      "09/2026 134.516,28 10/11/2026",
+      "UNIDADE PRINCIPAL - MMGH: Energia injetada no mes 757514,8kWh. Saldo para o proximo ciclo 753745kWh.",
+    ]);
+    expect(coelba.injetada["2026-09"]).toBeCloseTo(757514.8, 1);
+  });
+});
