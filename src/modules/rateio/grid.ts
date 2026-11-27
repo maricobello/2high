@@ -39,8 +39,9 @@ const CAND_FIELDS: FieldMap<"instalacao" | "apelido" | "concessionaria" | "mes" 
   status: ["status", "situacao"],
   ligacao: ["tipo tensao", "tipo de tensao", "tipo de ligacao", "ligacao", "fases"],
   mercado: ["mercado"],
-  naUsinaGd: ["na usina gd", "usina gd atual", "usina gd", "ja na usina"],
-  media: ["media kwh", "media", "consumo medio", "consumo medio kwh", "media de consumo"],
+  naUsinaGd: ["na usina gd", "usina gd atual", "usina gd", "ja na usina", "usina"],
+  // export de faturas do Orange: consumo do mês em "kWh Total" (vários meses viram média)
+  media: ["media kwh", "media", "consumo medio", "consumo medio kwh", "media de consumo", "kwh total", "consumo total", "consumo kwh"],
   consMin: ["cons. min", "cons min", "consumo minimo", "custo de disponibilidade"],
   compensavel: ["compensavel", "compensavel kwh"],
 };
@@ -219,16 +220,29 @@ export function parseCandidatas(grid: Grid): Candidata[] | null {
   const h = findHeader(grid, CAND_FIELDS, ["instalacao", "media"]);
   if (!h) return null;
   const out: Candidata[] = [];
+  // mesma UC em vários meses (export de faturas): média do consumo
+  const porUc = new Map<string, { c: Candidata; soma: number; meses: number }>();
   for (let r = h.row + 1; r < grid.length; r++) {
     const row = grid[r] ?? [];
     const inst = text(get(row, h.map.instalacao));
     if (!inst || !/\d/.test(inst)) continue;
-    const ligOrig = text(get(row, h.map.ligacao));
-    const ligacao = parseLigacao(ligOrig);
+    let ligOrig = text(get(row, h.map.ligacao));
+    let ligacao = parseLigacao(ligOrig);
+    // a coluna de tensão pode trazer "B - Baixa Tensão": procura "Monofásico/Bifásico/Trifásico" na linha
+    if (!ligacao) {
+      const achada = row.map((c) => text(c)).find((t) => t.length < 20 && parseLigacao(t) && /f[aá]sic/i.test(t));
+      if (achada) {
+        ligOrig = achada;
+        ligacao = parseLigacao(achada);
+      }
+    }
+    const tensao = norm(text(get(row, h.map.ligacao)));
     const media = toNumber(get(row, h.map.media));
     const minInformado = toNumber(get(row, h.map.consMin));
-    const consumoMinimoKwh = minInformado > 0 ? minInformado : ligacao ? CONSUMO_MINIMO[ligacao] : CONSUMO_MINIMO.tri;
-    out.push({
+    const grupoA = /media tensao|alta tensao|^a\b|^a -/.test(tensao);
+    const consumoMinimoKwh = minInformado > 0 ? minInformado : ligacao ? CONSUMO_MINIMO[ligacao] : grupoA ? 0 : CONSUMO_MINIMO.tri;
+    const usinaGd = text(get(row, h.map.naUsinaGd));
+    const c: Candidata = {
       key: ucKey(inst),
       instalacao: inst,
       apelido: text(get(row, h.map.apelido)),
@@ -236,13 +250,23 @@ export function parseCandidatas(grid: Grid): Candidata[] | null {
       mesReferencia: text(get(row, h.map.mes)),
       ligacao,
       ligacaoOriginal: ligOrig,
-      mercado: text(get(row, h.map.mercado)),
+      mercado: text(get(row, h.map.mercado)) || (/livre/.test(tensao) ? "Livre" : ""),
       status: text(get(row, h.map.status)),
       mediaKwh: media,
       consumoMinimoKwh,
       compensavelKwh: Math.max(0, media - consumoMinimoKwh),
-      naUsinaGd: text(get(row, h.map.naUsinaGd)),
-    });
+      naUsinaGd: usinaGd || (/geracao distribuida/.test(tensao) ? "GD (usina não informada)" : ""),
+    };
+    const ja = porUc.get(c.key);
+    if (ja && ja.c.mesReferencia !== c.mesReferencia) {
+      ja.soma += media;
+      ja.meses++;
+      const m = ja.soma / ja.meses;
+      Object.assign(ja.c, { mediaKwh: m, compensavelKwh: Math.max(0, m - ja.c.consumoMinimoKwh), mesReferencia: c.mesReferencia || ja.c.mesReferencia, status: c.status || ja.c.status, naUsinaGd: c.naUsinaGd || ja.c.naUsinaGd });
+      continue;
+    }
+    if (!ja) porUc.set(c.key, { c, soma: media, meses: 1 });
+    out.push(c);
   }
   return out;
 }
@@ -605,24 +629,31 @@ export function textoParaGrid(txt: string): Grid {
   return linhas.map(dividir);
 }
 
-/** Números de instalação de qualquer planilha (coluna "Instalação"/"UC"; sem cabeçalho, células com 6+ dígitos). */
+/**
+ * UCs de uma lista (ex.: desligadas): números de instalação (coluna "Instalação"/"UC"; sem
+ * cabeçalho, células com 6+ dígitos) e apelidos/Endereço ID como "ap:SPMCZ_0013".
+ */
 export function chavesDeInstalacao(grid: Grid): string[] {
   const out = new Set<string>();
   let col = -1;
+  let colAp = -1;
   let ini = 0;
-  for (let r = 0; r < Math.min(grid.length, 30) && col < 0; r++) {
+  for (let r = 0; r < Math.min(grid.length, 30) && col < 0 && colAp < 0; r++) {
     const row = grid[r] ?? [];
     for (let c = 0; c < row.length; c++) {
       const h = norm(text(row[c]));
-      if (/instala|^uc$|^n.? ?da uc|unidade consumidora|codigo da uc|^conta contrato/.test(h)) {
-        col = c;
-        ini = r + 1;
-        break;
-      }
+      if (col < 0 && /instala|^uc$|^n.? ?da uc|unidade consumidora|codigo da uc|^conta contrato/.test(h)) col = c;
+      if (colAp < 0 && /^endid$|^end id$|^endereco id$|apelido/.test(h)) colAp = c;
     }
+    if (col >= 0 || colAp >= 0) ini = r + 1;
   }
   for (let r = ini; r < grid.length; r++) {
     const row = grid[r] ?? [];
+    if (colAp >= 0) {
+      const ap = text(row[colAp]).trim().toUpperCase();
+      if (ap && ap !== "NULL") out.add(`ap:${ap}`);
+    }
+    if (colAp >= 0 && col < 0) continue;
     const cells = col >= 0 ? [row[col]] : row;
     for (const v of cells) {
       const t = text(v);

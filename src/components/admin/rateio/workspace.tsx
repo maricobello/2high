@@ -272,7 +272,7 @@ export function RateioWorkspace() {
     const usadas = new Map(concluidas.flatMap((u) => u.concluido!.candidatas.filter((c) => c.selecionada && c.usinaDestino === u.nome).map((c) => [c.candidata.key, u.nome] as const)));
     const deslig = new Set(estado.desligadas ?? []);
     if (!usadas.size && !deslig.size) return estado.candidatas;
-    return estado.candidatas.map((c) => (deslig.has(c.key) ? { ...c, status: "Desligada" } : usadas.has(c.key) ? { ...c, naUsinaGd: c.naUsinaGd || usadas.get(c.key)! } : c));
+    return estado.candidatas.map((c) => (deslig.has(c.key) || (c.apelido && deslig.has(`ap:${c.apelido.trim().toUpperCase()}`)) ? { ...c, status: "Desligada" } : usadas.has(c.key) ? { ...c, naUsinaGd: c.naUsinaGd || usadas.get(c.key)! } : c));
   }, [estado.candidatas, estado.desligadas, concluidas]);
   const usinasD = useDeferredValue(ativas);
   // subgrupos presentes nas UCs (para o valor do kWh por subgrupo) + B das novas UCs
@@ -499,8 +499,8 @@ export function RateioWorkspace() {
         return;
       }
       setEstado((e) => ({ ...e, desligadas: [...new Set([...(e.desligadas ?? []), ...chaves])] }));
-      const naBase = estadoRef.current.candidatas.filter((c) => chaves.has(c.key)).length;
-      setAvisos([`${chaves.size.toLocaleString("pt-BR")} UCs marcadas como desligadas (${naBase.toLocaleString("pt-BR")} estavam na base).`]);
+      const naBase = estadoRef.current.candidatas.filter((c) => chaves.has(c.key) || (c.apelido && chaves.has(`ap:${c.apelido.trim().toUpperCase()}`))).length;
+      setAvisos([`Lista de desligadas lida: ${naBase.toLocaleString("pt-BR")} UCs da base marcadas como desligadas.`]);
       registrar(`Desligadas: ${chaves.size} UCs marcadas.`);
     } catch (err) {
       setAvisos([`Lista de desligadas: ${err instanceof Error ? err.message : "não foi possível ler"}`]);

@@ -432,3 +432,32 @@ describe("lista de desligadas", () => {
     expect(chavesDeInstalacao([["8.977.967.028-79"], ["texto"], ["12"]])).toEqual(["897796702879"]);
   });
 });
+
+import { importarSheets } from "@/modules/rateio/grid";
+describe("base de UCs pelo export de faturas do Orange", () => {
+  it("lê UC, Endereço ID, kWh Total e a ligação da Classe Tarifária; média de vários meses", () => {
+    const h = ["UC", "Endereço ID", "Concessionária", "Mês de Referência", "Status", "Classe Tarifária", "Mercado", "Usina", "Tipo de Tensão", "kWh Total"];
+    const imp = importarSheets([
+      {
+        name: "Faturas",
+        grid: [
+          h,
+          ["1235379901807", "MGBHE_1095", "CEMIG", "09/2026", "Ativa", "Trifásico", "Cativo", "", "B - Baixa Tensão", "3000"],
+          ["1235379901807", "MGBHE_1095", "CEMIG", "10/2026", "Ativa", "Trifásico", "Cativo", "", "B - Baixa Tensão", "3400"],
+          ["668794601845", "MGBET_0012", "CEMIG", "10/2026", "Ativa", "Bifásico", "Cativo", "CGH AREAO", "Geração Distribuida", "4423"],
+        ],
+      },
+    ]);
+    expect(imp.candidatas).toHaveLength(2);
+    const [a, b] = imp.candidatas;
+    expect(a.ligacao).toBe("tri");
+    expect(a.mediaKwh).toBe(3200);
+    expect(a.compensavelKwh).toBe(3100);
+    expect(b.naUsinaGd).toBe("CGH AREAO");
+  });
+
+  it("desligadas também pelo Endereço ID (aba sem número de UC)", () => {
+    expect(chavesDeInstalacao([["id", "tx_Apelido", "Usina"], [98901, "RJRJO_0144", "UFV X"], [1, "NULL", ""]])).toEqual(["ap:RJRJO_0144"]);
+    expect(chavesDeInstalacao([["EndID", "UC"], ["SPMMU_0003", 4000592798]])).toEqual(["ap:SPMMU_0003", "4000592798"]);
+  });
+});
