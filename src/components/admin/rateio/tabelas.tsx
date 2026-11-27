@@ -195,6 +195,8 @@ export function situacaoCandidata(c: CandidataAvaliada): "alocada" | "disponivel
 export function TabelaCandidatas({ candidatas }: { candidatas: CandidataAvaliada[] }) {
   const [filtro, setFiltro] = useState<"todas" | "alocada" | "disponivel" | "desligada" | "naoServe">("todas");
   const [q, setQ] = useState("");
+  // base grande: desenha aos poucos (milhares de linhas travam a tela)
+  const [limite, setLimite] = useState(200);
   const tipo = situacaoCandidata;
   const cont = { todas: candidatas.length, alocada: 0, disponivel: 0, desligada: 0, naoServe: 0 };
   for (const c of candidatas) cont[tipo(c)]++;
@@ -230,7 +232,7 @@ export function TabelaCandidatas({ candidatas }: { candidatas: CandidataAvaliada
             </tr>
           </thead>
           <tbody>
-            {visiveis.map((c, i) => {
+            {visiveis.slice(0, limite).map((c, i) => {
               const t = tipo(c);
               return (
                 <tr key={`${c.candidata.key}-${i}`} className="border-t border-border/60">
@@ -254,6 +256,16 @@ export function TabelaCandidatas({ candidatas }: { candidatas: CandidataAvaliada
           </tbody>
         </table>
       </div>
+      {visiveis.length > limite && (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm text-muted">
+          <span>
+            Mostrando {limite.toLocaleString("pt-BR")} de {visiveis.length.toLocaleString("pt-BR")} UCs. Use a busca para achar uma UC.
+          </span>
+          <button type="button" onClick={() => setLimite((l) => l + 500)} className="font-medium text-primary-text hover:underline">
+            Mostrar mais
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -85,7 +85,17 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
     const Emed = Ecum[T - 1] / T;
 
     type Uc = { col: string; comp: number; saldo: number; reserva: number; pct0: number; valor: number; bin?: string; cand?: string };
-    const cands = p.incluirNovasUcs ? elegiveis.filter((c) => compat(c.candidata.concessionaria, u.distribuidora)) : [];
+    // base grande (milhares de UCs): o modelo só leva as maiores que podem caber (até 2× o espaço
+    // do contrato ou da injeção, no máximo 120); com todas, o modelo fica enorme e trava
+    const limNovas = limiteNovasPeloContrato(u, p.metaContrato);
+    const teto = 2 * Math.min(limNovas ?? Infinity, E0);
+    let acumulado = 0;
+    const cands = p.incluirNovasUcs
+      ? elegiveis
+          .filter((c) => compat(c.candidata.concessionaria, u.distribuidora))
+          .sort((a, b) => b.candidata.compensavelKwh - a.candidata.compensavelKwh)
+          .filter((c, i) => i < 120 && (acumulado += c.candidata.compensavelKwh) - c.candidata.compensavelKwh <= teto)
+      : [];
     // valor do kWh por UC (foco em lucro); candidatas são de baixa tensão (grupo B)
     const vals = pesosValor([...u.ucs.map((c) => c.subgrupo), ...cands.map(() => SUBGRUPO_CANDIDATA)], p);
     const lista: Uc[] = u.ucs.map((c, i) => ({ col: `x${ui}_${i}`, comp: Math.max(0, c.compensavelKwh), saldo: Math.max(0, c.saldoKwh), reserva: p.reservaSaldoMeses * Math.max(0, c.compensavelKwh), pct0: c.pctAtual, valor: vals[i] }));
@@ -99,7 +109,7 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
     });
     mapa.push({ usinaId: u.id, atuais: lista.filter((l) => !l.cand).map((l) => l.col), candidatas: mapaCands });
     // contrato: compensável das novas UCs até a meta de carga da usina
-    const lim = limiteNovasPeloContrato(u, p.metaContrato);
+    const lim = limNovas;
     if (lim != null && mapaCands.length) rows.push(` ct${ui}: ${cands.map((c, j) => `+ ${num(c.candidata.compensavelKwh)} z${ui}_${j}`).join(" ")} <= ${num(lim)}`);
 
     rows.push(` soma${ui}: ${lista.map((l) => `+ ${l.col}`).join(" ")} = 100`);

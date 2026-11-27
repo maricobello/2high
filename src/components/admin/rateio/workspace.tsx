@@ -113,12 +113,73 @@ function validarParametros(p: Parametros): Parametros {
   };
 }
 
+// A base de UCs pode ter dezenas de milhares de linhas: fica no IndexedDB; o resto, no localStorage
+function idb(): Promise<IDBDatabase> {
+  return new Promise((ok, falha) => {
+    const req = indexedDB.open("aferi-rateio", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("kv");
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => falha(req.error);
+  });
+}
+async function idbGet<T>(chave: string): Promise<T | undefined> {
+  const db = await idb();
+  return new Promise((ok, falha) => {
+    const req = db.transaction("kv").objectStore("kv").get(chave);
+    req.onsuccess = () => ok(req.result as T | undefined);
+    req.onerror = () => falha(req.error);
+  });
+}
+async function idbSet(chave: string, valor: unknown): Promise<void> {
+  const db = await idb();
+  return new Promise((ok, falha) => {
+    const tx = db.transaction("kv", "readwrite");
+    tx.objectStore("kv").put(valor, chave);
+    tx.oncomplete = () => ok();
+    tx.onerror = () => falha(tx.error);
+  });
+}
+
+let candidatasSalvas: Candidata[] | null = null;
 function salvar(e: Estado) {
   try {
-    localStorage.setItem(STORAGE, JSON.stringify(e));
+    localStorage.setItem(STORAGE, JSON.stringify({ ...e, candidatas: [], candidatasNoIdb: true }));
   } catch {
     /* armazenamento cheio ou bloqueado: segue só em memória */
   }
+  if (e.candidatas !== candidatasSalvas) {
+    candidatasSalvas = e.candidatas;
+    idbSet("candidatas", e.candidatas).catch(() => {
+      /* sem IndexedDB: a base vale só nesta sessão */
+    });
+  }
+}
+
+/** Lê planilhas num Web Worker (a tela não congela); sem worker, lê aqui mesmo. */
+let workerImport: Worker | null = null;
+let seqImport = 0;
+function lerNoWorker<T>(tipo: "importar" | "desligadas", files: File[]): Promise<T> {
+  return new Promise((ok, falha) => {
+    try {
+      workerImport ??= new Worker(new URL("../../../modules/rateio/importar.worker.ts", import.meta.url), { type: "module" });
+    } catch (e) {
+      return falha(e);
+    }
+    const id = ++seqImport;
+    const w = workerImport;
+    const fim = (ev: MessageEvent<{ id: number; erro?: string } & Record<string, unknown>>) => {
+      if (ev.data.id !== id) return;
+      w.removeEventListener("message", fim);
+      if (ev.data.erro) falha(new Error(ev.data.erro));
+      else ok(ev.data as T);
+    };
+    w.addEventListener("message", fim);
+    w.onerror = () => {
+      workerImport = null;
+      falha(new Error("worker"));
+    };
+    w.postMessage({ id, tipo, files });
+  });
 }
 
 /** Liga a usina ao item do calendário com o mesmo nome. */
@@ -251,6 +312,15 @@ export function RateioWorkspace() {
     // estado salvo no navegador só existe depois da montagem
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (e) setEstado(e);
+    if (e && (e as Estado & { candidatasNoIdb?: boolean }).candidatasNoIdb)
+      idbGet<Candidata[]>("candidatas")
+        .then((c) => {
+          if (c?.length) {
+            candidatasSalvas = c;
+            setEstado((x) => ({ ...x, candidatas: c }));
+          }
+        })
+        .catch(() => {});
     try {
       if (localStorage.getItem(MODO) === "completo") setSimplesState(false);
     } catch {
@@ -462,9 +532,15 @@ export function RateioWorkspace() {
     if (!lista.length) return;
     setOcupado(true);
     try {
-      const { lerArquivo } = await import("@/modules/rateio/xlsx");
-      const sheets = (await Promise.all(lista.map(async (f) => (await lerArquivo(f)).map((s) => ({ ...s, name: lista.length > 1 ? `${f.name} › ${s.name}` : s.name }))))).flat();
-      const imp = importarSheets(sheets);
+      let imp: Importacao;
+      try {
+        imp = (await lerNoWorker<{ imp: Importacao }>("importar", lista)).imp;
+      } catch (e) {
+        if (!(e instanceof Error) || e.message !== "worker") throw e;
+        const { lerArquivo } = await import("@/modules/rateio/xlsx");
+        const sheets = (await Promise.all(lista.map(async (f) => (await lerArquivo(f)).map((s) => ({ ...s, name: lista.length > 1 ? `${f.name} › ${s.name}` : s.name }))))).flat();
+        imp = importarSheets(sheets);
+      }
       // UCs de usina: pergunta para qual usina vão (o nome dentro da planilha pode não ser o da usina certa)
       if (imp.usinas.some((u) => u.ucs.length)) {
         setPendente({ imp, arquivos: lista.map((f) => f.name), alvo: alvoImport.current ?? (estadoRef.current.usinas.some((u) => u.id === aba) ? aba : null) });
@@ -490,10 +566,16 @@ export function RateioWorkspace() {
   async function marcarDesligadas(files: FileList) {
     setOcupado(true);
     try {
-      const { lerArquivo } = await import("@/modules/rateio/xlsx");
-      const sheets = (await Promise.all([...files].map((f) => lerArquivo(f)))).flat();
-      const chaves = new Set<string>();
-      for (const sh of sheets) for (const k of chavesDeInstalacao(sh.grid)) chaves.add(k);
+      let chaves: Set<string>;
+      try {
+        chaves = new Set((await lerNoWorker<{ chaves: string[] }>("desligadas", [...files])).chaves);
+      } catch (e) {
+        if (!(e instanceof Error) || e.message !== "worker") throw e;
+        const { lerArquivo } = await import("@/modules/rateio/xlsx");
+        const sheets = (await Promise.all([...files].map((f) => lerArquivo(f)))).flat();
+        chaves = new Set<string>();
+        for (const sh of sheets) for (const k of chavesDeInstalacao(sh.grid)) chaves.add(k);
+      }
       if (!chaves.size) {
         setAvisos(["Não achei números de instalação na lista de desligadas. Use uma coluna “Instalação” ou “UC”."]);
         return;
@@ -1557,7 +1639,7 @@ function Candidatas({
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Disponíveis" valor={String(cont.disponivel)} nota={`${kwh(dispKwh)} kWh/mês de compensável`} />
         <Kpi label="Alocadas" valor={String(cont.alocada)} nota="em alguma usina" />
-        <Kpi label="Desligadas" valor={String(cont.desligada)} nota={desligadas ? `${desligadas} na lista enviada` : "envie a lista de desligadas"} />
+        <Kpi label="Desligadas" valor={String(cont.desligada)} nota={desligadas ? "lista de desligadas enviada" : "envie a lista de desligadas"} />
         <Kpi label="Não servem" valor={String(cont.naoServe)} nota="consumo baixo, mercado livre…" />
       </div>
       <Card>
