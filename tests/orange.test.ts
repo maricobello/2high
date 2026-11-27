@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/secrets", () => ({ getSecret: async () => null }));
 import { endpointsDe, estruturaHtml } from "@/modules/orange/mapear";
 
 describe("mapa do Orange", () => {
@@ -33,5 +34,16 @@ describe("coleta do Orange", () => {
   it("competência padrão = mês fechado anterior", () => {
     expect(competenciaAnterior(new Date("2026-12-06T12:00:00Z"))).toBe("2026-11");
     expect(competenciaAnterior(new Date("2027-01-06T12:00:00Z"))).toBe("2026-12");
+  });
+});
+
+describe("login do Orange", () => {
+  it("lê a mensagem de erro da tela de login e limpa a credencial colada", async () => {
+    const { mensagemDoOrange, limparCredencial, dicaUsuario } = await import("@/modules/orange/cliente");
+    expect(mensagemDoOrange(`<form id="loginform"><label id="msgerro">O usu&#xE1;rio ou senha inv&#xE1;lida</label></form>`)).toBe("O usuário ou senha inválida");
+    expect(mensagemDoOrange(`<label id="msgerro"></label>`)).toBeNull();
+    expect(limparCredencial(' "fulano@replace.com.br"\n')).toBe("fulano@replace.com.br");
+    expect(dicaUsuario("a@b.com")).toMatch(/e-mail/);
+    expect(dicaUsuario("usuario.replace")).toMatch(/nome de usuário/);
   });
 });

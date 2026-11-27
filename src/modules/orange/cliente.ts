@@ -72,13 +72,42 @@ export class ClienteOrange {
     const corpo = new URLSearchParams({ U: "", Tx_Email: usuario, Tx_Senha: senha });
     const res = await this.pedir("/Login/Login", { method: "POST", body: corpo.toString(), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
     const html = await res.text();
-    if (/id="loginform"/.test(html)) throw new ErroOrange("O Orange recusou o login: confira ORANGE_USUARIO e ORANGE_SENHA.");
+    if (/id="loginform"/.test(html)) {
+      const msg = mensagemDoOrange(html);
+      throw new ErroOrange(`O Orange recusou o login${msg ? ` ("${msg}")` : ""}. ${dicaUsuario(usuario)}`);
+    }
   }
 }
 
+const decodificar = (s: string) =>
+  s
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&amp;/g, "&")
+    .trim();
+
+/** Mensagem que o Orange mostra na tela de login (ex.: "O usuário ou senha inválida"). */
+export function mensagemDoOrange(html: string): string | null {
+  const m = /<label[^>]*id="msgerro"[^>]*>([\s\S]*?)<\/label>/i.exec(html)?.[1];
+  const t = m ? decodificar(m.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")) : "";
+  return t || null;
+}
+
+/** Dica sem expor o valor: o formato do usuário guardado. */
+export function dicaUsuario(usuario: string): string {
+  return usuario.includes("@")
+    ? "O usuário guardado é um e-mail; se a sua conta entra pelo botão “Entrar com Microsoft”, a senha do formulário pode não existir: teste no navegador em sistema.orangesystem.com.br com usuário e senha (sem o botão Microsoft)."
+    : "O usuário guardado é um nome de usuário (sem @); confira se é o mesmo que você digita no campo Usuário do Orange.";
+}
+
+/** Tira espaços, quebras de linha e aspas que entram ao colar o valor na Vercel. */
+export const limparCredencial = (v: string) => v.replace(/^[\s"'\u200b\ufeff]+|[\s"'\u200b\ufeff]+$/g, "");
+
 /** Cliente já logado com as credenciais guardadas. */
 export async function clienteLogado(): Promise<ClienteOrange> {
-  const [usuario, senha] = await Promise.all([getSecret("ORANGE_USUARIO"), getSecret("ORANGE_SENHA")]);
+  const [u, s] = await Promise.all([getSecret("ORANGE_USUARIO"), getSecret("ORANGE_SENHA")]);
+  const usuario = limparCredencial(u ?? "");
+  const senha = (s ?? "").replace(/^[\r\n]+|[\r\n]+$/g, "");
   if (!usuario || !senha) throw new ErroOrange("Faltam as credenciais do Orange: configure ORANGE_USUARIO e ORANGE_SENHA na Vercel.");
   const c = new ClienteOrange();
   await c.entrar(usuario, senha);
