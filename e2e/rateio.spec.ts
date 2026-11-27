@@ -16,6 +16,8 @@ test.describe("admin: rateio GD", () => {
     await page.getByLabel("Senha", { exact: true }).fill(password!);
     await page.getByRole("button", { name: "Entrar" }).click();
     await page.waitForURL(/\/admin$/);
+    // estes testes cobrem o modo completo; o simples tem o seu teste no fim
+    await page.addInitScript(() => localStorage.setItem("aferi:rateio:modo", "completo"));
     await page.goto("/admin/rateio");
   });
 
@@ -29,7 +31,7 @@ test.describe("admin: rateio GD", () => {
     // máximo compensável: ótimo calculado em segundo plano e linha na comparação
     await expect(page.getByRole("heading", { name: "Máximo compensável" })).toBeVisible();
     await expect(page.getByText("Planilha modelo (célula M8)")).toBeVisible();
-    await expect(page.getByText("Máximo compensável efetivo")).toBeVisible();
+    await expect(page.getByText("Máximo compensável efetivo").first()).toBeVisible();
     await expect(page.getByText("Do limite físico possível")).toBeVisible();
     // status geral, recalcular e registro do cálculo
     const status = page.getByRole("button", { name: /Status do estudo/ });
@@ -122,5 +124,35 @@ test.describe("admin: rateio GD", () => {
     await page.getByLabel("Energia consumida em jan/26").fill("1000");
     await page.getByLabel("Energia consumida em fev/26").fill("2000");
     await expect(page.getByText(/Total 3\.000 kWh · média 1\.500 kWh\/mês/)).toBeVisible();
+  });
+
+  test("modo simples: um gráfico, baixar planilha e base de UCs", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.addInitScript(() => localStorage.setItem("aferi:rateio:modo", "simples"));
+    await page.goto("/admin/rateio");
+    await page.getByRole("button", { name: "Ver exemplo fictício" }).click();
+    await expect(page.getByText("Contrato, geração e carga")).toBeVisible();
+    await expect(page.getByText("Rateio pronto · soma 100%")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText("Novas UCs", { exact: true })).toBeVisible();
+    // poucos botões: sem colar tabela, recalcular ou exportar estudo no topo
+    await expect(page.getByRole("button", { name: "Colar tabela" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Exportar estudo" })).toHaveCount(0);
+    const modelo = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Baixar planilha" }).click();
+    expect((await modelo).suggestedFilename()).toMatch(/^Modelo_Rateio_.*\.xlsx$/);
+
+    await page.getByRole("button", { name: /Base de UCs/ }).click();
+    await expect(page.getByRole("heading", { name: "Base de UCs" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Enviar desligadas" })).toBeVisible();
+
+    // detalhes: volta ao modo completo e dá para voltar
+    await page.getByRole("navigation", { name: "Seções do estudo" }).getByRole("button").first().click();
+    await page.getByRole("button", { name: "Ver detalhes do cálculo" }).click();
+    await expect(page.getByRole("heading", { name: "Saldo de créditos projetado" })).toBeVisible();
+    await page.getByRole("button", { name: "Modo simples" }).click();
+    await expect(page.getByText("Contrato, geração e carga")).toBeVisible();
+
+    const [scroll, largura] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+    expect(scroll).toBeLessThanOrEqual(largura);
   });
 });

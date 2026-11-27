@@ -33,7 +33,7 @@ import { Badge, Card, Eyebrow } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { analisarProjeto, injecaoMensal } from "@/modules/rateio/engine";
 import { exemplo } from "@/modules/rateio/exemplo";
-import { importarSheets, parseCandidatas, parseUcs, textoParaGrid, usinaVazia, type Importacao, type ItemCalendario } from "@/modules/rateio/grid";
+import { chavesDeInstalacao, importarSheets, parseCandidatas, parseUcs, textoParaGrid, usinaVazia, type Importacao, type ItemCalendario } from "@/modules/rateio/grid";
 import { norm } from "@/modules/rateio/normalize";
 import { interpretarSolucao, montarModelo, OPCOES_SOLVER, type ModeloLp } from "@/modules/rateio/otimizador";
 import { montarResumo, parecerPadrao } from "@/modules/rateio/parecer";
@@ -43,14 +43,15 @@ import { coberturaEfetiva, FAIXA_COBERTURA, limiteFisico, sugerirMaximoPlanilha,
 import { chaveSubgrupo, valorCompensado } from "@/modules/rateio/valor";
 import { competencias, definirConsumo, estimativaConsumo, numerosColados, resumoConsumo, rotuloCompetencia } from "@/modules/rateio/consumo";
 import { SaldoChart } from "./chart";
+import { VisaoSimples } from "./simples";
 import { FontesUsina, lerFaturaArquivo, lerPainelImagemArquivo } from "./fontes";
 import { autoAplicar } from "@/modules/rateio/automacao";
 import { MARCA_PADRAO, MARCA_REPLACE, type MarcaEstudo } from "@/modules/rateio/estudo-xlsx";
 import { kwh, MESES_CURTOS, pct1, ratio } from "./format";
 import { EntradaNumero } from "./numero";
 import { origemInjecao } from "@/modules/rateio/origem";
-import { espacoNovasUcs } from "@/modules/rateio/agregar";
-import { ACAO_INFO, CLASSE_INFO, TabelaCandidatas, TabelaRateio } from "./tabelas";
+import { vagaNovasUcs } from "@/modules/rateio/agregar";
+import { ACAO_INFO, CLASSE_INFO, situacaoCandidata, TabelaCandidatas, TabelaRateio } from "./tabelas";
 
 interface Parecer {
   texto: string;
@@ -65,10 +66,13 @@ interface Estado {
   params: Parametros;
   pareceres: Record<string, Parecer>;
   exemplo: boolean;
+  /** UCs da base marcadas como desligadas (número de instalação normalizado). */
+  desligadas?: string[];
 }
 
 const VAZIO: Estado = { marca: MARCA_PADRAO, usinas: [], candidatas: [], calendario: [], params: PARAMETROS_PADRAO, pareceres: {}, exemplo: false };
 const STORAGE = "aferi:rateio:v1";
+const MODO = "aferi:rateio:modo";
 
 function carregar(): Estado | null {
   try {
@@ -103,6 +107,7 @@ function validarParametros(p: Parametros): Parametros {
     metodo: p.metodo === "proporcional" ? "proporcional" : "otimizado",
     custoNovaUcKwh: Math.max(0, n(p.custoNovaUcKwh, D.custoNovaUcKwh)),
     tarifaKwh: Math.max(0, n(p.tarifaKwh, D.tarifaKwh)),
+    metaContrato: Math.min(1.5, Math.max(0.1, n(p.metaContrato, 0.9))),
     coberturaAutomatica: typeof p.coberturaAutomatica === "boolean" ? p.coberturaAutomatica : true,
     valorKwhSubgrupo: Object.fromEntries(Object.entries(p.valorKwhSubgrupo ?? {}).filter(([k, v]) => k && typeof v === "number" && Number.isFinite(v) && v > 0)),
   };
@@ -219,6 +224,16 @@ export function RateioWorkspace() {
   const registrar = (texto: string, tipo: ItemRegistro["tipo"] = "info") =>
     setRegistro((r) => [{ hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), texto, tipo }, ...r].slice(0, 80));
   const [painelStatus, setPainelStatus] = useState(false);
+  // modo simples (padrão): um gráfico e poucos botões; o completo fica em "Ver detalhes"
+  const [simples, setSimplesState] = useState(true);
+  const setSimples = (v: boolean) => {
+    setSimplesState(v);
+    try {
+      localStorage.setItem(MODO, v ? "simples" : "completo");
+    } catch {
+      /* sem armazenamento: vale só nesta sessão */
+    }
+  };
   const [ocupado, setOcupado] = useState(false);
   const [colar, setColar] = useState(false);
   const [exportarPopup, setExportarPopup] = useState<{ somente?: string } | null>(null);
@@ -236,6 +251,11 @@ export function RateioWorkspace() {
     // estado salvo no navegador só existe depois da montagem
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (e) setEstado(e);
+    try {
+      if (localStorage.getItem(MODO) === "completo") setSimplesState(false);
+    } catch {
+      /* sem armazenamento */
+    }
     setPronto(true);
   }, []);
   useEffect(() => {
@@ -248,9 +268,12 @@ export function RateioWorkspace() {
   const ativas = useMemo(() => estado.usinas.filter((u) => !u.concluido), [estado.usinas]);
   const concluidas = useMemo(() => estado.usinas.filter((u) => u.concluido), [estado.usinas]);
   const candAtivas = useMemo(() => {
-    const usadas = new Set(concluidas.flatMap((u) => u.concluido!.candidatas.filter((c) => c.selecionada && c.usinaDestino === u.nome).map((c) => c.candidata.key)));
-    return usadas.size ? estado.candidatas.filter((c) => !usadas.has(c.key)) : estado.candidatas;
-  }, [estado.candidatas, concluidas]);
+    // UC já alocada num rateio concluído ou marcada como desligada não volta a ser candidata
+    const usadas = new Map(concluidas.flatMap((u) => u.concluido!.candidatas.filter((c) => c.selecionada && c.usinaDestino === u.nome).map((c) => [c.candidata.key, u.nome] as const)));
+    const deslig = new Set(estado.desligadas ?? []);
+    if (!usadas.size && !deslig.size) return estado.candidatas;
+    return estado.candidatas.map((c) => (deslig.has(c.key) ? { ...c, status: "Desligada" } : usadas.has(c.key) ? { ...c, naUsinaGd: c.naUsinaGd || usadas.get(c.key)! } : c));
+  }, [estado.candidatas, estado.desligadas, concluidas]);
   const usinasD = useDeferredValue(ativas);
   // subgrupos presentes nas UCs (para o valor do kWh por subgrupo) + B das novas UCs
   const subgrupos = useMemo(() => [...new Set([...estado.usinas.flatMap((u) => u.ucs.map((c) => chaveSubgrupo(c.subgrupo))).filter(Boolean), "B"])].sort(), [estado.usinas]);
@@ -303,7 +326,7 @@ export function RateioWorkspace() {
   const workerRef = useRef<Worker | null>(null);
   const pedidos = useRef(new Map<number, ModeloLp>());
   const seqPedido = useRef(0);
-  const precisaOtimizar = paramsD.metodo === "otimizado" && usinasD.some((u) => u.ucs.length) && otim?.chave !== resultado.chave;
+  const precisaOtimizar = paramsD.metodo === "otimizado" && usinasD.some((u) => u.ucs.length && injecaoMensal(u) > 0) && otim?.chave !== resultado.chave;
   useEffect(() => {
     if (!precisaOtimizar) return;
     // o mesmo problema já está sendo resolvido (ex.: só mudou a cobertura, que o otimizado não usa)
@@ -463,6 +486,29 @@ export function RateioWorkspace() {
     }
   }
 
+  /** Lista de UCs desligadas (qualquer planilha com os números de instalação): tira da base disponível. */
+  async function marcarDesligadas(files: FileList) {
+    setOcupado(true);
+    try {
+      const { lerArquivo } = await import("@/modules/rateio/xlsx");
+      const sheets = (await Promise.all([...files].map((f) => lerArquivo(f)))).flat();
+      const chaves = new Set<string>();
+      for (const sh of sheets) for (const k of chavesDeInstalacao(sh.grid)) chaves.add(k);
+      if (!chaves.size) {
+        setAvisos(["Não achei números de instalação na lista de desligadas. Use uma coluna “Instalação” ou “UC”."]);
+        return;
+      }
+      setEstado((e) => ({ ...e, desligadas: [...new Set([...(e.desligadas ?? []), ...chaves])] }));
+      const naBase = estadoRef.current.candidatas.filter((c) => chaves.has(c.key)).length;
+      setAvisos([`${chaves.size.toLocaleString("pt-BR")} UCs marcadas como desligadas (${naBase.toLocaleString("pt-BR")} estavam na base).`]);
+      registrar(`Desligadas: ${chaves.size} UCs marcadas.`);
+    } catch (err) {
+      setAvisos([`Lista de desligadas: ${err instanceof Error ? err.message : "não foi possível ler"}`]);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
   function abrirImport(alvo: string | null = null) {
     alvoImport.current = alvo;
     inputRef.current?.click();
@@ -577,7 +623,7 @@ export function RateioWorkspace() {
     setAba(u.id);
   }
 
-  const abas = [
+  const abasCompletas = [
     ...(estado.calendario.length ? [{ id: "calendario", label: "Calendário", icon: CalendarDays }] : []),
     ...ativas.map((u) => ({ id: u.id, label: u.nome, icon: null })),
     { id: "candidatas", label: `Novas UCs${estado.candidatas.length ? ` (${estado.candidatas.length})` : ""}`, icon: null },
@@ -586,6 +632,7 @@ export function RateioWorkspace() {
     { id: "metodologia", label: "Metodologia", icon: BookOpen },
     { id: "como", label: "Como fazer", icon: ListOrdered },
   ];
+  const abas = simples ? abasCompletas.filter((t) => t.id !== "parametros" && t.id !== "metodologia" && t.id !== "como" && t.id !== "calendario").map((t) => (t.id === "candidatas" ? { ...t, label: `Base de UCs${estado.candidatas.length ? ` (${estado.candidatas.length})` : ""}` } : t)) : abasCompletas;
 
   function confirmarImportacao(dest: Destinos) {
     if (!pendente) return;
@@ -623,9 +670,23 @@ export function RateioWorkspace() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Rateio GD</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted">Revisão de rateio de créditos de geração distribuída: importe o calendário, as UCs da usina e as candidatas; o estudo sai pronto em Excel.</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted">{simples ? "Envie os arquivos da usina e baixe a planilha pronta." : "Revisão de rateio de créditos de geração distribuída: importe o calendário, as UCs da usina e as candidatas; o estudo sai pronto em Excel."}</p>
         </div>
+        {simples ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {ativas.some((u) => u.ucs.length) && <StatusBotao status={statusGeral.nivel} texto={statusGeral.texto} aberto={painelStatus} onClick={() => setPainelStatus((v) => !v)} />}
+            <Button size="sm" variant="secondary" onClick={() => abrirImport(usinaAtiva?.id ?? null)} disabled={ocupado}>
+              {ocupado ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Enviar arquivos
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSimples(false)}>
+              Modo completo
+            </Button>
+          </div>
+        ) : (
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setSimples(true)}>
+            Modo simples
+          </Button>
           {ativas.some((u) => u.ucs.length) && (
             <>
               <StatusBotao status={statusGeral.nivel} texto={statusGeral.texto} aberto={painelStatus} onClick={() => setPainelStatus((v) => !v)} />
@@ -649,6 +710,7 @@ export function RateioWorkspace() {
             </Button>
           )}
         </div>
+        )}
       </div>
 
       {painelStatus && ativas.some((u) => u.ucs.length) && <PainelStatus status={statusGeral} registro={registro} onFechar={() => setPainelStatus(false)} onLimpar={() => setRegistro([])} />}
@@ -710,7 +772,16 @@ export function RateioWorkspace() {
           </nav>
 
           {abaAtual === "calendario" && <Calendario itens={estado.calendario} usinas={estado.usinas} onAnalisar={analisarDoCalendario} />}
-          {abaAtual === "candidatas" && <Candidatas resultado={resultado.candidatas} onImportar={() => abrirImport()} onLimpar={() => setEstado((e) => ({ ...e, candidatas: [] }))} />}
+          {abaAtual === "candidatas" && (
+            <Candidatas
+              resultado={resultado.candidatas}
+              desligadas={estado.desligadas?.length ?? 0}
+              onImportar={() => abrirImport()}
+              onDesligadas={marcarDesligadas}
+              onLimparDesligadas={() => setEstado((e) => ({ ...e, desligadas: [] }))}
+              onLimpar={() => setEstado((e) => ({ ...e, candidatas: [] }))}
+            />
+          )}
           {abaAtual === "parametros" && (
             <div className="space-y-5">
               <IdentidadeEstudo marca={estado.marca} onChange={(m) => setEstado((e) => ({ ...e, marca: m }))} />
@@ -720,7 +791,21 @@ export function RateioWorkspace() {
           {abaAtual === "metodologia" && <Metodologia />}
           {abaAtual === "como" && <ComoFazer />}
           {abaAtual === "concluidos" && <Concluidos usinas={concluidas} onExportar={(id) => setExportarPopup({ somente: id })} onReabrir={reabrirUsina} />}
-          {usinaAtiva && resAtivo && (
+          {usinaAtiva && simples && (
+            <VisaoSimples
+              usina={usinaAtiva}
+              r={resAtivo}
+              params={estado.params}
+              candidatas={candD}
+              calculando={calculando}
+              ocupado={ocupado}
+              onArquivos={() => abrirImport(usinaAtiva.id)}
+              onBaixar={() => exportarDocs("modelo", [usinaAtiva.id])}
+              onDetalhes={() => setSimples(false)}
+              onChange={(patch) => atualizarUsina(usinaAtiva.id, patch)}
+            />
+          )}
+          {usinaAtiva && resAtivo && !simples && (
             <UsinaPainel
               usina={usinaAtiva}
               resultado={resAtivo}
@@ -1448,31 +1533,64 @@ function Calendario({ itens, usinas, onAnalisar }: { itens: ItemCalendario[]; us
   );
 }
 
-function Candidatas({ resultado, onImportar, onLimpar }: { resultado: ReturnType<typeof analisarProjeto>["candidatas"]; onImportar: () => void; onLimpar: () => void }) {
-  const incl = resultado.filter((c) => c.selecionada);
+function Candidatas({
+  resultado,
+  desligadas,
+  onImportar,
+  onDesligadas,
+  onLimparDesligadas,
+  onLimpar,
+}: {
+  resultado: ReturnType<typeof analisarProjeto>["candidatas"];
+  desligadas: number;
+  onImportar: () => void;
+  onDesligadas: (f: FileList) => void;
+  onLimparDesligadas: () => void;
+  onLimpar: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const cont = { alocada: 0, disponivel: 0, desligada: 0, naoServe: 0 };
+  for (const c of resultado) cont[situacaoCandidata(c)]++;
+  const dispKwh = resultado.filter((c) => situacaoCandidata(c) === "disponivel").reduce((a, c) => a + c.candidata.compensavelKwh, 0);
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Candidatas" valor={String(resultado.length)} />
-        <Kpi label="Elegíveis" valor={String(resultado.filter((c) => c.elegivel).length)} />
-        <Kpi label="Incluídas no estudo" valor={String(incl.length)} />
-        <Kpi label="Compensável incluído" valor={`${kwh(incl.reduce((a, c) => a + c.candidata.compensavelKwh, 0))} kWh`} />
+        <Kpi label="Disponíveis" valor={String(cont.disponivel)} nota={`${kwh(dispKwh)} kWh/mês de compensável`} />
+        <Kpi label="Alocadas" valor={String(cont.alocada)} nota="em alguma usina" />
+        <Kpi label="Desligadas" valor={String(cont.desligada)} nota={desligadas ? `${desligadas} na lista enviada` : "envie a lista de desligadas"} />
+        <Kpi label="Não servem" valor={String(cont.naoServe)} nota="consumo baixo, mercado livre…" />
       </div>
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h3 className="font-semibold">Novas UCs</h3>
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={onImportar}>
-              <Upload className="size-4" /> Importar
+          <h3 className="font-semibold">Base de UCs</h3>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={onImportar}>
+              <Upload className="size-4" /> Enviar base
             </Button>
+            <Button size="sm" variant="secondary" onClick={() => ref.current?.click()}>
+              Enviar desligadas
+            </Button>
+            <input ref={ref} type="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt" multiple hidden onChange={(e) => e.target.files?.length && (onDesligadas(e.target.files), (e.target.value = ""))} />
+            {desligadas > 0 && (
+              <Button size="sm" variant="ghost" onClick={onLimparDesligadas}>
+                Limpar desligadas
+              </Button>
+            )}
             {resultado.length > 0 && (
               <Button size="sm" variant="ghost" onClick={onLimpar}>
-                Limpar lista
+                Limpar base
               </Button>
             )}
           </div>
         </div>
-        {resultado.length ? <TabelaCandidatas candidatas={resultado} /> : <p className="px-4 py-10 text-center text-sm text-muted">Importe a lista de novas UCs (UC, Endereço ID, Tipo Tensão, Média kWh).</p>}
+        {resultado.length ? (
+          <TabelaCandidatas candidatas={resultado} />
+        ) : (
+          <div className="px-4 py-10 text-center text-sm text-muted">
+            <p>Envie a base de UCs (colunas: UC ou instalação, média kWh; opcional: ligação, distribuidora, status).</p>
+            <p className="mt-1">Cada UC aparece como disponível, alocada, desligada ou que não serve. As disponíveis entram sozinhas nas usinas com espaço no contrato.</p>
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -2225,20 +2343,16 @@ function DestinoDialog({
 /** Quanto o rateio proposto compensa a mais que o atual, em kWh e em reais (estimativa). */
 /** Indicador simples: dá para agregar novas UCs nesta usina? */
 function EspacoNovasUcsCard({ usina, params, candidatas }: { usina: Usina; params: Parametros; candidatas: Candidata[] }) {
-  const e = espacoNovasUcs(usina, params, candidatas);
-  if (e.nivel === "sem-dados") return null;
-  const tom = e.nivel === "sim" ? ("opportunity" as const) : e.nivel === "pouco" ? ("analysis" as const) : ("attention" as const);
-  const rotulo = e.nivel === "sim" ? "Dá para agregar" : e.nivel === "pouco" ? "Pouco espaço" : "Sem espaço";
+  const v = vagaNovasUcs(usina, params, candidatas);
+  if (!v) return null;
+  const tom = v.kwh > 0 ? ("opportunity" as const) : ("attention" as const);
   return (
     <Card className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
       <div className="flex shrink-0 items-center gap-2">
         <span className="text-sm font-semibold">Novas UCs</span>
-        <Badge tone={tom}>{rotulo}</Badge>
+        <Badge tone={tom}>{v.kwh > 0 ? "Dá para agregar" : "Não agregar"}</Badge>
       </div>
-      <p className="min-w-0 flex-1 text-sm text-muted">{e.texto}</p>
-      <p className="shrink-0 font-mono text-xs text-muted" title="Injeção + saldo acima da reserva (gasto no período) − consumo compensável das UCs atuais">
-        {kwh(e.injecaoKwh)} + {kwh(e.saldoUsavelKwh)} − {kwh(e.consumoAtualKwh)} = <span className={cn("font-semibold", e.folgaKwh > 0 ? "text-opportunity" : "text-attention")}>{e.folgaKwh > 0 ? "+" : ""}{kwh(e.folgaKwh)}</span> kWh/mês
-      </p>
+      <p className="min-w-0 flex-1 text-sm text-muted">{v.texto}</p>
     </Card>
   );
 }

@@ -185,13 +185,20 @@ export function TabelaRateio({ linhas, casas, onSelecionar }: { linhas: LinhaRat
   );
 }
 
+/** Situação da UC na base: alocada numa usina, disponível, desligada ou que não serve. */
+export function situacaoCandidata(c: CandidataAvaliada): "alocada" | "disponivel" | "desligada" | "naoServe" {
+  if (c.selecionada || /^Já está (no rateio|na usina)/.test(c.motivo)) return "alocada";
+  if (/deslig|inativ|encerr|cancel|suspens/i.test(c.candidata.status)) return "desligada";
+  return c.elegivel ? "disponivel" : "naoServe";
+}
+
 export function TabelaCandidatas({ candidatas }: { candidatas: CandidataAvaliada[] }) {
-  const [filtro, setFiltro] = useState<"todas" | "incluida" | "reserva" | "inelegivel">("todas");
+  const [filtro, setFiltro] = useState<"todas" | "alocada" | "disponivel" | "desligada" | "naoServe">("todas");
   const [q, setQ] = useState("");
-  const tipo = (c: CandidataAvaliada) => (c.selecionada ? "incluida" : c.elegivel ? "reserva" : "inelegivel");
-  const cont = { todas: candidatas.length, incluida: 0, reserva: 0, inelegivel: 0 };
+  const tipo = situacaoCandidata;
+  const cont = { todas: candidatas.length, alocada: 0, disponivel: 0, desligada: 0, naoServe: 0 };
   for (const c of candidatas) cont[tipo(c)]++;
-  const labels = { todas: "Todas", incluida: "Incluídas", reserva: "Reserva", inelegivel: "Não elegíveis" };
+  const labels = { todas: "Todas", disponivel: "Disponíveis", alocada: "Alocadas", desligada: "Desligadas", naoServe: "Não servem" };
   const nq = norm(q);
   const visiveis = candidatas
     .filter((c) => (filtro === "todas" || tipo(c) === filtro) && (!nq || norm(`${c.candidata.apelido} ${c.candidata.instalacao}`).includes(nq)))
@@ -236,8 +243,8 @@ export function TabelaCandidatas({ candidatas }: { candidatas: CandidataAvaliada
                   <td className="px-3 py-2 text-right font-mono text-muted">{kwh(c.candidata.consumoMinimoKwh)}</td>
                   <td className="px-3 py-2 text-right font-mono font-semibold">{kwh(c.candidata.compensavelKwh)}</td>
                   <td className="px-3 py-2">
-                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap", t === "incluida" ? "bg-primary-soft text-primary-text" : t === "reserva" ? "bg-subtle text-muted" : "bg-attention-soft text-attention")}>
-                      {t === "incluida" ? `Incluída${c.usinaDestino ? ` · ${c.usinaDestino}` : ""}` : t === "reserva" ? "Reserva" : "Não elegível"}
+                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap", t === "alocada" ? "bg-primary-soft text-primary-text" : t === "disponivel" ? "bg-opportunity-soft text-opportunity" : t === "desligada" ? "bg-subtle text-muted" : "bg-attention-soft text-attention")}>
+                      {t === "alocada" ? `Alocada${c.usinaDestino ? ` · ${c.usinaDestino}` : ""}` : t === "disponivel" ? "Disponível" : t === "desligada" ? "Desligada" : "Não serve"}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-[13px] text-muted">{c.motivo}</td>

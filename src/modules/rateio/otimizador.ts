@@ -29,6 +29,7 @@
 import { chaveEntradas, injecaoMensal, normalizarPerfil } from "./engine";
 import type { CandidataAvaliada, OtimizacaoResultado, Parametros, Usina } from "./types";
 import { norm } from "./normalize";
+import { limiteNovasPeloContrato } from "./contrato";
 import { constantesObjetivo, PESO_RESERVA } from "./refinar";
 import { pesosValor, SUBGRUPO_CANDIDATA } from "./valor";
 
@@ -97,6 +98,9 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
       candUsinas.set(c.candidata.key, [...(candUsinas.get(c.candidata.key) ?? []), bin]);
     });
     mapa.push({ usinaId: u.id, atuais: lista.filter((l) => !l.cand).map((l) => l.col), candidatas: mapaCands });
+    // contrato: compensável das novas UCs até a meta de carga da usina
+    const lim = limiteNovasPeloContrato(u, p.metaContrato);
+    if (lim != null && mapaCands.length) rows.push(` ct${ui}: ${cands.map((c, j) => `+ ${num(c.candidata.compensavelKwh)} z${ui}_${j}`).join(" ")} <= ${num(lim)}`);
 
     rows.push(` soma${ui}: ${lista.map((l) => `+ ${l.col}`).join(" ")} = 100`);
 

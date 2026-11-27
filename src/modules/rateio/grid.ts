@@ -604,3 +604,32 @@ export function textoParaGrid(txt: string): Grid {
   };
   return linhas.map(dividir);
 }
+
+/** Números de instalação de qualquer planilha (coluna "Instalação"/"UC"; sem cabeçalho, células com 6+ dígitos). */
+export function chavesDeInstalacao(grid: Grid): string[] {
+  const out = new Set<string>();
+  let col = -1;
+  let ini = 0;
+  for (let r = 0; r < Math.min(grid.length, 30) && col < 0; r++) {
+    const row = grid[r] ?? [];
+    for (let c = 0; c < row.length; c++) {
+      const h = norm(text(row[c]));
+      if (/instala|^uc$|^n.? ?da uc|unidade consumidora|codigo da uc|^conta contrato/.test(h)) {
+        col = c;
+        ini = r + 1;
+        break;
+      }
+    }
+  }
+  for (let r = ini; r < grid.length; r++) {
+    const row = grid[r] ?? [];
+    const cells = col >= 0 ? [row[col]] : row;
+    for (const v of cells) {
+      const t = text(v);
+      if (col < 0 && !/^\s*[\d.\-/ ]{6,}\s*$/.test(t)) continue;
+      const k = ucKey(t);
+      if (k.length >= 6) out.add(k);
+    }
+  }
+  return [...out];
+}

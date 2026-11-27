@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { analisarProjeto } from "@/modules/rateio/engine";
 import { usinaVazia } from "@/modules/rateio/grid";
 import { ucKey } from "@/modules/rateio/normalize";
+import { cargaContrato } from "@/modules/rateio/contrato";
 import { interpretarSolucao, montarModelo, OPCOES_SOLVER } from "@/modules/rateio/otimizador";
 import { PARAMETROS_PADRAO, type Candidata, type OtimizacaoResultado, type Parametros, type UcAtual, type Usina } from "@/modules/rateio/types";
 
@@ -102,5 +103,38 @@ describe("usina grande e trava contra solução ruim", () => {
     expect(r.metodo).toBe("proporcional");
     expect(r.alertas.some((a) => a.codigo === "otimizacao_descartada")).toBe(true);
     expect(r.linhas.filter((l) => l.pctProposto > 0).length).toBeGreaterThan(300);
+  });
+});
+
+describe("contrato: carga até 90% da contratada", () => {
+  // usina gera 10.000/mês, contrato de 5.000/mês: meta 4.500; UCs atuais com 3.000 de compensável
+  const base = () => ({ ...usina("K", [uc(1, 60, 2000), uc(2, 40, 1000)], 10000), energiaContratadaPeriodo: 5000 });
+  const cands = [cand(1, 1000), cand(2, 1000), cand(3, 1000), cand(4, 1000)];
+
+  it("calcula o espaço pela fórmula da planilha", () => {
+    const c = cargaContrato(base());
+    expect(c.metaKwh).toBe(4500);
+    expect(c.espacoKwh).toBe(1500);
+  });
+
+  it("regra proporcional não passa do espaço do contrato, mesmo com geração sobrando", () => {
+    const r = analisarProjeto([base()], cands, { ...P, metodo: "proporcional" });
+    const incl = r.candidatas.filter((c) => c.selecionada).reduce((a, c) => a + c.candidata.compensavelKwh, 0);
+    expect(incl).toBeGreaterThan(0);
+    expect(incl).toBeLessThanOrEqual(1500);
+  });
+
+  it("otimizador respeita o mesmo limite", () => {
+    const o = otimizar([base()], cands, P);
+    const r = analisarProjeto([base()], cands, P, o);
+    const incl = r.candidatas.filter((c) => c.selecionada).reduce((a, c) => a + c.candidata.compensavelKwh, 0);
+    expect(incl).toBeLessThanOrEqual(1500);
+  });
+
+  it("carga já acima da meta: não agrega", () => {
+    const u = { ...base(), energiaContratadaPeriodo: 3000 };
+    expect(cargaContrato(u).espacoKwh).toBe(0);
+    const r = analisarProjeto([u], cands, { ...P, metodo: "proporcional" });
+    expect(r.candidatas.some((c) => c.selecionada)).toBe(false);
   });
 });

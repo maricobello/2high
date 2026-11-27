@@ -424,3 +424,11 @@ describe("fatura Neoenergia (Coelba/Celpe)", () => {
     expect(coelba.injetada["2026-09"]).toBeCloseTo(757514.8, 1);
   });
 });
+
+import { chavesDeInstalacao } from "@/modules/rateio/grid";
+describe("lista de desligadas", () => {
+  it("acha as instalações pela coluna ou, sem cabeçalho, pelos números longos", () => {
+    expect(chavesDeInstalacao([["Nome", "Instalação"], ["A", "5.394.582.014-02"], ["B", "7991337028"]])).toEqual(["539458201402", "7991337028"]);
+    expect(chavesDeInstalacao([["8.977.967.028-79"], ["texto"], ["12"]])).toEqual(["897796702879"]);
+  });
+});

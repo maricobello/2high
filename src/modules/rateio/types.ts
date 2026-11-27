@@ -144,6 +144,8 @@ export interface Parametros {
   custoNovaUcKwh: number;
   /** Tarifa média das UCs (R$/kWh, com impostos) para mostrar o resultado em reais. 0 = não informada. */
   tarifaKwh: number;
+  /** Meta de carga pelo contrato: novas UCs só até esta fração da energia contratada (0,9 = 90%). */
+  metaContrato?: number;
   /**
    * Valor do kWh compensado por subgrupo (R$/kWh), ex.: { A4: 0.52, B3: 0.89 }. Vazio = todo kWh
    * vale o mesmo. Com valores, o otimizador maximiza reais em vez de kWh.
@@ -169,6 +171,7 @@ export const PARAMETROS_PADRAO: Parametros = {
   metodo: "otimizado",
   custoNovaUcKwh: 500,
   tarifaKwh: 0,
+  metaContrato: 0.9,
 };
 
 export type Acao = "manter" | "aumentar" | "reduzir" | "retirar" | "incluir";

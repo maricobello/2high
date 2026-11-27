@@ -15,6 +15,7 @@
  */
 import { round } from "./normalize";
 import { estimativaConsumo, resumoConsumo } from "./consumo";
+import { limiteNovasPeloContrato } from "./contrato";
 import { constantesObjetivo, refinarRateio, type ItemRefino } from "./refinar";
 import { pesosValor, SUBGRUPO_CANDIDATA, usaValorPorSubgrupo } from "./valor";
 import type {
@@ -62,7 +63,7 @@ export function normalizarPerfil(perfil: number[]): number[] {
 /** Hash curto e estável das entradas (para saber se a solução otimizada ainda vale). */
 export function chaveEntradas(usinas: Usina[], candidatas: CandidataAvaliada[], p: Parametros): string {
   const s = JSON.stringify([
-    usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh])]),
+    usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, limiteNovasPeloContrato(u, p.metaContrato), u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh])]),
     candidatas.filter((c) => c.elegivel).map((c) => [c.candidata.key, c.candidata.compensavelKwh, c.candidata.concessionaria]),
     // a tarifa média só muda o ótimo quando há valores por subgrupo (é o valor padrão dos demais)
     // a cobertura só vale para a regra proporcional (o otimizado não usa): não invalida a otimização
@@ -319,12 +320,22 @@ export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Par
     }
   } else if (p.incluirNovasUcs) {
     const faltas = usinas
-      .map((u) => ({ u, falta: injecaoMensal(u) - somaNecessidades(u, p) }))
+      .map((u) => {
+        // contrato: novas UCs só até a meta de carga (não compensa geração baixa com mais carga)
+        const lim = limiteNovasPeloContrato(u, p.metaContrato);
+        const falta = injecaoMensal(u) - somaNecessidades(u, p);
+        return { u, falta: lim == null ? falta : Math.min(falta, lim * p.cobertura), lim };
+      })
       .filter((x) => x.falta > 0)
       .sort((a, b) => b.falta - a.falta);
-    for (const { u, falta } of faltas) {
+    for (const { u, falta, lim } of faltas) {
       const pool = avaliadas.filter((c) => c.elegivel && !c.selecionada && distribuidoraCompativel(c.candidata.concessionaria, u.distribuidora));
-      const escolhidas = escolherCandidatas(pool, falta, p);
+      let escolhidas = escolherCandidatas(pool, falta, p);
+      // o contrato é teto: o compensável somado das novas não passa do espaço
+      if (lim != null) {
+        let soma = 0;
+        escolhidas = escolhidas.filter((c) => (soma + c.candidata.compensavelKwh <= lim + 1e-6 ? ((soma += c.candidata.compensavelKwh), true) : false));
+      }
       for (const c of escolhidas) {
         c.selecionada = true;
         c.usinaDestino = u.nome;
