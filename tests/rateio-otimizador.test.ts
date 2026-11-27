@@ -1,7 +1,7 @@
 import highsLoader from "highs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { analisarProjeto } from "@/modules/rateio/engine";
-import { usinaVazia } from "@/modules/rateio/grid";
+import { parseUcs, usinaVazia } from "@/modules/rateio/grid";
 import { ucKey } from "@/modules/rateio/normalize";
 import { cargaContrato } from "@/modules/rateio/contrato";
 import { interpretarSolucao, montarModelo, OPCOES_SOLVER } from "@/modules/rateio/otimizador";
@@ -136,5 +136,25 @@ describe("contrato: carga até 90% da contratada", () => {
     expect(cargaContrato(u).espacoKwh).toBe(0);
     const r = analisarProjeto([u], cands, { ...P, metodo: "proporcional" });
     expect(r.candidatas.some((c) => c.selecionada)).toBe(false);
+  });
+});
+
+describe("lucro: tarifa de cada UC", () => {
+  it("com pouca energia, o crédito vai primeiro para a UC de kWh mais caro", () => {
+    const a = { ...uc(1, 50, 1000), tarifaKwh: 0.6 };
+    const b = { ...uc(2, 50, 1000), tarifaKwh: 1.2 };
+    const u = usina("T", [a, b], 1000); // injeção cobre só metade do consumo
+    const o = otimizar([u], [], P);
+    const r = analisarProjeto([u], [], P, o).usinas[0];
+    const [la, lb] = r.linhas;
+    expect(lb.pctProposto).toBeGreaterThan(90);
+    expect(la.pctProposto).toBeLessThan(10);
+    expect(r.proposto.compensadoTotal).toBeGreaterThan(r.atual.compensadoTotal - 1);
+  });
+
+  it("lê o R$/kWh da lista do Orange", () => {
+    const ucs = parseUcs([["N° de Instalação", "% do Rateio", "Saldo kWh", "Consumo Compensável kWh", "R$/kWh"], ["111", 60, 0, 900, 1.28], ["222", 40, 0, 300, "abc"]]);
+    expect(ucs?.[0].tarifaKwh).toBe(1.28);
+    expect(ucs?.[1].tarifaKwh).toBeNull();
   });
 });

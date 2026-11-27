@@ -44,7 +44,7 @@ const TOL = 1; // kWh equivalentes: diferenças menores que isso são empate
 function objetivo(u: Usina, linhas: LinhaRateio[], pct: number[], p: Parametros): number {
   const E = serieInjecao(u, p);
   const K = constantesObjetivo(p);
-  const vals = pesosValor(linhas.map((l) => (l.origem === "nova" ? SUBGRUPO_CANDIDATA : l.subgrupo)), p);
+  const vals = pesosValor(linhas.map((l) => (l.origem === "nova" ? { subgrupo: SUBGRUPO_CANDIDATA } : { subgrupo: l.subgrupo, tarifa: l.tarifaKwh })), p);
   return linhas.reduce(
     (a, l, i) => a + valorUc({ comp: l.compensavelKwh, saldo: l.saldoKwh, pct0: l.pctAtual, valor: vals[i], reserva: p.reservaSaldoMeses * Math.max(0, l.compensavelKwh), ativo: true }, pct[i], E, K),
     0,

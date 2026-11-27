@@ -92,7 +92,7 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
           .filter((c, i) => i < 120 && (acumulado += c.candidata.compensavelKwh) - c.candidata.compensavelKwh <= teto)
       : [];
     // valor do kWh por UC (foco em lucro); candidatas são de baixa tensão (grupo B)
-    const vals = pesosValor([...u.ucs.map((c) => c.subgrupo), ...cands.map(() => SUBGRUPO_CANDIDATA)], p);
+    const vals = pesosValor([...u.ucs.map((c) => ({ subgrupo: c.subgrupo, tarifa: c.tarifaKwh })), ...cands.map(() => ({ subgrupo: SUBGRUPO_CANDIDATA }))], p);
     const lista: Uc[] = u.ucs.map((c, i) => ({ col: `x${ui}_${i}`, comp: Math.max(0, c.compensavelKwh), saldo: Math.max(0, c.saldoKwh), reserva: p.reservaSaldoMeses * Math.max(0, c.compensavelKwh), pct0: c.pctAtual, valor: vals[i] }));
     const mapaCands: ModeloLp["mapa"][number]["candidatas"] = [];
     cands.forEach((c, j) => {

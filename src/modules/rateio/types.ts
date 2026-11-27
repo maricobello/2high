@@ -31,6 +31,8 @@ export interface UcAtual {
   consumoMinimoKwh?: number | null;
   /** Chave da instalação antiga (o Relatório Gerencial traz a nova e a antiga), para cruzar listas. */
   keyAlt?: string;
+  /** R$/kWh da UC (coluna "R$/kWh" do Orange): o lucro de cada kWh compensado nela. */
+  tarifaKwh?: number | null;
 }
 
 /** UC candidata a entrar no rateio (aba "Novas UCs"). */
@@ -184,6 +186,8 @@ export interface LinhaRateio {
   instalacao: string;
   apelido: string;
   subgrupo: string;
+  /** R$/kWh da UC, quando a lista traz. */
+  tarifaKwh?: number | null;
   pctAtual: number;
   pctProposto: number;
   saldoKwh: number;

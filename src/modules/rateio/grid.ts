@@ -16,7 +16,7 @@ export interface Sheet {
 
 type FieldMap<K extends string> = Record<K, string[]>;
 
-const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "subgrupo" | "pct" | "saldo" | "compensavel" | "compensado" | "consMin" | "ligacao"> = {
+const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "subgrupo" | "pct" | "saldo" | "compensavel" | "compensado" | "consMin" | "ligacao" | "tarifa"> = {
   usina: ["nome da usina", "usina", "usina gd", "unidade geradora"],
   idUnidade: ["id da unidade", "id unidade", "id"],
   instalacao: ["no de instalacao", "n de instalacao", "no da instalacao", "no instalacao", "n instalacao", "numero de instalacao", "numero da instalacao", "instalacao", "uc", "numero da uc", "unidade consumidora", "codigo da uc"],
@@ -29,6 +29,7 @@ const UC_FIELDS: FieldMap<"usina" | "idUnidade" | "instalacao" | "apelido" | "su
   // opcionais: o export padrão do Orange não traz; outras planilhas podem trazer
   consMin: ["consumo minimo", "consumo minimo kwh", "cons. min", "cons min", "custo de disponibilidade", "disponibilidade"],
   ligacao: ["tipo de ligacao", "ligacao", "fases", "tipo tensao", "tipo de tensao"],
+  tarifa: ["r$/kwh", "r$ / kwh", "tarifa (r$/kwh)", "tarifa r$/kwh", "valor do kwh", "tarifa"],
 };
 
 const CAND_FIELDS: FieldMap<"instalacao" | "apelido" | "concessionaria" | "mes" | "status" | "ligacao" | "mercado" | "naUsinaGd" | "media" | "consMin" | "compensavel"> = {
@@ -185,6 +186,12 @@ export function parseRelatorioGerencial(grid: Grid): RelatorioGerencial | null {
   return ucs.length ? { usina, competencia, consumoTotal, ucs } : null;
 }
 
+/** R$/kWh plausível (0,05 a 5); fora disso, sem tarifa. */
+function tarifaUc(v: unknown): number | null {
+  const t = toNumber(v);
+  return t > 0.05 && t < 5 ? t : null;
+}
+
 export function parseUcs(grid: Grid): UcAtual[] | null {
   const h = findHeader(grid, UC_FIELDS, ["instalacao", "pct", "compensavel"]);
   if (!h) return null;
@@ -205,6 +212,7 @@ export function parseUcs(grid: Grid): UcAtual[] | null {
       compensavelKwh: toNumber(get(row, h.map.compensavel)),
       compensadoKwh: toNumber(get(row, h.map.compensado)),
       consumoMinimoKwh: consumoMinimoUc(toNumber(get(row, h.map.consMin)), text(get(row, h.map.ligacao)), text(get(row, h.map.subgrupo))),
+      tarifaKwh: tarifaUc(get(row, h.map.tarifa)),
     });
   }
   // percentual em fração (0,0245) em vez de 2,45

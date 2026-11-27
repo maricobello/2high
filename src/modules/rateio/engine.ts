@@ -18,7 +18,7 @@ import { estimativaConsumo, resumoConsumo } from "./consumo";
 import { limiteNovasPeloContrato } from "./contrato";
 import { mesmaDistribuidora, ufDaUsina } from "./distribuidora";
 import { constantesObjetivo, refinarRateio, type ItemRefino } from "./refinar";
-import { pesosValor, SUBGRUPO_CANDIDATA, usaValorPorSubgrupo } from "./valor";
+import { itensValor, pesosValor, SUBGRUPO_CANDIDATA, usaValorPorSubgrupo } from "./valor";
 import type {
   Acao,
   Alerta,
@@ -64,11 +64,11 @@ export function normalizarPerfil(perfil: number[]): number[] {
 /** Hash curto e estável das entradas (para saber se a solução otimizada ainda vale). */
 export function chaveEntradas(usinas: Usina[], candidatas: CandidataAvaliada[], p: Parametros): string {
   const s = JSON.stringify([
-    usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, limiteNovasPeloContrato(u, p.metaContrato), u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh])]),
+    usinas.map((u) => [u.id, injecaoMensal(u), u.perfilSazonal, u.distribuidora, limiteNovasPeloContrato(u, p.metaContrato), u.ucs.map((c) => [c.key, c.pctAtual, c.saldoKwh, c.compensavelKwh, c.tarifaKwh ?? 0])]),
     candidatas.filter((c) => c.elegivel).map((c) => [c.candidata.key, c.candidata.compensavelKwh, c.candidata.concessionaria]),
     // a tarifa média só muda o ótimo quando há valores por subgrupo (é o valor padrão dos demais)
     // a cobertura só vale para a regra proporcional (o otimizado não usa): não invalida a otimização
-    { ...p, tarifaKwh: usaValorPorSubgrupo(p) ? p.tarifaKwh : 0, cobertura: 0, coberturaAutomatica: null },
+    { ...p, tarifaKwh: usaValorPorSubgrupo(p) || usinas.some((u) => u.ucs.some((c) => c.tarifaKwh)) ? p.tarifaKwh : 0, cobertura: 0, coberturaAutomatica: null },
   ]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -343,7 +343,12 @@ export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Par
 
   // trava: o otimizado nunca pode sair pior que a regra proporcional (ex.: solver parou no tempo
   // limite com uma solução ruim). Por usina, fica o melhor pelo mesmo critério do otimizador.
-  const valor = (r: ResultadoUsina) => 0.6 * r.proposto.compensadoTotal + 0.4 * r.propostoEstresse.compensadoTotal - p.custoNovaUcKwh * r.indicadores.incluidas;
+  // em R$ quando há tarifa (por UC ou subgrupo): o mesmo critério de lucro do otimizador
+  const ponderado = (r: ResultadoUsina, comp: number[]) => {
+    const w = pesosValor(itensValor(r), p);
+    return comp.reduce((a, k, i) => a + k * (w[i] ?? 1), 0);
+  };
+  const valor = (r: ResultadoUsina) => 0.6 * ponderado(r, r.proposto.compensadoPorUc) + 0.4 * ponderado(r, r.propostoEstresse.compensadoPorUc) - p.custoNovaUcKwh * r.indicadores.incluidas;
   const resultados = usinas.map((u) => {
     const pesos = pesosPorUsina.get(u.id);
     const r = analisarUsina(u, novasPorUsina.get(u.id) ?? [], p, pesos);
@@ -402,7 +407,7 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros, p
   // otimizado: refino exato na grade da distribuidora (o arredondamento do ótimo contínuo perde energia)
   let refino: ResultadoUsina["refino"];
   if (pesosFixos && !semNecessidade && E > 0) {
-    const vals = pesosValor([...usina.ucs.map((u) => u.subgrupo), ...novas.map(() => SUBGRUPO_CANDIDATA)], p);
+    const vals = pesosValor([...usina.ucs.map((u) => ({ subgrupo: u.subgrupo, tarifa: u.tarifaKwh })), ...novas.map(() => ({ subgrupo: SUBGRUPO_CANDIDATA }))], p);
     const itens: ItemRefino[] = [
       ...usina.ucs.map((u, i) => ({ comp: u.compensavelKwh, saldo: u.saldoKwh, pct0: u.pctAtual, valor: vals[i], reserva: p.reservaSaldoMeses * Math.max(0, u.compensavelKwh), ativo: pesos[i] > 0 })),
       ...novas.map((c, j) => ({ comp: c.compensavelKwh, saldo: 0, pct0: 0, valor: vals[usina.ucs.length + j], reserva: 0, ativo: pesos[usina.ucs.length + j] > 0 })),
@@ -448,6 +453,7 @@ export function analisarUsina(usina: Usina, novas: Candidata[], p: Parametros, p
         instalacao: uc.instalacao,
         apelido: uc.apelido,
         subgrupo: uc.subgrupo,
+        tarifaKwh: uc.tarifaKwh ?? null,
         pctAtual: uc.pctAtual,
         pctProposto: pct,
         saldoKwh: uc.saldoKwh,
