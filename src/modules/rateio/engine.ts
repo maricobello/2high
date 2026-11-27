@@ -16,6 +16,7 @@
 import { round } from "./normalize";
 import { estimativaConsumo, resumoConsumo } from "./consumo";
 import { limiteNovasPeloContrato } from "./contrato";
+import { mesmaDistribuidora, ufDaUsina } from "./distribuidora";
 import { constantesObjetivo, refinarRateio, type ItemRefino } from "./refinar";
 import { pesosValor, SUBGRUPO_CANDIDATA, usaValorPorSubgrupo } from "./valor";
 import type {
@@ -228,13 +229,6 @@ function somaNecessidades(u: Usina, p: Parametros): number {
 // ---------------------------------------------------------------------------
 // Candidatas
 
-function distribuidoraCompativel(a: string, b: string): boolean {
-  const x = norm(a);
-  const y = norm(b);
-  if (!x || !y) return true;
-  return x.includes(y) || y.includes(x);
-}
-
 function riscoCandidata(c: Candidata): string | null {
   const ap = norm(c.apelido);
   if (ap.includes("provisori")) return "Endereço provisório";
@@ -329,7 +323,8 @@ export function analisarProjeto(usinas: Usina[], candidatas: Candidata[], p: Par
       .filter((x) => x.falta > 0)
       .sort((a, b) => b.falta - a.falta);
     for (const { u, falta, lim } of faltas) {
-      const pool = avaliadas.filter((c) => c.elegivel && !c.selecionada && distribuidoraCompativel(c.candidata.concessionaria, u.distribuidora));
+      const uf = ufDaUsina(u);
+      const pool = avaliadas.filter((c) => c.elegivel && !c.selecionada && mesmaDistribuidora(c.candidata, u, uf));
       let escolhidas = escolherCandidatas(pool, falta, p);
       // o contrato é teto: o compensável somado das novas não passa do espaço
       if (lim != null) {

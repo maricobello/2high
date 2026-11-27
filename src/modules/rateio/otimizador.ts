@@ -28,8 +28,8 @@
  */
 import { chaveEntradas, injecaoMensal, normalizarPerfil } from "./engine";
 import type { CandidataAvaliada, OtimizacaoResultado, Parametros, Usina } from "./types";
-import { norm } from "./normalize";
 import { limiteNovasPeloContrato } from "./contrato";
+import { mesmaDistribuidora, ufDaUsina } from "./distribuidora";
 import { constantesObjetivo, PESO_RESERVA } from "./refinar";
 import { pesosValor, SUBGRUPO_CANDIDATA } from "./valor";
 
@@ -53,12 +53,6 @@ const num = (v: number) => {
   const r = Math.abs(v) < 1e-12 ? 0 : v;
   return Number(r.toPrecision(10)).toString();
 };
-
-function compat(a: string, b: string) {
-  const x = norm(a);
-  const y = norm(b);
-  return !x || !y || x.includes(y) || y.includes(x);
-}
 
 export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p: Parametros): ModeloLp {
   const T = Math.max(1, p.mesesSimulacao);
@@ -88,11 +82,12 @@ export function montarModelo(usinas: Usina[], candidatas: CandidataAvaliada[], p
     // base grande (milhares de UCs): o modelo só leva as maiores que podem caber (até 2× o espaço
     // do contrato ou da injeção, no máximo 120); com todas, o modelo fica enorme e trava
     const limNovas = limiteNovasPeloContrato(u, p.metaContrato);
+    const ufUsina = ufDaUsina(u);
     const teto = 2 * Math.min(limNovas ?? Infinity, E0);
     let acumulado = 0;
     const cands = p.incluirNovasUcs
       ? elegiveis
-          .filter((c) => compat(c.candidata.concessionaria, u.distribuidora))
+          .filter((c) => mesmaDistribuidora(c.candidata, u, ufUsina))
           .sort((a, b) => b.candidata.compensavelKwh - a.candidata.compensavelKwh)
           .filter((c, i) => i < 120 && (acumulado += c.candidata.compensavelKwh) - c.candidata.compensavelKwh <= teto)
       : [];
