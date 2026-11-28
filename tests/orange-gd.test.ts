@@ -16,7 +16,7 @@ vi.mock("@/modules/storage", () => ({
 }));
 
 import { coletar, filtrarUsinas, resumoEconomia } from "@/modules/orange/coleta";
-import { lerUcs, lerUsinas, linhasGerencial, numeroOrange, planilhaGerencial, planilhaUcs, somarGerencial } from "@/modules/orange/gd";
+import { lerUcs, lerUsinas, linhasGerencial, numeroOrange, planilhaGerencial, planilhaUcs, regrasGerencial, somarGerencial, somasGerencial } from "@/modules/orange/gd";
 import { parseRelatorioGerencial, parseUcs } from "@/modules/rateio/grid";
 import { lerXlsx } from "@/modules/rateio/xlsx";
 import type { ClienteOrange } from "@/modules/orange/cliente";
@@ -66,6 +66,9 @@ describe("dados de GD do Orange", () => {
     const t = somarGerencial(LISTA);
     expect(t).toMatchObject({ ucs: 2, consumoKwh: 5150, compensadoKwh: 5000, economiaRs: 650, custoCativoRs: 4500 });
     expect(linhasGerencial(LISTA)[0]).toMatchObject({ nova: "7001234", consumoKwh: 3100, tarifa: 0.87 });
+    const somas = somasGerencial({ data: { list: [{ TipoRemuneracaoVariavel: 41, aaData: [{ Id: 1, NrFaturaSimulada: "3.542,86", Locacao: 2823.6, Tx_Apelido: "X" }, { Id: 2, NrFaturaSimulada: "531,10", Locacao: 235.3 }] }] } });
+    expect(somas).toEqual({ NrFaturaSimulada: 4073.96, Locacao: 3058.9 });
+    expect(regrasGerencial({ data: { list: [{ TipoRemuneracaoVariavel: 41, aaData: [] }] } })).toEqual([41]);
   });
 
   it("gera planilhas que o rateio importa como estão", async () => {

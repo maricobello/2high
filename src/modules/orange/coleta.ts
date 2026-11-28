@@ -159,7 +159,7 @@ export function filtrarUsinas(usinas: UsinaGd[], filtro: string[] | undefined): 
 export interface OpcoesColeta {
   /** Tempo máximo desta execução (ms); o restante fica pendente. */
   orcamentoMs?: number;
-  /** Baixa as UCs de novo mesmo se já baixou nesta competência. */
+  /** Baixa tudo de novo (UCs e Relatório Gerencial) mesmo se já baixou nesta competência. */
   refazerUcs?: boolean;
   cliente?: ClienteOrange;
 }
@@ -196,7 +196,7 @@ export async function coletar(config: ConfigColeta | null, competencia = compete
     em: new Date().toISOString(),
     arquivos: mesma?.arquivos ?? [],
     erros: [],
-    gerencial: mesma?.gerencial ?? [],
+    gerencial: opcoes.refazerUcs ? [] : (mesma?.gerencial ?? []),
     ucsFeitas: opcoes.refazerUcs ? [] : (mesma?.ucsFeitas ?? []),
   };
 

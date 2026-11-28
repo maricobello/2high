@@ -60,6 +60,10 @@ export interface GerencialUsina {
   cliente: string;
   status: "ok" | "nao_processado" | "sem_dados";
   totais: TotaisGerencial;
+  /** Modelos de relatório do Orange (TipoRemuneracaoVariavel) presentes na usina. */
+  regras?: number[];
+  /** Soma de cada coluna numérica do relatório (para conferir com a tela do Orange). */
+  somas?: Record<string, number>;
 }
 
 type Obj = Record<string, unknown>;
@@ -191,6 +195,26 @@ export function somarGerencial(j: Obj): TotaisGerencial {
   return t;
 }
 
+const NUMERICO = /^\s*-?(R\$\s*)?-?[\d.]+(,\d+)?\s*%?\s*$/;
+
+/** Total de cada coluna numérica (números ou textos como "1.234,56"), arredondado a centavos. */
+export function somasGerencial(j: Obj): Record<string, number> {
+  const somas: Record<string, number> = {};
+  for (const r of linhasDoRelatorio(j)) {
+    for (const [k, v] of Object.entries(r)) {
+      if (/^id|_id$|^Id_|^Nr_Instalacao$|Instalacao|^HiddenOrder$/i.test(k)) continue;
+      if (typeof v === "number" || (typeof v === "string" && NUMERICO.test(v))) somas[k] = (somas[k] ?? 0) + numeroOrange(v);
+    }
+  }
+  return Object.fromEntries(Object.entries(somas).slice(0, 120).map(([k, v]) => [k, Math.round(v * 100) / 100]));
+}
+
+export function regrasGerencial(j: Obj): number[] {
+  const d = (j.data ?? {}) as Obj;
+  const grupos = Array.isArray(d.list) ? (d.list as Obj[]) : [];
+  return [...new Set(grupos.map((g) => Number(g.TipoRemuneracaoVariavel)).filter((n) => Number.isFinite(n)))];
+}
+
 /** Relatório Gerencial da usina na competência: totais de consumo, compensado e economia (e as linhas UC a UC). */
 export async function gerencialDaUsina(c: ClienteOrange, u: UsinaGd, competencia: string): Promise<GerencialUsina & { linhas: LinhaGerencial[] }> {
   const ma = mesAno(competencia);
@@ -204,7 +228,7 @@ export async function gerencialDaUsina(c: ClienteOrange, u: UsinaGd, competencia
   if (!cli) return { ...base, status: "sem_dados", totais: vazio, linhas: [] };
   const j = await pedirJson(c, `/GestaoUsinaGD/List?${new URLSearchParams({ ClienteId: cli.id, UsinaId: String(u.id), Competencia: ma })}`);
   const totais = somarGerencial(j);
-  return { ...base, cliente: cli.titulo, status: totais.ucs ? "ok" : "sem_dados", totais, linhas: linhasGerencial(j) };
+  return { ...base, cliente: cli.titulo, status: totais.ucs ? "ok" : "sem_dados", totais, regras: regrasGerencial(j), somas: somasGerencial(j), linhas: linhasGerencial(j) };
 }
 
 async function excel() {

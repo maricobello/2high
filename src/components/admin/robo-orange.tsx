@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 type Mapa = { ok: boolean; erro?: string; inicio?: { links: unknown[] }; paginas?: { caminho: string; titulo: string; status: number; endpoints: string[]; formularios: unknown[] }[] };
 type Totais = { ucs: number; consumoKwh: number; compensadoKwh: number; saldoKwh: number; custoCativoRs: number; faturaRecebidaRs: number; economiaRs: number; custoGdRs: number };
-type Gerencial = { usinaId: number; usina: string; competencia: string; cliente: string; status: "ok" | "nao_processado" | "sem_dados"; totais: Totais };
+type Gerencial = { usinaId: number; usina: string; competencia: string; cliente: string; status: "ok" | "nao_processado" | "sem_dados"; totais: Totais; regras?: number[]; somas?: Record<string, number> };
 type Indice = { competencia: string; em: string; arquivos: { usina: string; tipo: string }[]; erros: string[]; gerencial?: Gerencial[]; pendentes?: number; pendentesUcs?: number; usinas?: number };
 type Economia = { usinas: number; consumoKwh: number; compensadoKwh: number; economiaRs: number; custoCativoRs: number; custoGdRs: number };
 
@@ -160,7 +160,7 @@ export function RoboOrange() {
           </Button>
           {ucsProntas > 0 && (
             <Button size="sm" variant="ghost" onClick={() => coletarAgora(true)} disabled={!configurado || ocupado != null}>
-              Baixar UCs de novo
+              Baixar tudo de novo
             </Button>
           )}
         </div>
@@ -221,6 +221,9 @@ export function RoboOrange() {
             </table>
           </div>
           <p className="mt-2 text-xs text-muted">Valores do próprio Orange (Relatório Gerencial, versão atual). Competências ainda não processadas lá aparecem como pendentes e são lidas na próxima coleta.</p>
+          <Button size="sm" variant="ghost" className="mt-2" onClick={() => copiar(JSON.stringify(gerencial.slice(0, 5).map((g) => ({ usina: g.usina, competencia: g.competencia, regras: g.regras, ucs: g.totais.ucs, somas: g.somas }))))}>
+            <Copy className="size-4" /> {copiado ? "Copiado" : "Copiar totais das colunas (conferência)"}
+          </Button>
         </div>
       )}
 
