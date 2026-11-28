@@ -34,7 +34,7 @@ const LISTA = {
     tabelaAtual: true,
     list: [
       {
-        TipoRemuneracaoVariavel: 42,
+        TipoRemuneracaoVariavel: 46,
         aaData: [
           { Id_Empresa: 1, Nr_Instalacao: "7001234", Tx_Apelido: "BA-0001", PercentualRateioCompetencia: 60, NrEnergiaTotalConsumida: 3100, NrEnergiaCompensada: 3000, NrSaldoMensal: 100, NrFaturaSimulada: 2700, NrFaturaRecebida: 300, NrEconomiaUC: 400, Nr_DespesaTotal_Final: 2000, NrTarifaCativo: 0.87 },
           { Id_Empresa: 2, Nr_Instalacao: "7005678", Tx_Apelido: "BA-0002", PercentualRateioCompetencia: 40, NrEnergiaTotalConsumida: 2050, NrEnergiaCompensada: 2000, NrSaldoMensal: 50, NrFaturaSimulada: 1800, NrFaturaRecebida: 200, NrEconomiaUC: 250, Nr_DespesaTotal_Final: 1350, NrTarifaCativo: 0.87 },
@@ -66,6 +66,11 @@ describe("dados de GD do Orange", () => {
     const t = somarGerencial(LISTA);
     expect(t).toMatchObject({ ucs: 2, consumoKwh: 5150, compensadoKwh: 5000, economiaRs: 650, custoCativoRs: 4500 });
     expect(linhasGerencial(LISTA)[0]).toMatchObject({ nova: "7001234", consumoKwh: 3100, tarifa: 0.87 });
+    // modelo TIM (linha real da Ibotirama 10/2026): custo cativo = consumo × tarifa; economia = cativo − (recebida + demanda + arrendamento)
+    const tim = somarGerencial({ data: { list: [{ TipoRemuneracaoVariavel: 41, aaData: [{ NrEnergiaTotalConsumida: 3749, NrTarifaDefault: 0.94502, NrFaturaSimulada: 0, NrFaturaRecebida: 1579.09, NrFaturaUsina: 1011.99, Locacao: 2823.6 }] }] } });
+    expect(tim.custoCativoRs).toBeCloseTo(3542.88, 1);
+    expect(tim.custoGdRs).toBeCloseTo(3835.59, 2);
+    expect(tim.economiaRs).toBeCloseTo(3542.88 - 1579.09 - 3835.59, 1);
     const somas = somasGerencial({ data: { list: [{ TipoRemuneracaoVariavel: 41, aaData: [{ Id: 1, NrFaturaSimulada: "3.542,86", Locacao: 2823.6, Tx_Apelido: "X" }, { Id: 2, NrFaturaSimulada: "531,10", Locacao: 235.3 }] }] } });
     expect(somas).toEqual({ NrFaturaSimulada: 4073.96, Locacao: 3058.9 });
     expect(regrasGerencial({ data: { list: [{ TipoRemuneracaoVariavel: 41, aaData: [] }] } })).toEqual([41]);

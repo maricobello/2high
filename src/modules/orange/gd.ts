@@ -178,18 +178,39 @@ export function linhasGerencial(j: Obj): LinhaGerencial[] {
     .filter((l) => /\d/.test(l.nova));
 }
 
+/** Modelos de relatório da TIM no Orange (TipoRemuneracaoVariavel 40 a 43). */
+export const REGRAS_TIM = new Set([40, 41, 42, 43]);
+
+/**
+ * Totais do Relatório Gerencial. No modelo TIM o Orange não traz custo cativo nem economia prontos:
+ * custo cativo = consumo × tarifa cativo; custo GD = demanda (fatura da usina) + arrendamento + O&M;
+ * economia = custo cativo − (fatura recebida + custo GD). Nos demais modelos, os campos do próprio relatório.
+ */
 export function somarGerencial(j: Obj): TotaisGerencial {
   const t: TotaisGerencial = { ucs: 0, consumoKwh: 0, compensadoKwh: 0, saldoKwh: 0, custoCativoRs: 0, faturaRecebidaRs: 0, economiaRs: 0, custoGdRs: 0 };
-  {
-    for (const r of linhasDoRelatorio(j)) {
+  const d = (j.data ?? {}) as Obj;
+  const grupos = Array.isArray(d.list) ? (d.list as Obj[]) : [];
+  for (const g of grupos) {
+    const tim = REGRAS_TIM.has(Number(g.TipoRemuneracaoVariavel));
+    for (const r of Array.isArray(g.aaData) ? (g.aaData as Obj[]) : []) {
       t.ucs++;
-      t.consumoKwh += num(r, "NrEnergiaTotalConsumida");
+      const consumo = num(r, "NrEnergiaTotalConsumida");
+      const recebida = num(r, "NrFaturaRecebida");
+      t.consumoKwh += consumo;
       t.compensadoKwh += num(r, "NrEnergiaCompensada");
       t.saldoKwh += num(r, "NrSaldoMensal");
-      t.custoCativoRs += num(r, "NrFaturaSimulada");
-      t.faturaRecebidaRs += num(r, "NrFaturaRecebida");
-      t.economiaRs += num(r, "NrEconomiaUC");
-      t.custoGdRs += num(r, "Nr_DespesaTotal_Final");
+      t.faturaRecebidaRs += recebida;
+      if (tim) {
+        const cativo = consumo * num(r, "NrTarifaCativo", "NrTarifaDefault");
+        const gd = num(r, "NrFaturaUsina") + num(r, "Locacao") + num(r, "OperacaoManutencao") + num(r, "AluguelTerreno");
+        t.custoCativoRs += cativo;
+        t.custoGdRs += gd;
+        t.economiaRs += cativo - recebida - gd;
+      } else {
+        t.custoCativoRs += num(r, "NrFaturaSimulada");
+        t.custoGdRs += num(r, "Nr_DespesaTotal_Final");
+        t.economiaRs += num(r, "NrEconomiaUC");
+      }
     }
   }
   return t;
