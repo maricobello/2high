@@ -67,6 +67,9 @@ export interface GerencialUsina {
   /** Bloco Energia da tela Gestão de Usinas (12 meses até a competência). */
   painel?: Record<string, number | string>;
   painelErro?: string;
+  /** Rateio automático feito pelo robô (mesmo cálculo da tela do Rateio GD). */
+  rateio?: { ucs: number; metodo: string; status: string; compensadoAtualKwh: number; compensadoPropostoKwh: number; ganhoKwhAno: number; cargaContratoPct: number | null; saldoFinalAtualKwh: number; saldoFinalPropostoKwh: number; avisos: string[]; chave: string };
+  rateioErro?: string;
 }
 
 type Obj = Record<string, unknown>;
@@ -347,4 +350,19 @@ export async function filtroGestao(c: ClienteOrange): Promise<FiltroGestao> {
   const f = lerFiltroGestao(html);
   if (!f) throw new ErroOrange("Não achei o filtro da tela Gestão de Usinas de GD.");
   return f;
+}
+
+/** Dados do período (contratada, injetada, gerada, meses) a partir do bloco Energia da Gestão de Usinas. */
+export function periodoDoPainel(painel: Record<string, number | string> | undefined): { contratada: number; injetada: number; gerada: number; meses: number } | null {
+  if (!painel) return null;
+  const valor = (re: RegExp, nao?: RegExp) => {
+    const ks = Object.keys(painel).filter((k) => re.test(k) && !(nao && nao.test(k)));
+    const k = ks.find((x) => typeof painel[x] === "number") ?? ks[0];
+    return k == null ? 0 : numeroOrange(painel[k]);
+  };
+  const meses = Number(painel["serie:meses"]) || 12;
+  const contratada = valor(/contratad/i);
+  const injetada = valor(/^serie:injetada$/i) || valor(/injetada/i, /contratad|compens|balan|serie:/i);
+  const gerada = valor(/^serie:gera[cç][aã]o realizada$/i) || valor(/gera[cç][aã]o.?realizada|geracaorealizada/i, /serie:/i);
+  return contratada > 0 && injetada > 0 ? { contratada, injetada, gerada, meses } : null;
 }

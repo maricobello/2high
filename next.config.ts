@@ -10,6 +10,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Otimizador (HiGHS em WebAssembly) usado no servidor pelo rateio automático do robô do Orange
+  serverExternalPackages: ["highs"],
+  outputFileTracingIncludes: {
+    "/api/admin/orange/coleta": ["./node_modules/highs/build/**"],
+    "/api/cron/orange": ["./node_modules/highs/build/**"],
+  },
   // CSS do Tailwind embutido no HTML: elimina a requisição que bloqueia a renderização
   experimental: { inlineCss: true },
   // Foto do topo (gerada no Higgsfield): a Vercel baixa, otimiza (AVIF/WebP) e serve do próprio domínio

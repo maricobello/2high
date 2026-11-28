@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 
 type Mapa = { ok: boolean; erro?: string; inicio?: { links: unknown[] }; paginas?: { caminho: string; titulo: string; status: number; endpoints: string[]; formularios: unknown[] }[] };
 type Totais = { ucs: number; consumoKwh: number; compensadoKwh: number; saldoKwh: number; custoCativoRs: number; faturaRecebidaRs: number; economiaRs: number; custoGdRs: number };
-type Gerencial = { usinaId: number; usina: string; competencia: string; cliente: string; status: "ok" | "nao_processado" | "sem_dados"; totais: Totais; regras?: number[]; somas?: Record<string, number> };
+type Rateio = { ucs: number; ganhoKwhAno: number; cargaContratoPct: number | null; saldoFinalPropostoKwh: number; status: string; chave: string };
+type Gerencial = { usinaId: number; usina: string; competencia: string; cliente: string; status: "ok" | "nao_processado" | "sem_dados"; totais: Totais; regras?: number[]; somas?: Record<string, number>; painel?: Record<string, number | string>; rateio?: Rateio; rateioErro?: string };
 type Indice = { competencia: string; em: string; arquivos: { usina: string; tipo: string }[]; erros: string[]; gerencial?: Gerencial[]; pendentes?: number; pendentesUcs?: number; usinas?: number };
 type Economia = { usinas: number; consumoKwh: number; compensadoKwh: number; economiaRs: number; custoCativoRs: number; custoGdRs: number };
 
@@ -203,7 +204,8 @@ export function RoboOrange() {
                   <th className="py-1 pr-3 text-right font-medium">Consumo</th>
                   <th className="py-1 pr-3 text-right font-medium">Compensado</th>
                   <th className="py-1 pr-3 text-right font-medium">Economia</th>
-                  <th className="py-1 font-medium">Situação</th>
+                  <th className="py-1 pr-3 font-medium">Situação</th>
+                  <th className="py-1 font-medium">Rateio pronto</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,14 +216,24 @@ export function RoboOrange() {
                     <td className="py-1 pr-3 text-right">{g.totais.consumoKwh ? kwh(g.totais.consumoKwh) : "-"}</td>
                     <td className="py-1 pr-3 text-right">{g.totais.compensadoKwh ? kwh(g.totais.compensadoKwh) : "-"}</td>
                     <td className="py-1 pr-3 text-right">{g.status === "ok" ? rs(g.totais.economiaRs) : "-"}</td>
-                    <td className="py-1 text-muted">{STATUS[g.status]}</td>
+                    <td className="py-1 pr-3 text-muted">{STATUS[g.status]}</td>
+                    <td className="py-1">
+                      {g.rateio ? (
+                        <a className="text-primary-text underline" href={`/api/admin/orange/arquivo?chave=${encodeURIComponent(g.rateio.chave)}`}>
+                          Baixar ({g.rateio.ganhoKwhAno >= 0 ? "+" : ""}
+                          {kwh(g.rateio.ganhoKwhAno)}/ano)
+                        </a>
+                      ) : (
+                        <span className="text-muted">{g.rateioErro ?? "-"}</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className="mt-2 text-xs text-muted">Valores do próprio Orange (Relatório Gerencial, versão atual). Competências ainda não processadas lá aparecem como pendentes e são lidas na próxima coleta.</p>
-          <Button size="sm" variant="ghost" className="mt-2" onClick={() => copiar(JSON.stringify(gerencial.slice(0, 5).map((g) => ({ usina: g.usina, competencia: g.competencia, regras: g.regras, ucs: g.totais.ucs, somas: g.somas }))))}>
+          <Button size="sm" variant="ghost" className="mt-2" onClick={() => copiar(JSON.stringify(gerencial.slice(0, 5).map((g) => ({ usina: g.usina, competencia: g.competencia, regras: g.regras, ucs: g.totais.ucs, somas: g.somas, painel: g.painel, rateioErro: g.rateioErro }))))}>
             <Copy className="size-4" /> {copiado ? "Copiado" : "Copiar totais das colunas (conferência)"}
           </Button>
         </div>

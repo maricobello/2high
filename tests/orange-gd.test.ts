@@ -195,3 +195,31 @@ describe("tela Gestão de Usinas de GD", () => {
     expect(camposSimples({ EnergiaInjetada: 3239006, EnergiaInjetadaContratada_F: "3.744.000", Nome: "UFV X", Sub: { Saldo: 10 }, Lista: [1, 2] })).toEqual({ EnergiaInjetada: 3239006, EnergiaInjetadaContratada_F: "3.744.000", "Sub.Saldo": 10 });
   });
 });
+
+describe("rateio automático na coleta", () => {
+  it("lê o período do bloco Energia", async () => {
+    const { periodoDoPainel } = await import("@/modules/orange/gd");
+    expect(periodoDoPainel({ EnergiaInjetadaContratada: 120000, "serie:Injetada": 90000, "serie:Geração realizada": 95000, "serie:meses": 12 })).toEqual({ contratada: 120000, injetada: 90000, gerada: 95000, meses: 12 });
+    expect(periodoDoPainel({ Nome: 1 })).toBeNull();
+  });
+
+  it("faz o rateio de cada usina com UCs, relatório e dados da usina", async () => {
+    guardado.clear();
+    const resp = (corpo: unknown) => new Response(JSON.stringify(corpo), { headers: { "content-type": "application/json" } });
+    const cliente = {
+      texto: async () => ({ url: "/GestaoUsinaGD/Index", status: 200, html: `<div data-main-form-filter data-url="/GestaoUsinaGD/Filtrar"></div><input type="hidden" name="geracaoGD" value="1">` }),
+      pedir: async (c: string) =>
+        c.startsWith("/cadastrousinagd") ? resp(USINAS)
+        : c.startsWith("/unidaderateiogd") ? resp(UCS)
+        : c.startsWith("/gestaousinagd/resumo") ? resp({ data: { Nr_Status: 2 } })
+        : c.startsWith("/GestaoUsinaGD/GetClientesUsina") ? resp({ data: [{ Id: 7, Titulo: "TIM" }] })
+        : c.startsWith("/GestaoUsinaGD/Filtrar") ? resp({ success: true, data: { EnergiaInjetadaContratada: 72000, MainChart: { Category: Array(12).fill("x"), Series: { Injetada: Array(12).fill({ Value: 5000 }), "Geração realizada": Array(12).fill({ Value: 5200 }) } } } })
+        : resp(LISTA),
+    } as unknown as ClienteOrange;
+    const ind = await coletar(null, "2026-10", { cliente });
+    const ibt = ind.gerencial?.find((g) => g.usinaId === 10);
+    expect(ibt?.rateioErro).toBeUndefined();
+    expect(ibt?.rateio).toMatchObject({ ucs: 2, status: "Optimal" });
+    expect(ind.arquivos.some((a) => a.tipo === "rateio" && a.usina === "UFV IBITITA")).toBe(true);
+  }, 60000);
+});

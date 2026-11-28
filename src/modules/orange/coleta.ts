@@ -13,9 +13,11 @@ import "server-only";
  */
 import { storage } from "@/modules/storage";
 import { clienteLogado, type ClienteOrange } from "./cliente";
-import { filtroGestao, gerencialDaUsina, listarUsinas, painelDaUsina, planilhaGerencial, planilhaUcs, ucsDoRateio, type FiltroGestao, type GerencialUsina, type UsinaGd } from "./gd";
+import { rateioAutomatico, usinaDasPlanilhas } from "@/modules/rateio/automatico";
+import { lerXlsx } from "@/modules/rateio/xlsx";
+import { filtroGestao, gerencialDaUsina, listarUsinas, painelDaUsina, periodoDoPainel, planilhaGerencial, planilhaUcs, ucsDoRateio, type FiltroGestao, type GerencialUsina, type UsinaGd } from "./gd";
 
-export type TipoColeta = "ucs" | "relatorio" | "energia" | "fatura";
+export type TipoColeta = "ucs" | "relatorio" | "energia" | "fatura" | "rateio";
 
 export interface Receita {
   tipo: TipoColeta;
@@ -263,6 +265,29 @@ export async function coletar(config: ConfigColeta | null, competencia = compete
           g.painelErro = e instanceof Error ? e.message : "falha";
         }
       } else if (filtroErro) g.painelErro = filtroErro;
+      // rateio automático: UCs do rateio + Relatório Gerencial + dados da usina (Gestão de Usinas)
+      const per = periodoDoPainel(g.painel);
+      const arqUcs = indice.arquivos.find((a) => a.tipo === "ucs" && a.usina === u.nome);
+      if (!per) g.rateioErro = g.painelErro ? `sem dados da usina (${g.painelErro})` : "sem contratada/injetada da usina na Gestão de Usinas";
+      else if (!arqUcs) g.rateioErro = "sem a lista de UCs do rateio";
+      else {
+        try {
+          const abas = await lerXlsx(new Uint8Array(await storage().read(arqUcs.chave)).buffer);
+          if (linhas.length) abas.push(...(await lerXlsx(new Uint8Array(await planilhaGerencial(u.nome, competencia, linhas)).buffer)));
+          const usina = usinaDasPlanilhas(abas, { nome: u.nome, distribuidora: u.distribuidora, inicio: inicio12, fim: competencia, meses: per.meses, contratadaPeriodo: per.contratada, injetadaPeriodo: per.injetada, geradaPeriodo: per.gerada });
+          if (!usina) throw new Error("não montou a usina a partir das planilhas");
+          const { resumo, planilha } = await rateioAutomatico(usina);
+          const nome = `${nomeSeguro(u.nome)}_rateio_${competencia}.xlsx`;
+          const chave = `orange/coletas/${competencia}/${nome}`;
+          if (!bancoFora) {
+            await salvar(chave, planilha, XLSX);
+            indice.arquivos = [...indice.arquivos.filter((a) => a.chave !== chave), { usina: u.nome, tipo: "rateio", nome, chave, bytes: planilha.byteLength }];
+          }
+          g.rateio = { ...resumo, chave };
+        } catch (e) {
+          g.rateioErro = e instanceof Error ? e.message : "falha no rateio";
+        }
+      }
       indice.gerencial = [...(indice.gerencial ?? []).filter((x) => x.usinaId !== u.id), g];
       if (linhas.length && !bancoFora) {
         const nome = `${nomeSeguro(u.nome)}_relatorio_${competencia}.xlsx`;
