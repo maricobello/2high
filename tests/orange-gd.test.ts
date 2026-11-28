@@ -135,7 +135,11 @@ describe("coleta automática", () => {
     guardado.clear();
     const ind = await coletar(null, "2026-10", { cliente: clienteFalso([]), orcamentoMs: -1 });
     expect(ind.pendentes).toBe(2);
-    expect(ind.arquivos.some((a) => a.tipo === "ucs")).toBe(true);
+    expect(ind.pendentesUcs).toBe(2);
+    // a rodada seguinte, com tempo, completa tudo
+    const ind2 = await coletar(null, "2026-10", { cliente: clienteFalso([]) });
+    expect(ind2).toMatchObject({ pendentes: 0, pendentesUcs: 0 });
+    expect(ind2.arquivos.filter((a) => a.tipo === "ucs")).toHaveLength(2);
   });
 });
 

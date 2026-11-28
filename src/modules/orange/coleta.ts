@@ -55,8 +55,12 @@ export interface IndiceColeta {
   erros: string[];
   /** Relatório Gerencial por usina (acompanhamento da economia). */
   gerencial?: GerencialUsina[];
-  /** Usinas que ainda faltam ler nesta competência. */
+  /** Usinas que ainda faltam ler no Relatório Gerencial nesta competência. */
   pendentes?: number;
+  /** Usinas cujas UCs ainda faltam baixar. */
+  pendentesUcs?: number;
+  /** Ids das usinas com UCs já baixadas nesta competência. */
+  ucsFeitas?: number[];
   usinas?: number;
 }
 
@@ -164,6 +168,23 @@ export interface OpcoesColeta {
  * Coleta automática da competência (padrão: o mês fechado anterior). Continua de onde parou
  * quando a competência é a mesma da última coleta.
  */
+/** Roda fn em até n itens ao mesmo tempo, sem começar novos depois do prazo. Devolve quantos rodaram. */
+export async function emParalelo<T>(itens: T[], n: number, prazo: number, fn: (t: T) => Promise<void>): Promise<number> {
+  let i = 0;
+  let feitos = 0;
+  const trabalhador = async () => {
+    while (i < itens.length && Date.now() < prazo) {
+      const t = itens[i++];
+      await fn(t);
+      feitos++;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(n, itens.length) }, trabalhador));
+  return feitos;
+}
+
+const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 export async function coletar(config: ConfigColeta | null, competencia = competenciaAnterior(), opcoes: OpcoesColeta = {}): Promise<IndiceColeta> {
   const inicio = Date.now();
   const orcamento = opcoes.orcamentoMs ?? 45_000;
@@ -176,72 +197,71 @@ export async function coletar(config: ConfigColeta | null, competencia = compete
     arquivos: mesma?.arquivos ?? [],
     erros: [],
     gerencial: mesma?.gerencial ?? [],
+    ucsFeitas: opcoes.refazerUcs ? [] : (mesma?.ucsFeitas ?? []),
   };
 
   const usinas = filtrarUsinas(await listarUsinas(c), config?.filtroUsinas);
   indice.usinas = usinas.length;
   if (!usinas.length) indice.erros.push("Nenhuma usina de GD visível para este usuário no Orange.");
 
-  // 1) UCs do rateio: uma planilha por usina
-  const jaTemUcs = indice.arquivos.some((a) => a.tipo === "ucs");
-  if (usinas.length && (!jaTemUcs || opcoes.refazerUcs)) {
-    indice.arquivos = indice.arquivos.filter((a) => a.tipo !== "ucs");
-    let bancoFora = false;
-    let baixadas = 0;
-    for (let i = 0; i < usinas.length; i += 15) {
-      const lote = usinas.slice(i, i + 15);
-      let ucs: Awaited<ReturnType<typeof ucsDoRateio>>;
-      try {
-        ucs = await ucsDoRateio(c, lote, competencia);
-      } catch (e) {
-        indice.erros.push(`UCs do rateio (${lote.length} usina(s)): ${e instanceof Error ? e.message : "falha"}`);
-        continue;
-      }
-      for (const u of lote) {
-        const daUsina = ucs.filter((x) => x.usinaId === u.id);
-        if (!daUsina.length) continue;
-        baixadas++;
-        if (bancoFora) continue;
+  // 1) UCs do rateio: uma planilha por usina (até metade do tempo; o resto continua na próxima)
+  let bancoFora = false;
+  const feitas = new Set(indice.ucsFeitas);
+  const faltamUcs = usinas.filter((u) => !feitas.has(u.id));
+  const lotes: UsinaGd[][] = [];
+  for (let i = 0; i < faltamUcs.length; i += 15) lotes.push(faltamUcs.slice(i, i + 15));
+  await emParalelo(lotes, 3, inicio + orcamento * 0.5, async (lote) => {
+    let ucs: Awaited<ReturnType<typeof ucsDoRateio>>;
+    try {
+      ucs = await ucsDoRateio(c, lote, competencia);
+    } catch (e) {
+      indice.erros.push(`UCs do rateio (${lote.length} usina(s)): ${e instanceof Error ? e.message : "falha"}`);
+      return;
+    }
+    await emParalelo(lote, 8, Number.POSITIVE_INFINITY, async (u) => {
+      const daUsina = ucs.filter((x) => x.usinaId === u.id);
+      if (daUsina.length && !bancoFora) {
         const nome = `${nomeSeguro(u.nome)}_ucs_${competencia}.xlsx`;
         const chave = `orange/coletas/${competencia}/${nome}`;
         const dados = await planilhaUcs(daUsina);
         try {
-          await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-          indice.arquivos.push({ usina: u.nome, tipo: "ucs", nome, chave, bytes: dados.byteLength });
+          await salvar(chave, dados, XLSX);
+          indice.arquivos = [...indice.arquivos.filter((a) => a.chave !== chave), { usina: u.nome, tipo: "ucs", nome, chave, bytes: dados.byteLength }];
         } catch {
           bancoFora = true;
+          return;
         }
       }
-    }
-    if (bancoFora) indice.erros.push(`UCs de ${baixadas} usina(s) baixadas do Orange, mas não guardadas: o banco do site está fora do ar. No Rateio GD, use "Buscar no Orange", que busca na hora sem o banco.`);
-  }
+      if (!bancoFora) indice.ucsFeitas = [...(indice.ucsFeitas ?? []), u.id];
+    });
+  });
+  const ucsOk = new Set(indice.ucsFeitas);
+  indice.pendentesUcs = usinas.filter((u) => !ucsOk.has(u.id)).length;
 
-  // 2) Relatório Gerencial: só o que ainda não está ok, dentro do tempo
+  // 2) Relatório Gerencial: só o que ainda não está ok, várias usinas ao mesmo tempo
   const ok = new Set((indice.gerencial ?? []).filter((g) => g.status === "ok").map((g) => g.usinaId));
   const faltam = usinas.filter((u) => !ok.has(u.id));
-  let lidas = 0;
-  for (const u of faltam) {
-    if (Date.now() - inicio > orcamento) break;
+  const lidas = await emParalelo(faltam, 6, inicio + orcamento, async (u) => {
     try {
       const { linhas, ...g } = await gerencialDaUsina(c, u, competencia);
       indice.gerencial = [...(indice.gerencial ?? []).filter((x) => x.usinaId !== u.id), g];
-      if (linhas.length) {
+      if (linhas.length && !bancoFora) {
         const nome = `${nomeSeguro(u.nome)}_relatorio_${competencia}.xlsx`;
         const chave = `orange/coletas/${competencia}/${nome}`;
         const dados = await planilhaGerencial(u.nome, competencia, linhas);
         try {
-          await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          await salvar(chave, dados, XLSX);
           indice.arquivos = [...indice.arquivos.filter((a) => a.chave !== chave), { usina: u.nome, tipo: "relatorio", nome, chave, bytes: dados.byteLength }];
         } catch {
-          indice.erros.push(`${u.nome} · não deu para guardar o Relatório Gerencial (banco fora do ar?)`);
+          bancoFora = true;
         }
       }
     } catch (e) {
       indice.erros.push(`${u.nome} · Relatório Gerencial: ${e instanceof Error ? e.message : "falha"}`);
     }
-    lidas++;
-  }
+  });
   indice.pendentes = faltam.length - lidas;
+  if (bancoFora) indice.erros.push(`Dados baixados do Orange, mas não guardados: o banco do site está fora do ar. No Rateio GD, use "Buscar no Orange", que busca na hora sem o banco.`);
 
   // 3) receitas extras, se houver
   if (config?.receitas.length && config.usinas.length && Date.now() - inicio < orcamento) await executarReceitas(c, config, competencia, indice);

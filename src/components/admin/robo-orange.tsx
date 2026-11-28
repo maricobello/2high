@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 type Mapa = { ok: boolean; erro?: string; inicio?: { links: unknown[] }; paginas?: { caminho: string; titulo: string; status: number; endpoints: string[]; formularios: unknown[] }[] };
 type Totais = { ucs: number; consumoKwh: number; compensadoKwh: number; saldoKwh: number; custoCativoRs: number; faturaRecebidaRs: number; economiaRs: number; custoGdRs: number };
 type Gerencial = { usinaId: number; usina: string; competencia: string; cliente: string; status: "ok" | "nao_processado" | "sem_dados"; totais: Totais };
-type Indice = { competencia: string; em: string; arquivos: { usina: string; tipo: string }[]; erros: string[]; gerencial?: Gerencial[]; pendentes?: number; usinas?: number };
+type Indice = { competencia: string; em: string; arquivos: { usina: string; tipo: string }[]; erros: string[]; gerencial?: Gerencial[]; pendentes?: number; pendentesUcs?: number; usinas?: number };
 type Economia = { usinas: number; consumoKwh: number; compensadoKwh: number; economiaRs: number; custoCativoRs: number; custoGdRs: number };
 
 const kwh = (n: number) => `${Math.round(n).toLocaleString("pt-BR")} kWh`;
@@ -62,8 +62,10 @@ export function RoboOrange() {
         setIndice(j.indice);
         setEconomia(j.economia ?? null);
         const ucs = j.indice.arquivos.filter((a) => a.tipo === "ucs").length;
+        const faltaUcs = j.indice.pendentesUcs ?? 0;
+        const faltaRel = j.indice.pendentes ?? 0;
         setAviso(
-          `${ucs} planilha(s) de UCs prontas para o rateio. ${j.indice.pendentes ? `Faltam ${j.indice.pendentes} usina(s) no Relatório Gerencial: clique em Continuar.` : "Relatório Gerencial completo."}`,
+          `${ucs} planilha(s) de UCs prontas para o rateio. ${faltaUcs || faltaRel ? `Faltam ${faltaUcs ? `UCs de ${faltaUcs} usina(s)` : ""}${faltaUcs && faltaRel ? " e " : ""}${faltaRel ? `${faltaRel} usina(s) no Relatório Gerencial` : ""}: clique em Continuar (a coleta automática também continua sozinha).` : "Tudo coletado."}`,
         );
       } else setAviso(`Não coletou: ${j.erro ?? "erro"}`);
     } catch {
@@ -154,7 +156,7 @@ export function RoboOrange() {
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" onClick={() => coletarAgora(false)} disabled={!configurado || ocupado != null}>
-            {ocupado === "coleta" && <Loader2 className="size-4 animate-spin" />} {indice?.pendentes && indice.competencia === competencia ? "Continuar" : "Coletar agora"}
+            {ocupado === "coleta" && <Loader2 className="size-4 animate-spin" />} {(indice?.pendentes || indice?.pendentesUcs) && indice.competencia === competencia ? "Continuar" : "Coletar agora"}
           </Button>
           {ucsProntas > 0 && (
             <Button size="sm" variant="ghost" onClick={() => coletarAgora(true)} disabled={!configurado || ocupado != null}>
