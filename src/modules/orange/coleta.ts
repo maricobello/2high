@@ -138,10 +138,18 @@ async function executarReceitas(c: ClienteOrange, config: ConfigColeta, competen
   }
 }
 
+const simples = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(ufv|usina|ugd|gd)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Usinas cujo nome (sem acento, sem "UFV") contém algum termo do filtro, ou cujo id é o termo. */
 export function filtrarUsinas(usinas: UsinaGd[], filtro: string[] | undefined): UsinaGd[] {
-  const f = (filtro ?? []).map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const f = (filtro ?? []).map((x) => x.trim()).filter(Boolean);
   if (!f.length) return usinas;
-  return usinas.filter((u) => f.some((x) => String(u.id) === x || u.nome.toLowerCase().includes(x) || u.apelido.toLowerCase().includes(x)));
+  return usinas.filter((u) =>
+    f.some((x) => {
+      const t = simples(x);
+      return String(u.id) === x || (t.length > 1 && (` ${simples(u.nome)} `.includes(` ${t} `) || ` ${simples(u.apelido)} `.includes(` ${t} `)));
+    }),
+  );
 }
 
 export interface OpcoesColeta {
@@ -178,23 +186,34 @@ export async function coletar(config: ConfigColeta | null, competencia = compete
   const jaTemUcs = indice.arquivos.some((a) => a.tipo === "ucs");
   if (usinas.length && (!jaTemUcs || opcoes.refazerUcs)) {
     indice.arquivos = indice.arquivos.filter((a) => a.tipo !== "ucs");
+    let bancoFora = false;
+    let baixadas = 0;
     for (let i = 0; i < usinas.length; i += 15) {
       const lote = usinas.slice(i, i + 15);
+      let ucs: Awaited<ReturnType<typeof ucsDoRateio>>;
       try {
-        const ucs = await ucsDoRateio(c, lote, competencia);
-        for (const u of lote) {
-          const daUsina = ucs.filter((x) => x.usinaId === u.id);
-          if (!daUsina.length) continue;
-          const nome = `${nomeSeguro(u.nome)}_ucs_${competencia}.xlsx`;
-          const chave = `orange/coletas/${competencia}/${nome}`;
-          const dados = await planilhaUcs(daUsina);
-          await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-          indice.arquivos.push({ usina: u.nome, tipo: "ucs", nome, chave, bytes: dados.byteLength });
-        }
+        ucs = await ucsDoRateio(c, lote, competencia);
       } catch (e) {
         indice.erros.push(`UCs do rateio (${lote.length} usina(s)): ${e instanceof Error ? e.message : "falha"}`);
+        continue;
+      }
+      for (const u of lote) {
+        const daUsina = ucs.filter((x) => x.usinaId === u.id);
+        if (!daUsina.length) continue;
+        baixadas++;
+        if (bancoFora) continue;
+        const nome = `${nomeSeguro(u.nome)}_ucs_${competencia}.xlsx`;
+        const chave = `orange/coletas/${competencia}/${nome}`;
+        const dados = await planilhaUcs(daUsina);
+        try {
+          await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          indice.arquivos.push({ usina: u.nome, tipo: "ucs", nome, chave, bytes: dados.byteLength });
+        } catch {
+          bancoFora = true;
+        }
       }
     }
+    if (bancoFora) indice.erros.push(`UCs de ${baixadas} usina(s) baixadas do Orange, mas não guardadas: o banco do site está fora do ar. No Rateio GD, use "Buscar no Orange", que busca na hora sem o banco.`);
   }
 
   // 2) Relatório Gerencial: só o que ainda não está ok, dentro do tempo

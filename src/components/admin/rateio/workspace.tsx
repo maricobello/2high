@@ -597,28 +597,37 @@ export function RateioWorkspace() {
     }
   }
 
-  /** Importa os arquivos que o robô do Orange coletou (listas de UCs, relatórios). */
+  /** Busca no Orange, na hora, as UCs do rateio e o Relatório Gerencial das usinas e importa. */
   async function buscarNoOrange() {
+    const sugestao = ativas.map((u) => u.nome).filter(Boolean).join(", ");
+    const nomes = window.prompt("Quais usinas buscar no Orange? (separe por vírgula)", sugestao);
+    if (!nomes?.trim()) return;
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - 1);
+    const padrao = `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    const comp = window.prompt("Competência (MM/AAAA)", padrao)?.trim();
+    const m = /^(\d{1,2})\/(\d{4})$/.exec(comp ?? "");
+    if (!m) return;
     setOcupado(true);
     try {
-      const j = (await (await fetch("/api/admin/orange/coleta")).json()) as { ultima?: { competencia: string; em: string; arquivos: { nome: string; chave: string; tipo: string }[]; erros: string[] } | null };
-      const u = j.ultima;
-      if (!u || !u.arquivos.length) {
-        setAvisos(["O robô do Orange ainda não coletou nada. Configure em Admin › Integrações › Robô do Orange."]);
+      const res = await fetch("/api/admin/orange/buscar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ competencia: `${m[2]}-${m[1].padStart(2, "0")}`, usinas: nomes.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean) }),
+      });
+      const j = (await res.json()) as { ok?: boolean; erro?: string; competencia?: string; usinas?: string[]; arquivos?: { nome: string; base64: string }[]; erros?: string[] };
+      if (!j.ok) {
+        setAvisos([`Orange: ${j.erro ?? "não foi possível buscar"}`]);
         return;
       }
-      const planilhas = u.arquivos.filter((a) => !/\.pdf$/i.test(a.nome));
-      const files: File[] = [];
-      for (const a of planilhas) {
-        const res = await fetch(`/api/admin/orange/arquivo?chave=${encodeURIComponent(a.chave)}`);
-        if (res.ok) files.push(new File([await res.blob()], a.nome));
-      }
-      registrar(`Robô do Orange: ${files.length} arquivo(s) da competência ${u.competencia} (coleta de ${new Date(u.em).toLocaleDateString("pt-BR")}).`);
-      if (u.erros.length) setAvisos([`Coleta com ${u.erros.length} falha(s): ${u.erros.slice(0, 3).join(" · ")}`]);
+      const files = (j.arquivos ?? []).map((a) => new File([Uint8Array.from(atob(a.base64), (ch) => ch.charCodeAt(0))], a.nome));
+      registrar(`Orange (${j.competencia}): ${j.usinas?.join(", ")} · ${files.length} planilha(s).`);
+      if (j.erros?.length) setAvisos(j.erros.slice(0, 6));
       setOcupado(false);
       if (files.length) await importar(files);
     } catch {
-      setAvisos(["Não foi possível buscar os arquivos do robô do Orange."]);
+      setAvisos(["Não foi possível falar com o Orange agora. Tente de novo em instantes."]);
     } finally {
       setOcupado(false);
     }

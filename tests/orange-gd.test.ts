@@ -159,3 +159,16 @@ describe("coleta com o banco fora do ar", () => {
     void original;
   });
 });
+
+describe("filtro de usinas", () => {
+  it("ignora acento, caixa e o prefixo UFV, e não confunde I com II", () => {
+    const u = [
+      { id: 1, nome: "UFV IBITITA", apelido: "", distribuidora: "" },
+      { id: 2, nome: "UFV ALTO DO PAJEU I", apelido: "", distribuidora: "" },
+      { id: 3, nome: "UFV ALTO DO PAJEU II", apelido: "", distribuidora: "" },
+    ];
+    expect(filtrarUsinas(u, ["Ibititá"]).map((x) => x.id)).toEqual([1]);
+    expect(filtrarUsinas(u, ["Alto do Pajeú I"]).map((x) => x.id)).toEqual([2]);
+    expect(filtrarUsinas(u, ["alto do pajeu"]).map((x) => x.id)).toEqual([2, 3]);
+  });
+});
