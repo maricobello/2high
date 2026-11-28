@@ -1,15 +1,19 @@
 import "server-only";
 /**
- * Coleta automática do Orange: para cada usina e competência, executa as "receitas"
- * (qual tela/exportação baixar e com quais filtros), guarda os arquivos no armazenamento
- * privado e um índice que o rateio usa em "Buscar no Orange".
+ * Coleta automática do Orange, sem configuração:
+ *  1. lista as usinas de GD do usuário;
+ *  2. baixa as UCs do rateio (tela Unidade Rateio GD) e grava uma planilha por usina,
+ *     que o rateio importa em "Buscar no Orange";
+ *  3. lê o Relatório Gerencial de cada usina (consumo, compensado, economia em R$) para o
+ *     acompanhamento. Como a Vercel limita cada execução a 60 s, o que faltar fica pendente
+ *     e a próxima execução (cron diário do dia 6 ao 12, ou "Coletar agora") continua.
  *
- * As receitas ficam em orange/config.json e são preenchidas a partir do mapa das telas
- * (Integrações › Robô do Orange › Mapear). Os campos aceitam {usina}, {competencia}
- * (AAAA-MM), {mes} (MM), {ano} (AAAA) e {mesAno} (MM/AAAA).
+ * "Receitas" extras (outras telas/exportações) continuam opcionais em orange/config.json;
+ * os campos aceitam {usina}, {competencia} (AAAA-MM), {mes}, {ano} e {mesAno} (MM/AAAA).
  */
 import { storage } from "@/modules/storage";
 import { clienteLogado, type ClienteOrange } from "./cliente";
+import { gerencialDaUsina, listarUsinas, planilhaGerencial, planilhaUcs, ucsDoRateio, type GerencialUsina, type UsinaGd } from "./gd";
 
 export type TipoColeta = "ucs" | "relatorio" | "energia" | "fatura";
 
@@ -31,6 +35,8 @@ export interface UsinaOrange {
 export interface ConfigColeta {
   receitas: Receita[];
   usinas: UsinaOrange[];
+  /** Só estas usinas (parte do nome ou id do Orange); vazio = todas as usinas do usuário. */
+  filtroUsinas?: string[];
   atualizadoEm: string;
 }
 
@@ -47,6 +53,11 @@ export interface IndiceColeta {
   em: string;
   arquivos: ArquivoColetado[];
   erros: string[];
+  /** Relatório Gerencial por usina (acompanhamento da economia). */
+  gerencial?: GerencialUsina[];
+  /** Usinas que ainda faltam ler nesta competência. */
+  pendentes?: number;
+  usinas?: number;
 }
 
 const CONFIG = "orange/config.json";
@@ -97,10 +108,14 @@ function extensao(tipo: string, nome: string | null): string {
   return "bin";
 }
 
-/** Executa as receitas para as usinas e competência dadas; erros por item não param o resto. */
-export async function coletar(config: ConfigColeta, competencia = competenciaAnterior(), cliente?: ClienteOrange): Promise<IndiceColeta> {
-  const c = cliente ?? (await clienteLogado());
-  const indice: IndiceColeta = { competencia, em: new Date().toISOString(), arquivos: [], erros: [] };
+async function salvar(chave: string, dados: Buffer, tipo: string) {
+  const s = storage();
+  await s.remove(chave).catch(() => {});
+  await s.save(chave, dados, tipo);
+}
+
+/** Receitas extras (opcionais) para as usinas configuradas. */
+async function executarReceitas(c: ClienteOrange, config: ConfigColeta, competencia: string, indice: IndiceColeta) {
   for (const u of config.usinas) {
     for (const r of config.receitas) {
       try {
@@ -112,18 +127,109 @@ export async function coletar(config: ConfigColeta, competencia = competenciaAnt
             ? await c.baixar(caminho, { method: "POST", body: corpo, headers: { "Content-Type": "application/x-www-form-urlencoded" } })
             : await c.baixar(corpo ? `${caminho}${caminho.includes("?") ? "&" : "?"}${corpo}` : caminho);
         if (/text\/html/.test(arq.tipo)) throw new Error("o Orange devolveu uma página em vez do arquivo (sessão ou filtro)");
-        const ext = extensao(arq.tipo, arq.nome);
-        const nome = `${nomeSeguro(u.nome)}_${r.tipo}_${competencia}.${ext}`;
+        const nome = `${nomeSeguro(u.nome)}_${r.tipo}_${competencia}.${extensao(arq.tipo, arq.nome)}`;
         const chave = `orange/coletas/${competencia}/${nome}`;
-        const s = storage();
-        await s.remove(chave).catch(() => {});
-        await s.save(chave, Buffer.from(arq.dados), arq.tipo || "application/octet-stream");
+        await salvar(chave, Buffer.from(arq.dados), arq.tipo || "application/octet-stream");
         indice.arquivos.push({ usina: u.nome, tipo: r.tipo, nome, chave, bytes: arq.dados.byteLength });
       } catch (e) {
         indice.erros.push(`${u.nome} · ${r.nome}: ${e instanceof Error ? e.message : "falha"}`);
       }
     }
   }
+}
+
+export function filtrarUsinas(usinas: UsinaGd[], filtro: string[] | undefined): UsinaGd[] {
+  const f = (filtro ?? []).map((x) => x.trim().toLowerCase()).filter(Boolean);
+  if (!f.length) return usinas;
+  return usinas.filter((u) => f.some((x) => String(u.id) === x || u.nome.toLowerCase().includes(x) || u.apelido.toLowerCase().includes(x)));
+}
+
+export interface OpcoesColeta {
+  /** Tempo máximo desta execução (ms); o restante fica pendente. */
+  orcamentoMs?: number;
+  /** Baixa as UCs de novo mesmo se já baixou nesta competência. */
+  refazerUcs?: boolean;
+  cliente?: ClienteOrange;
+}
+
+/**
+ * Coleta automática da competência (padrão: o mês fechado anterior). Continua de onde parou
+ * quando a competência é a mesma da última coleta.
+ */
+export async function coletar(config: ConfigColeta | null, competencia = competenciaAnterior(), opcoes: OpcoesColeta = {}): Promise<IndiceColeta> {
+  const inicio = Date.now();
+  const orcamento = opcoes.orcamentoMs ?? 45_000;
+  const c = opcoes.cliente ?? (await clienteLogado());
+  const anterior = await ultimaColeta();
+  const mesma = anterior?.competencia === competencia ? anterior : null;
+  const indice: IndiceColeta = {
+    competencia,
+    em: new Date().toISOString(),
+    arquivos: mesma?.arquivos ?? [],
+    erros: [],
+    gerencial: mesma?.gerencial ?? [],
+  };
+
+  const usinas = filtrarUsinas(await listarUsinas(c), config?.filtroUsinas);
+  indice.usinas = usinas.length;
+  if (!usinas.length) indice.erros.push("Nenhuma usina de GD visível para este usuário no Orange.");
+
+  // 1) UCs do rateio: uma planilha por usina
+  const jaTemUcs = indice.arquivos.some((a) => a.tipo === "ucs");
+  if (usinas.length && (!jaTemUcs || opcoes.refazerUcs)) {
+    indice.arquivos = indice.arquivos.filter((a) => a.tipo !== "ucs");
+    for (let i = 0; i < usinas.length; i += 15) {
+      const lote = usinas.slice(i, i + 15);
+      try {
+        const ucs = await ucsDoRateio(c, lote, competencia);
+        for (const u of lote) {
+          const daUsina = ucs.filter((x) => x.usinaId === u.id);
+          if (!daUsina.length) continue;
+          const nome = `${nomeSeguro(u.nome)}_ucs_${competencia}.xlsx`;
+          const chave = `orange/coletas/${competencia}/${nome}`;
+          const dados = await planilhaUcs(daUsina);
+          await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          indice.arquivos.push({ usina: u.nome, tipo: "ucs", nome, chave, bytes: dados.byteLength });
+        }
+      } catch (e) {
+        indice.erros.push(`UCs do rateio (${lote.length} usina(s)): ${e instanceof Error ? e.message : "falha"}`);
+      }
+    }
+  }
+
+  // 2) Relatório Gerencial: só o que ainda não está ok, dentro do tempo
+  const ok = new Set((indice.gerencial ?? []).filter((g) => g.status === "ok").map((g) => g.usinaId));
+  const faltam = usinas.filter((u) => !ok.has(u.id));
+  let lidas = 0;
+  for (const u of faltam) {
+    if (Date.now() - inicio > orcamento) break;
+    try {
+      const { linhas, ...g } = await gerencialDaUsina(c, u, competencia);
+      indice.gerencial = [...(indice.gerencial ?? []).filter((x) => x.usinaId !== u.id), g];
+      if (linhas.length) {
+        const nome = `${nomeSeguro(u.nome)}_relatorio_${competencia}.xlsx`;
+        const chave = `orange/coletas/${competencia}/${nome}`;
+        const dados = await planilhaGerencial(u.nome, competencia, linhas);
+        await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        indice.arquivos = [...indice.arquivos.filter((a) => a.chave !== chave), { usina: u.nome, tipo: "relatorio", nome, chave, bytes: dados.byteLength }];
+      }
+    } catch (e) {
+      indice.erros.push(`${u.nome} · Relatório Gerencial: ${e instanceof Error ? e.message : "falha"}`);
+    }
+    lidas++;
+  }
+  indice.pendentes = faltam.length - lidas;
+
+  // 3) receitas extras, se houver
+  if (config?.receitas.length && config.usinas.length && Date.now() - inicio < orcamento) await executarReceitas(c, config, competencia, indice);
+
   await gravarJson(ULTIMO, indice);
   return indice;
+}
+
+/** Soma da economia registrada no Relatório Gerencial (usinas lidas com sucesso). */
+export function resumoEconomia(indice: IndiceColeta | null) {
+  const g = (indice?.gerencial ?? []).filter((x) => x.status === "ok");
+  const soma = (k: keyof GerencialUsina["totais"]) => g.reduce((a, x) => a + x.totais[k], 0);
+  return { usinas: g.length, consumoKwh: soma("consumoKwh"), compensadoKwh: soma("compensadoKwh"), economiaRs: soma("economiaRs"), custoCativoRs: soma("custoCativoRs"), custoGdRs: soma("custoGdRs") };
 }

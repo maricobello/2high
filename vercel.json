@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/orange",
-      "schedule": "37 9 6 * *"
+      "schedule": "37 9 6-12 * *"
     }
   ]
 }
