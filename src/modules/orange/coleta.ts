@@ -13,7 +13,7 @@ import "server-only";
  */
 import { storage } from "@/modules/storage";
 import { clienteLogado, type ClienteOrange } from "./cliente";
-import { gerencialDaUsina, listarUsinas, planilhaGerencial, planilhaUcs, ucsDoRateio, type GerencialUsina, type UsinaGd } from "./gd";
+import { filtroGestao, gerencialDaUsina, listarUsinas, painelDaUsina, planilhaGerencial, planilhaUcs, ucsDoRateio, type FiltroGestao, type GerencialUsina, type UsinaGd } from "./gd";
 
 export type TipoColeta = "ucs" | "relatorio" | "energia" | "fatura";
 
@@ -241,9 +241,28 @@ export async function coletar(config: ConfigColeta | null, competencia = compete
   // 2) Relatório Gerencial: só o que ainda não está ok, várias usinas ao mesmo tempo
   const ok = new Set((indice.gerencial ?? []).filter((g) => g.status === "ok").map((g) => g.usinaId));
   const faltam = usinas.filter((u) => !ok.has(u.id));
+  let filtro: FiltroGestao | null = null;
+  let filtroErro = "";
+  if (faltam.length) {
+    try {
+      filtro = await filtroGestao(c);
+    } catch (e) {
+      filtroErro = e instanceof Error ? e.message : "falha";
+    }
+  }
+  const [ano, mes] = competencia.split("-").map(Number);
+  const ini = new Date(Date.UTC(ano, mes - 12, 1));
+  const inicio12 = `${ini.getUTCFullYear()}-${String(ini.getUTCMonth() + 1).padStart(2, "0")}`;
   const lidas = await emParalelo(faltam, 6, inicio + orcamento, async (u) => {
     try {
       const { linhas, ...g } = await gerencialDaUsina(c, u, competencia);
+      if (filtro) {
+        try {
+          g.painel = await painelDaUsina(c, u, inicio12, competencia, filtro);
+        } catch (e) {
+          g.painelErro = e instanceof Error ? e.message : "falha";
+        }
+      } else if (filtroErro) g.painelErro = filtroErro;
       indice.gerencial = [...(indice.gerencial ?? []).filter((x) => x.usinaId !== u.id), g];
       if (linhas.length && !bancoFora) {
         const nome = `${nomeSeguro(u.nome)}_relatorio_${competencia}.xlsx`;

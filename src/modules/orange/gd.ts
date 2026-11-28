@@ -64,6 +64,9 @@ export interface GerencialUsina {
   regras?: number[];
   /** Soma de cada coluna numérica do relatório (para conferir com a tela do Orange). */
   somas?: Record<string, number>;
+  /** Bloco Energia da tela Gestão de Usinas (12 meses até a competência). */
+  painel?: Record<string, number | string>;
+  painelErro?: string;
 }
 
 type Obj = Record<string, unknown>;
@@ -277,4 +280,71 @@ export async function planilhaUcs(ucs: UcRateio[]): Promise<Buffer> {
   ws.addRow(["Nome da Usina", "ID da Unidade", "N° de Instalação", "Apelido da Unidade", "Subgrupo", "% do Rateio", "Saldo kWh", "Consumo Compensável kWh", "Consumo Compensado kWh", "R$/kWh"]);
   for (const u of ucs) ws.addRow([u.usina, u.idUnidade, u.instalacao, u.apelido, u.subgrupo, u.pct, u.saldoKwh, u.compensavelKwh, u.compensadoKwh, u.rsKwh || null]);
   return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+// ---------------------------------------------------------------------------
+// Bloco "Energia" da tela Gestão de Usinas de GD (contratada, injetada, gerada, compensada, saldos)
+
+export interface FiltroGestao {
+  url: string;
+  campos: Record<string, string>;
+}
+
+const attr = (tag: string, nome: string) => new RegExp(`${nome}\\s*=\\s*["']([^"']*)["']`, "i").exec(tag)?.[1] ?? "";
+
+/** Lê, na página /GestaoUsinaGD/Index, o endereço do filtro principal e os campos escondidos. */
+export function lerFiltroGestao(html: string): FiltroGestao | null {
+  const tag = /<[^>]*data-main-form-filter[^>]*>/i.exec(html)?.[0];
+  const url = tag ? attr(tag, "data-url") : "";
+  if (!url) return null;
+  const campos: Record<string, string> = {};
+  for (const nome of ["geracaoGD", "ViewType"]) {
+    const i = new RegExp(`<input[^>]*(?:name|id)=["']${nome}["'][^>]*>`, "i").exec(html)?.[0];
+    if (i) campos[nome] = attr(i, "value");
+  }
+  return { url, campos };
+}
+
+/** Campos simples (números e textos curtos) da resposta, para conferência e mapeamento. */
+export function camposSimples(o: unknown, prefixo = "", out: Record<string, number | string> = {}, prof = 0): Record<string, number | string> {
+  if (!o || typeof o !== "object" || prof > 2) return out;
+  for (const [k, v] of Object.entries(o as Obj)) {
+    const chave = prefixo ? `${prefixo}.${k}` : k;
+    if (typeof v === "number") out[chave] = v;
+    else if (typeof v === "string" && v.length <= 40 && /\d/.test(v)) out[chave] = v;
+    else if (v && typeof v === "object" && !Array.isArray(v)) camposSimples(v, chave, out, prof + 1);
+    if (Object.keys(out).length >= 150) break;
+  }
+  return out;
+}
+
+/** Bloco Energia da usina no período (MM/AAAA a MM/AAAA), como a tela Gestão de Usinas mostra. */
+export async function painelDaUsina(c: ClienteOrange, u: UsinaGd, inicio: string, fim: string, filtro: FiltroGestao): Promise<Record<string, number | string>> {
+  const corpo = new URLSearchParams({
+    ...filtro.campos,
+    DataI: mesAno(inicio),
+    DataF: mesAno(fim),
+    EmpresaId: String(u.id),
+    EmpresasidJson: "[]",
+    PerfisIdJson: "[]",
+    OutrosIdJson: "[]",
+    Telemetria: "false",
+    ConsideraFaturaSimulada: "false",
+  });
+  const j = await pedirJson(c, filtro.url, { method: "POST", body: corpo.toString(), headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" } });
+  if (j.success === false) throw new ErroOrange(`Gestão de Usinas: ${String(j.message ?? "sem dados")}`);
+  const d = (j.data ?? {}) as Obj;
+  const out = camposSimples(d);
+  const series = ((d.MainChart as Obj | undefined)?.Series ?? {}) as Record<string, { Value?: number }[]>;
+  for (const [nome, pontos] of Object.entries(series)) if (Array.isArray(pontos)) out[`serie:${nome}`] = Math.round(pontos.reduce((a, p) => a + (Number(p?.Value) || 0), 0) * 100) / 100;
+  const cat = (d.MainChart as Obj | undefined)?.Category;
+  if (Array.isArray(cat)) out["serie:meses"] = cat.length;
+  return out;
+}
+
+export async function filtroGestao(c: ClienteOrange): Promise<FiltroGestao> {
+  const { html } = await c.texto("/GestaoUsinaGD/Index");
+  const f = lerFiltroGestao(html);
+  if (!f) throw new ErroOrange("Não achei o filtro da tela Gestão de Usinas de GD.");
+  return f;
 }

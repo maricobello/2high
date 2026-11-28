@@ -16,7 +16,7 @@ vi.mock("@/modules/storage", () => ({
 }));
 
 import { coletar, filtrarUsinas, resumoEconomia } from "@/modules/orange/coleta";
-import { lerUcs, lerUsinas, linhasGerencial, numeroOrange, planilhaGerencial, planilhaUcs, regrasGerencial, somarGerencial, somasGerencial } from "@/modules/orange/gd";
+import { camposSimples, lerFiltroGestao, lerUcs, lerUsinas, linhasGerencial, numeroOrange, planilhaGerencial, planilhaUcs, regrasGerencial, somarGerencial, somasGerencial } from "@/modules/orange/gd";
 import { parseRelatorioGerencial, parseUcs } from "@/modules/rateio/grid";
 import { lerXlsx } from "@/modules/rateio/xlsx";
 import type { ClienteOrange } from "@/modules/orange/cliente";
@@ -182,5 +182,16 @@ describe("filtro de usinas", () => {
     expect(filtrarUsinas(u, ["Ibititá"]).map((x) => x.id)).toEqual([1]);
     expect(filtrarUsinas(u, ["Alto do Pajeú I"]).map((x) => x.id)).toEqual([2]);
     expect(filtrarUsinas(u, ["alto do pajeu"]).map((x) => x.id)).toEqual([2, 3]);
+  });
+});
+
+describe("tela Gestão de Usinas de GD", () => {
+  it("acha o endereço do filtro e os campos escondidos na página", () => {
+    const html = `<form data-main-form-filter data-url="/GestaoUsinaGD/Buscar" data-showload="true"><input type="hidden" id="geracaoGD" name="geracaoGD" value="1"><input type="hidden" name="ViewType" value="2"></form>`;
+    expect(lerFiltroGestao(html)).toEqual({ url: "/GestaoUsinaGD/Buscar", campos: { geracaoGD: "1", ViewType: "2" } });
+    expect(lerFiltroGestao("<form></form>")).toBeNull();
+  });
+  it("guarda só números e textos curtos da resposta", () => {
+    expect(camposSimples({ EnergiaInjetada: 3239006, EnergiaInjetadaContratada_F: "3.744.000", Nome: "UFV X", Sub: { Saldo: 10 }, Lista: [1, 2] })).toEqual({ EnergiaInjetada: 3239006, EnergiaInjetadaContratada_F: "3.744.000", "Sub.Saldo": 10 });
   });
 });
