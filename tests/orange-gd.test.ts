@@ -138,3 +138,24 @@ describe("coleta automática", () => {
     expect(ind.arquivos.some((a) => a.tipo === "ucs")).toBe(true);
   });
 });
+
+describe("coleta com o banco fora do ar", () => {
+  it("devolve a economia e avisa, sem quebrar", async () => {
+    guardado.clear();
+    const { storage } = await import("@/modules/storage");
+    const s = storage() as unknown as { save: (k: string, d: Buffer) => Promise<void> };
+    const original = s.save;
+    const mod = await import("@/modules/storage");
+    vi.spyOn(mod, "storage").mockReturnValue({ ...(storage() as object), save: async () => { throw new Error("tenant not found"); } } as never);
+    const resp = (corpo: unknown) => new Response(JSON.stringify(corpo), { headers: { "content-type": "application/json" } });
+    const cliente = {
+      pedir: async (c: string) =>
+        c.startsWith("/cadastrousinagd") ? resp(USINAS) : c.startsWith("/unidaderateiogd") ? resp(UCS) : c.startsWith("/gestaousinagd/resumo") ? resp({ data: { Nr_Status: 2 } }) : c.startsWith("/GestaoUsinaGD/GetClientesUsina") ? resp({ data: [{ Id: 7, Titulo: "TIM" }] }) : resp(LISTA),
+    } as unknown as ClienteOrange;
+    const ind = await coletar(null, "2026-10", { cliente });
+    expect(resumoEconomia(ind).economiaRs).toBe(1300);
+    expect(ind.erros.some((e) => /banco/.test(e))).toBe(true);
+    vi.restoreAllMocks();
+    void original;
+  });
+});

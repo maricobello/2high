@@ -210,8 +210,12 @@ export async function coletar(config: ConfigColeta | null, competencia = compete
         const nome = `${nomeSeguro(u.nome)}_relatorio_${competencia}.xlsx`;
         const chave = `orange/coletas/${competencia}/${nome}`;
         const dados = await planilhaGerencial(u.nome, competencia, linhas);
-        await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        indice.arquivos = [...indice.arquivos.filter((a) => a.chave !== chave), { usina: u.nome, tipo: "relatorio", nome, chave, bytes: dados.byteLength }];
+        try {
+          await salvar(chave, dados, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          indice.arquivos = [...indice.arquivos.filter((a) => a.chave !== chave), { usina: u.nome, tipo: "relatorio", nome, chave, bytes: dados.byteLength }];
+        } catch {
+          indice.erros.push(`${u.nome} · não deu para guardar o Relatório Gerencial (banco fora do ar?)`);
+        }
       }
     } catch (e) {
       indice.erros.push(`${u.nome} · Relatório Gerencial: ${e instanceof Error ? e.message : "falha"}`);
@@ -223,7 +227,11 @@ export async function coletar(config: ConfigColeta | null, competencia = compete
   // 3) receitas extras, se houver
   if (config?.receitas.length && config.usinas.length && Date.now() - inicio < orcamento) await executarReceitas(c, config, competencia, indice);
 
-  await gravarJson(ULTIMO, indice);
+  try {
+    await gravarJson(ULTIMO, indice);
+  } catch {
+    indice.erros.push("Não deu para guardar a coleta: o banco do site está fora do ar (Supabase pausado?). Os números acima valem, mas as planilhas não ficam salvas para o Rateio.");
+  }
   return indice;
 }
 
